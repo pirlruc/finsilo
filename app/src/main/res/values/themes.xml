@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.FinSilo" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/finsilo_green</item>
+        <item name="android:navigationBarColor">@color/finsilo_green</item>
+        <item name="android:windowBackground">@color/finsilo_green</item>
+    </style>
+</resources>
