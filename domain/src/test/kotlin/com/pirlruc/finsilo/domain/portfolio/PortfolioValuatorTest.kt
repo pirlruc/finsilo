@@ -16,6 +16,15 @@ import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.LocalDate
 
+private fun assertMoney(expected: String, actual: BigDecimal?, label: String) {
+    requireNotNull(actual) { "$label was null" }
+    assertEquals(
+        0,
+        BigDecimal(expected).compareTo(actual),
+        "$label expected $expected but was ${actual.toPlainString()}",
+    )
+}
+
 class PortfolioValuatorTest {
 
     private val valuator = PortfolioValuator()
@@ -31,7 +40,7 @@ class PortfolioValuatorTest {
             assets = listOf(apple, cash),
             transactions = listOf(
                 cashIn("t0", LocalDate.of(2026, 1, 1), bd("2000")),
-                buy("t1", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("110"), Currency.USD, bd("1.10")),
+                buy("t1", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("110"), Currency.USD, bd("1.10"), fees = BigDecimal.ZERO),
             ),
             market = listOf(DailyMarketData(apple.id, asOf, bd("220"))),
             fx = listOf(CurrencyRate(asOf, bd("1.10"))),
@@ -40,24 +49,24 @@ class PortfolioValuatorTest {
         val report = valuator.allocation(snapshot, asOf)
         val stock = report.holdings.single { it.asset.id == apple.id }
         // 220 USD / 1.10 = 200 EUR; 10 shares = 2000 EUR
-        assertEquals(0, bd("200").compareTo(stock.priceEur))
-        assertEquals(0, bd("2000").compareTo(stock.valueEur))
-        // cost: 10 * (110/1.10) + 0 fees = 1000 EUR; unrealized 1000
-        assertEquals(0, bd("1000").compareTo(stock.unrealizedPnlEur))
+        assertMoney("200", stock.priceEur, "price")
+        assertMoney("2000", stock.valueEur, "value")
+        // cost: 10 * (110/1.10) = 1000 EUR; unrealized 1000
+        assertMoney("1000", stock.unrealizedPnlEur, "unrealized")
     }
 
     @Test
     fun sellUsesMovingAverageCostAndDoesNotChangeRemainingAverage() {
         val ledger = PositionLedger()
         val txs = listOf(
-            buy("b1", apple.id, LocalDate.of(2026, 1, 1), bd("10"), bd("100"), Currency.EUR, BigDecimal.ONE),
-            buy("b2", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("200"), Currency.EUR, BigDecimal.ONE),
+            buy("b1", apple.id, LocalDate.of(2026, 1, 1), bd("10"), bd("100"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+            buy("b2", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("200"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
             sell("s1", apple.id, LocalDate.of(2026, 1, 3), bd("5"), bd("180")),
         )
         val lot = ledger.position(txs)
-        assertEquals(0, bd("15").compareTo(lot.quantity))
+        assertMoney("15", lot.quantity, "qty")
         // remaining cost = 3000 * 15/20 = 2250; avg stays 150
-        assertEquals(0, bd("150").compareTo(lot.averageCostEur))
+        assertMoney("150", lot.averageCostEur, "avg")
     }
 
     @Test
@@ -66,7 +75,7 @@ class PortfolioValuatorTest {
             assets = listOf(ct, cash),
             transactions = listOf(
                 cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
-                buy("b1", ct.id, LocalDate.of(2026, 1, 2), bd("3000"), bd("1"), Currency.EUR, BigDecimal.ONE),
+                buy("b1", ct.id, LocalDate.of(2026, 1, 2), bd("3000"), bd("1"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
                 Transaction(
                     id = "i1",
                     assetId = ct.id,
@@ -84,7 +93,7 @@ class PortfolioValuatorTest {
         )
         val report = valuator.allocation(snapshot, asOf)
         val holding = report.holdings.single { it.asset.id == ct.id }
-        assertEquals(0, bd("3040").compareTo(holding.valueEur))
+        assertMoney("3040", holding.valueEur, "ct value")
         assertEquals(AssetType.CT, holding.asset.assetType)
         assertTrue(report.slices.any { it.assetType == AssetType.CT })
     }

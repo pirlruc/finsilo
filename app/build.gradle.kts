@@ -2,12 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
+    kotlin("kapt")
 }
 
 android {
     namespace = "com.pirlruc.finsilo"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.pirlruc.finsilo"
@@ -33,10 +33,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -45,6 +41,12 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -64,7 +66,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    kapt(libs.androidx.room.compiler)
     implementation(libs.sqlcipher.android)
     implementation(libs.androidx.sqlite)
     implementation(libs.androidx.security.crypto)

@@ -55,7 +55,7 @@ import com.patrykandpatrick.vico.compose.pie.PieChartHost
 import com.patrykandpatrick.vico.compose.pie.PieSize
 import com.patrykandpatrick.vico.compose.pie.data.PieChartModelProducer
 import com.patrykandpatrick.vico.compose.pie.data.PieValueFormatter
-import com.patrykandpatrick.vico.compose.pie.data.pieModel
+import com.patrykandpatrick.vico.compose.pie.data.pieSeries
 import com.patrykandpatrick.vico.compose.pie.rememberPieChart
 import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.domain.model.DashboardReport
@@ -229,7 +229,7 @@ private fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = Mo
     val modelProducer = remember { PieChartModelProducer() }
     LaunchedEffect(slices) {
         modelProducer.runTransaction {
-            pieModel { series(slices.map { it.weightPercent.toDouble() }) }
+            pieSeries { series(slices.map { it.weightPercent.toDouble() }) }
         }
     }
     val sliceStyles =
@@ -328,7 +328,9 @@ private fun HistoryLineChart(points: List<NavPoint>, modifier: Modifier = Modifi
             }
         }
     }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM", Locale("pt", "PT")) }
+    val dateFormatter = remember {
+        DateTimeFormatter.ofPattern("d MMM", Locale.Builder().setLanguage("pt").setRegion("PT").build())
+    }
     CartesianChartHost(
         chart =
             rememberCartesianChart(

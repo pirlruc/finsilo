@@ -4,7 +4,7 @@ import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
-private val portugal = Locale("pt", "PT")
+private val portugal: Locale = Locale.Builder().setLanguage("pt").setRegion("PT").build()
 
 private val eurFormat: NumberFormat =
     NumberFormat.getCurrencyInstance(portugal).apply {
