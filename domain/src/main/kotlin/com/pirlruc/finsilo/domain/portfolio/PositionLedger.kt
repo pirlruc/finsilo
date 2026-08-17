@@ -96,9 +96,9 @@ class PositionLedger {
             value =
                 when (tx.type) {
                     TransactionType.BUY -> plus(value, plus(tx.notionalEur, tx.feesEur))
-                    TransactionType.INTEREST -> plus(value, tx.notionalEur)
+                    TransactionType.INTEREST, TransactionType.DIVIDEND -> plus(value, tx.notionalEur)
                     TransactionType.SELL -> minus(value, tx.notionalEur)
-                    TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL, TransactionType.DIVIDEND -> value
+                    TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL -> value
                 }
         }
         return value

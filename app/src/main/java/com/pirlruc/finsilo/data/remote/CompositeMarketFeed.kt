@@ -4,6 +4,7 @@ import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.domain.market.AlphaVantageParser
 import com.pirlruc.finsilo.domain.market.CoinGeckoParser
 import com.pirlruc.finsilo.domain.market.FrankfurterParser
+import com.pirlruc.finsilo.domain.market.ListedQuoteRouting
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.market.StooqParser
 import com.pirlruc.finsilo.domain.model.AnalystRating
@@ -50,18 +51,18 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return listOf(CurrencyRate(to, eurPerUsd()))
     }
 
-    override suspend fun dailyHistory(asset: Asset): List<PriceBar> {
+    override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> {
         val errors = ArrayList<String>()
-        typedHistory(asset, errors)?.let { return it }
+        typedHistory(asset, asOf, errors)?.let { return it }
         listedHistory(asset.feedSymbol, errors)?.let { return it }
         throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" })
     }
 
-    private suspend fun typedHistory(asset: Asset, errors: MutableList<String>): List<PriceBar>? = when (asset.assetType) {
+    private suspend fun typedHistory(asset: Asset, asOf: LocalDate, errors: MutableList<String>): List<PriceBar>? = when (asset.assetType) {
         AssetType.CRYPTO -> firstNonEmpty(errors) { coinGecko(asset) }
         AssetType.COMMODITY ->
             firstNonEmpty(errors) { stooqCommodity(asset) }
-                ?: firstNonEmpty(errors) { alphaVantageCommodity(asset) }
+                ?: firstNonEmpty(errors) { alphaVantageCommodity(asset, asOf) }
                 ?: throw IllegalStateException(
                     errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" },
                 )
@@ -69,7 +70,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
     }
 
     private suspend fun listedHistory(ticker: String, errors: MutableList<String>): List<PriceBar>? {
-        if (looksEuropean(ticker)) {
+        if (ListedQuoteRouting.looksEuropean(ticker)) {
             firstNonEmpty(errors) { stooq(ticker) }?.let { return it }
         }
         firstNonEmpty(errors) { alphaVantageDaily(ticker) }?.let { return it }
@@ -91,7 +92,9 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         }
         val key = keys.alphaVantageKey() ?: return AnalystRating.NONE
         val json = http.get(
-            "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.feedSymbol))}&apikey=${enc(key)}",
+            "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(
+                ListedQuoteRouting.avSymbol(asset.feedSymbol),
+            )}&apikey=${enc(key)}",
         )
         AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.analystRating(json)
@@ -104,7 +107,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
     }
 
     private suspend fun stooq(symbol: String): List<PriceBar> {
-        val ticker = stooqTicker(symbol)
+        val ticker = ListedQuoteRouting.stooqTicker(symbol)
         val csv = http.get("https://stooq.com/q/d/l/?s=$ticker&i=d")
         return StooqParser.dailyCloses(csv)
     }
@@ -113,7 +116,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
         val json = http.get(
             "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${enc(
-                avSymbol(symbol),
+                ListedQuoteRouting.avSymbol(symbol),
             )}&outputsize=full&apikey=${enc(key)}",
         )
         val bars = AlphaVantageParser.dailyCloses(json)
@@ -121,7 +124,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return bars
     }
 
-    private suspend fun alphaVantageCommodity(asset: Asset): List<PriceBar> {
+    private suspend fun alphaVantageCommodity(asset: Asset, asOf: LocalDate): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for commodities")
         val symbol = asset.feedSymbol.uppercase()
         if (symbol == "XAU" || symbol == "GOLD" || symbol == "XAUUSD") {
@@ -129,7 +132,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
                 "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=XAU&to_currency=USD&apikey=${enc(key)}",
             )
             val rate = AlphaVantageParser.exchangeRate(json) ?: throw IllegalStateException("No XAU spot")
-            return listOf(PriceBar(java.time.LocalDate.now(), rate))
+            return listOf(PriceBar(asOf, rate))
         }
         val function = COMMODITY_FUNCTIONS[symbol]
             ?: throw IllegalStateException("Unknown commodity $symbol")
@@ -144,28 +147,6 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val csv = http.get("https://stooq.com/q/d/l/?s=$ticker&i=d")
         return StooqParser.dailyCloses(csv)
     }
-
-    private fun looksEuropean(symbol: String): Boolean {
-        val upper = symbol.uppercase()
-        return upper.endsWith(".DE") ||
-            upper.endsWith(".PA") ||
-            upper.endsWith(".AS") ||
-            upper.endsWith(".MI") ||
-            upper.endsWith(".MC") ||
-            upper.startsWith("PTY")
-    }
-
-    private fun stooqTicker(symbol: String): String {
-        val lower = symbol.lowercase()
-        return when {
-            lower.endsWith(".de") -> lower
-            lower.endsWith(".us") -> lower
-            "." in lower -> lower
-            else -> "$lower.us"
-        }
-    }
-
-    private fun avSymbol(symbol: String): String = symbol.substringBefore('.')
 
     private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 

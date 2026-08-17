@@ -19,12 +19,7 @@ class GetDashboardUseCase {
         storedNav: List<NavPoint> = emptyList(),
     ): DashboardReport {
         val valuator = PortfolioValuator()
-        val warnings =
-            if (valuator.missingUsdFx(snapshot)) {
-                listOf("USD holdings need an FX quote before they can be valued.")
-            } else {
-                emptyList()
-            }
+        val warnings = valuator.valuationWarnings(snapshot, asOf)
         return DashboardReport(
             asOf = asOf,
             allocation = GetAllocationUseCase(valuator)(snapshot, asOf),

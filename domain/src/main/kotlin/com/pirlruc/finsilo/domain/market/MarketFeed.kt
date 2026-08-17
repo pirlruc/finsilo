@@ -15,7 +15,7 @@ interface MarketFeed {
 
     suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate>
 
-    suspend fun dailyHistory(asset: Asset): List<PriceBar>
+    suspend fun dailyHistory(asset: Asset, asOf: LocalDate = LocalDate.now()): List<PriceBar>
 
     suspend fun analystRating(asset: Asset): AnalystRating
 }

@@ -95,6 +95,74 @@ class PortfolioValuatorTest {
     }
 
     @Test
+    fun unlistedPprDividendStaysInNavNotCash() {
+        val ppr =
+            Asset(
+                "ppr-div",
+                "PTYAAAA00001",
+                "PPR Moderado",
+                AssetType.PPR,
+                Currency.EUR,
+                isin = "PTYAAAA00001",
+                quoteSymbol = null,
+            )
+        val snapshot =
+            snapshot(
+                assets = listOf(ppr, cash),
+                transactions =
+                listOf(
+                    cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                    buy(
+                        "b1",
+                        ppr.id,
+                        LocalDate.of(2026, 1, 2),
+                        bd("40"),
+                        bd("12.50"),
+                        Currency.EUR,
+                        BigDecimal.ONE,
+                        fees = BigDecimal.ZERO,
+                    ),
+                    Transaction(
+                        id = "d1",
+                        assetId = ppr.id,
+                        date = LocalDate.of(2026, 6, 1),
+                        type = TransactionType.DIVIDEND,
+                        quantity = bd("1"),
+                        unitPriceNative = bd("15"),
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = bd("15"),
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                ),
+                market = emptyList(),
+                fx = emptyList(),
+            )
+        val report = valuator.allocation(snapshot, asOf)
+        val holding = report.holdings.single { it.asset.id == ppr.id }
+        assertMoney("515", holding.valueEur, "ppr value")
+        assertMoney("4500", report.cashEur, "cash after buy, dividend stays in PPR")
+    }
+
+    @Test
+    fun missingEurQuoteWarnsAndUsesLastTrade() {
+        val snapshot =
+            snapshot(
+                assets = listOf(vwce, cash),
+                transactions =
+                listOf(
+                    cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                    buy("b1", vwce.id, LocalDate.of(2026, 1, 2), bd("10"), bd("100"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+                ),
+                market = emptyList(),
+                fx = emptyList(),
+            )
+        assertEquals(listOf("VWCE.DE"), valuator.unpricedSymbols(snapshot, asOf))
+        val warnings = valuator.valuationWarnings(snapshot, asOf)
+        assertTrue(warnings.any { it.contains("VWCE.DE") })
+        assertMoney("1000", valuator.allocation(snapshot, asOf).holdings.single { it.asset.id == vwce.id }.valueEur, "trade fallback")
+    }
+
+    @Test
     fun unlistedPprInterestStaysInNavNotCash() {
         val ppr =
             Asset(

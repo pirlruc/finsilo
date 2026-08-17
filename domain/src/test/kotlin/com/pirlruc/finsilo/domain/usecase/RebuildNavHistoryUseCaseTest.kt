@@ -56,6 +56,31 @@ class RebuildNavHistoryUseCaseTest {
     }
 
     @Test
+    fun laterCashMovementRebuildsOnlyFromChangedDate() {
+        val snapshot = snap()
+        val first = RebuildNavHistoryUseCase()(snapshot, asOf, null, emptyList())
+        val extra =
+            Transaction(
+                id = "c-late",
+                assetId = cash.id,
+                date = asOf,
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = bd("50"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+            )
+        val updated = snapshot.copy(transactions = snapshot.transactions + extra)
+        val rebuilt = RebuildNavHistoryUseCase()(updated, asOf, first.fingerprint, first.points, changedFrom = asOf)
+        assertEquals(
+            first.points.filter { it.date.isBefore(asOf) },
+            rebuilt.points.filter { it.date.isBefore(asOf) },
+        )
+        assertEquals(0, first.points.last().valueEur.add(bd("50")).compareTo(rebuilt.points.last().valueEur))
+    }
+
+    @Test
     fun fingerprintIgnoresBigDecimalScale() {
         val base = snap()
         val scaled = base.copy(fxRates = listOf(CurrencyRate(asOf, bd("0.920"))))

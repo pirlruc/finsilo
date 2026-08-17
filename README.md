@@ -2,7 +2,7 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers product phases **1–6**. Phase **7** guardrails that can run in CI are wired (quality, Android lint/assemble/Robolectric, gitleaks, semgrep, dependency-review, Dokka/KDoc). Kover 95/95 is enforced but not yet green — see [`docs/limitations.md`](docs/limitations.md).
+This repository currently delivers product phases **1–6**. Phase **7** wires the guardrail workflows that can run on this public repo (quality including domain maintainability index, Android lint/assemble/Robolectric, gitleaks, semgrep, dependency-review, Dokka/KDoc, CycloneDX SBOM). Kover branch coverage is still below 95% — see [`docs/limitations.md`](docs/limitations.md).
 
 ## What works now
 

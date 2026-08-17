@@ -28,7 +28,7 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         val rows = ArrayList<DailyMarketData>()
         snapshot.assets.filterNot { it.locallyValued || it.assetType == AssetType.CASH }.forEach { asset ->
             val history =
-                runCatching { feed.dailyHistory(asset) }
+                runCatching { feed.dailyHistory(asset, asOf) }
                     .onFailure { failures += "${asset.symbol}: ${it.message}" }
                     .getOrNull()
             if (history != null) {

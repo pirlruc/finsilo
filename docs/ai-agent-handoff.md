@@ -12,7 +12,7 @@
 
 ## Current slice
 
-Product phases **1–6** are implemented. Guardrails (Phase 7): quality, Android lint/assemble/Robolectric, gitleaks, semgrep, PR dependency-review, and Dokka/KDoc are wired. [GATE-001-T3](issues.yml) Kover 95/95 is wired but not green. Untracked limits: [docs/limitations.md](limitations.md). Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
+Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, PR dependency-review, Dokka/KDoc, and CycloneDX SBOM are wired. [GATE-001-T3](issues.yml) Kover branch 95% is wired but not green. Untracked limits: [docs/limitations.md](limitations.md).
 
 | Module | Path | Notes |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ Phase 7 still open:
 
 - [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; **line is green, branch is ~73%**. See [limitations.md](limitations.md) LIM-COV.
 
-Untracked limits (Kover 95/95, private analog clone, Semgrep registry, Kotlin MI metric, SBOM/signing, pre-commit gitleaks, emulator/SQLCipher, release minify, AV quota, EU suffixes, incremental NAV, GitHub Issues write): [limitations.md](limitations.md).
+Untracked limits (Kover branch 95, private analog clone, Semgrep registry, Compose MI, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
 Do not record a fake lowered-gate deviation.
 

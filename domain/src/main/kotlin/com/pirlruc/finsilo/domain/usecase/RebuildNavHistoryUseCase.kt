@@ -12,7 +12,8 @@ data class NavRebuildDecision(val skip: Boolean, val fingerprint: String, val po
 /**
  * Dense daily NAV series for persistence. Skip when [NavInputsFingerprint] matches
  * and stored points already cover first transaction through [asOf]. If only the
- * end date moved forward, append those days instead of walking the whole series.
+ * end date moved forward, append those days. When [changedFrom] is set (ledger or
+ * quote write), keep stored points before that date and walk the rest.
  */
 class RebuildNavHistoryUseCase {
     operator fun invoke(
@@ -20,6 +21,7 @@ class RebuildNavHistoryUseCase {
         asOf: LocalDate,
         storedFingerprint: String?,
         storedPoints: List<NavPoint>,
+        changedFrom: LocalDate? = null,
     ): NavRebuildDecision {
         val fingerprint = NavInputsFingerprint.of(snapshot)
         val first = snapshot.transactions.minOfOrNull { it.date }
@@ -30,7 +32,16 @@ class RebuildNavHistoryUseCase {
             return NavRebuildDecision(skip = true, fingerprint = fingerprint, points = storedPoints)
         }
         val valuator = PortfolioValuator()
-        val points = appendOrRebuild(valuator, snapshot, first, asOf, storedFingerprint == fingerprint, storedPoints)
+        val points =
+            appendOrRebuild(
+                valuator,
+                snapshot,
+                first,
+                asOf,
+                storedFingerprint == fingerprint,
+                storedPoints,
+                changedFrom,
+            )
         return NavRebuildDecision(skip = false, fingerprint = fingerprint, points = points)
     }
 
@@ -54,6 +65,7 @@ class RebuildNavHistoryUseCase {
         asOf: LocalDate,
         fingerprintMatches: Boolean,
         storedPoints: List<NavPoint>,
+        changedFrom: LocalDate?,
     ): List<NavPoint> {
         if (fingerprintMatches && storedPoints.isNotEmpty()) {
             val storedFirst = storedPoints.minOf { it.date }
@@ -62,7 +74,27 @@ class RebuildNavHistoryUseCase {
                 return storedPoints + walk(valuator, snapshot, storedLast.plusDays(1), asOf)
             }
         }
-        return walk(valuator, snapshot, first, asOf)
+        return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
+    }
+
+    private fun incrementalOrFull(
+        valuator: PortfolioValuator,
+        snapshot: PortfolioSnapshot,
+        first: LocalDate,
+        asOf: LocalDate,
+        storedPoints: List<NavPoint>,
+        changedFrom: LocalDate?,
+    ): List<NavPoint> {
+        if (changedFrom == null || storedPoints.isEmpty()) {
+            return walk(valuator, snapshot, first, asOf)
+        }
+        val storedFirst = storedPoints.minOf { it.date }
+        val from = maxOf(first, changedFrom)
+        if (storedFirst.isAfter(first) || !from.isAfter(first)) {
+            return walk(valuator, snapshot, first, asOf)
+        }
+        val prefix = storedPoints.filter { it.date.isBefore(from) }
+        return prefix + walk(valuator, snapshot, from, asOf)
     }
 
     private fun walk(valuator: PortfolioValuator, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> {

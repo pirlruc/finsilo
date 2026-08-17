@@ -28,11 +28,14 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // CI assembleRelease needs a signing config; production keys are not in-repo.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

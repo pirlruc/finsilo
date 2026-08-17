@@ -63,6 +63,33 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     fun missingUsdFx(snapshot: PortfolioSnapshot): Boolean = snapshot.fxRates.isEmpty() &&
         snapshot.assets.any { it.baseCurrency == Currency.USD && !it.locallyValued }
 
+    /** User-visible reasons holdings were left out of NAV. */
+    fun valuationWarnings(snapshot: PortfolioSnapshot, asOf: LocalDate): List<String> {
+        val warnings = ArrayList<String>(2)
+        if (missingUsdFx(snapshot)) {
+            warnings += "USD holdings need an FX quote before they can be valued."
+        }
+        val omitted = unpricedSymbols(snapshot, asOf)
+        if (omitted.isNotEmpty()) {
+            warnings += "No market quote for ${omitted.joinToString(", ")}; NAV uses last trade price or omits the holding."
+        }
+        return warnings
+    }
+
+    /** Marketable holdings with quantity but no daily bar on/before [asOf]. */
+    fun unpricedSymbols(snapshot: PortfolioSnapshot, asOf: LocalDate): List<String> {
+        val marketByAsset = ledger.indexMarket(snapshot.marketData)
+        val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
+        val skipUsd = missingUsdFx(snapshot)
+        return snapshot.assets.mapNotNull { asset ->
+            if (asset.locallyValued || asset.assetType == AssetType.CASH) return@mapNotNull null
+            if (skipUsd && asset.baseCurrency == Currency.USD) return@mapNotNull null
+            val qty = ledger.position(txsByAsset[asset.id].orEmpty()).quantity
+            if (qty.signum() == 0) return@mapNotNull null
+            if (ledger.marketOnOrBefore(asset.id, asOf, marketByAsset) != null) null else asset.symbol
+        }
+    }
+
     private fun priceRate(asset: Asset, eurPerUsd: BigDecimal?): BigDecimal? =
         if (asset.baseCurrency == Currency.EUR) BigDecimal.ONE else eurPerUsd
 

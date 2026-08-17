@@ -15,7 +15,9 @@ object NavInputsFingerprint {
             buildString {
                 snapshot.assets.sortedBy { it.id }.forEach { asset ->
                     append(asset.id).append('|')
+                    append(asset.assetType).append('|')
                     append(asset.baseCurrency).append('|')
+                    append(asset.quoteSymbol.orEmpty()).append('|')
                     append(asset.locallyValued).append(';')
                 }
                 append('#')

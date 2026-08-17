@@ -122,7 +122,7 @@ class SyncMarketDataUseCaseTest {
 
         override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> = listOf(CurrencyRate(to, BigDecimal("0.92")))
 
-        override suspend fun dailyHistory(asset: Asset): List<PriceBar> {
+        override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> {
             historySymbols += asset.feedSymbol
             return history[asset.id].orEmpty()
         }

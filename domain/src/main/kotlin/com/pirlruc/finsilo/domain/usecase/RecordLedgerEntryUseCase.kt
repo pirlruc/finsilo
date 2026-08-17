@@ -66,7 +66,7 @@ class RecordLedgerEntryUseCase(
         resolved: Pair<Asset, Boolean>,
     ): LedgerEntryResult {
         val (asset, created) = resolved
-        val typeError = validateType(asset, request.type)
+        val typeError = validateType(asset, request.type) ?: validateCurrency(asset)
         val rate = fxRate(asset, request, snapshot)
         val transaction = rate?.let { transactionFor(asset, request, it) }
         val ledgerError = transaction?.let { validateAgainstLedger(snapshot, asset, it) }
@@ -166,6 +166,11 @@ class RecordLedgerEntryUseCase(
 
     private fun validateType(asset: Asset, type: TransactionType): LedgerEntryResult.Rejected? =
         typeError(asset, type)?.let { LedgerEntryResult.Rejected(it) }
+
+    private fun validateCurrency(asset: Asset): LedgerEntryResult.Rejected? {
+        if (asset.assetType != AssetType.CRYPTO || asset.baseCurrency == Currency.USD) return null
+        return LedgerEntryResult.Rejected("Crypto quotes are USD (CoinGecko). Use USD as the instrument currency.")
+    }
 
     private fun typeError(asset: Asset, type: TransactionType): String? {
         if (type == TransactionType.INTEREST) {

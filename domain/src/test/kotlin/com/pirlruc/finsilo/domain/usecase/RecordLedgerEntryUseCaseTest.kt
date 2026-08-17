@@ -262,6 +262,25 @@ class RecordLedgerEntryUseCaseTest {
     }
 
     @Test
+    fun cryptoMustBeUsd() {
+        val snapshot = cashOnly(bd("5000"))
+        val result =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("0.1"),
+                    unitPriceNative = bd("10000"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("BTC", "Bitcoin", AssetType.CRYPTO, Currency.EUR),
+                ),
+            )
+        assertTrue(result is LedgerEntryResult.Rejected)
+        assertTrue((result as LedgerEntryResult.Rejected).reason.contains("USD"))
+    }
+
+    @Test
     fun interestOnCtIsAcceptedAndInterestOnStockIsRejected() {
         val withCt =
             cashOnly(bd("4000")).copy(

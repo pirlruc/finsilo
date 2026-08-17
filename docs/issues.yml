@@ -819,9 +819,11 @@ milestones:
                 - app/build.gradle.kts
                 - config/detekt/detekt.yml
                 - scripts/check-detekt-complexity.py
+                - scripts/check-maintainability.py
                 - .github/workflows/quality.yml
             verification:
               - python3 scripts/check-detekt-complexity.py
+              - python3 scripts/check-maintainability.py
               - Formatter/linter run locally and in CI
             guardrail_refs:
               - KT-BUILD-002
@@ -934,6 +936,7 @@ milestones:
                 - app/build.gradle.kts
             verification:
               - ./gradlew :app:assembleDebug
+              - ./gradlew :app:assembleRelease
               - Workflow pins JDK and Android SDK actions by SHA (CI-001)
             guardrail_refs:
               - KT-BUILD-001
@@ -990,7 +993,7 @@ milestones:
           - CI-009 quality.yml runs ktlint + detekt on :domain and :app; complexity is fail-closed against max_cyclomatic_complexity
           - CI-010 domain-tests.yml runs :domain:test and :domain:koverVerify (T3 still open until 95/95); android.yml runs :app Robolectric
           - CI-011 docs.yml runs Dokka + KDoc coverage against doc_coverage
-          - CI-012 security.yml runs gitleaks, community semgrep ERROR, and PR dependency-review; SBOM/signing wait for a published artifact (docs/limitations.md)
+          - CI-012 security.yml runs gitleaks, community semgrep ERROR, and PR dependency-review; android.yml retains a CycloneDX SBOM artifact (LIM-REL for signing/release)
           - Kotlin has no DYN category; C++ ASan/UBSan/valgrind is not an Android requirement
           - No docs/guardrail-deviations.yml entries (gaps are open tasks or limitations.md, not lowered gates)
         guardrail_refs:

@@ -9,7 +9,9 @@ python3 scripts/read_kotlin_threshold.py statement_coverage >/dev/null
 python3 scripts/read_kotlin_threshold.py branch_coverage >/dev/null
 python3 scripts/read_kotlin_threshold.py doc_coverage >/dev/null
 python3 scripts/check-detekt-complexity.py
+python3 scripts/check-maintainability.py
 ./gradlew :domain:ktlintCheck :domain:detekt :domain:test :domain:koverLog :domain:dokkaGenerate
 python3 scripts/check-kdoc-coverage.py
-./gradlew :app:ktlintCheck :app:detekt :app:lintDebug :app:assembleDebug :app:testDebugUnitTest
+./gradlew :app:ktlintCheck :app:detekt :app:lintDebug :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest
 bash scripts/run-gitleaks.sh
+bash scripts/run-syft-sbom.sh

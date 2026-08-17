@@ -44,5 +44,15 @@ jobs:
       - name: Complexity gate matches profile (fail closed)
         run: python3 scripts/check-detekt-complexity.py
 
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Maintainability index (domain SEI)
+        run: |
+          pip install --disable-pip-version-check "multimetric==2.4.4"
+          python3 scripts/check-maintainability.py
+
       - name: Kotlin format and detekt
         run: ./gradlew :domain:ktlintCheck :domain:detekt :app:ktlintCheck :app:detekt --stacktrace

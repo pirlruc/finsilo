@@ -58,7 +58,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
 
     override suspend fun insertTransaction(transaction: Transaction) {
         dao.insertTransactions(listOf(TransactionEntity.from(transaction)))
-        rebuildNavHistoryIfNeeded(load())
+        rebuildNavHistoryIfNeeded(load(), changedFrom = transaction.date)
     }
 
     override suspend fun replaceTargets(targets: List<TargetAllocation>) {
@@ -67,7 +67,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
 
     override suspend fun upsertFxRate(rate: CurrencyRate) {
         dao.insertFxRates(listOf(CurrencyRateEntity.from(rate)))
-        rebuildNavHistoryIfNeeded(load())
+        rebuildNavHistoryIfNeeded(load(), changedFrom = rate.date)
     }
 
     override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
@@ -76,20 +76,21 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
             transaction = TransactionEntity.from(transaction),
             fx = fxRate?.let(CurrencyRateEntity::from),
         )
-        rebuildNavHistoryIfNeeded(load())
+        rebuildNavHistoryIfNeeded(load(), changedFrom = transaction.date)
     }
 
     suspend fun upsertQuotes(market: List<DailyMarketData>, fx: List<CurrencyRate>) {
         dao.upsertQuotes(market.map(DailyMarketDataEntity::from), fx.map(CurrencyRateEntity::from))
-        rebuildNavHistoryIfNeeded(load())
+        val changedFrom = (market.map { it.date } + fx.map { it.date }).minOrNull()
+        rebuildNavHistoryIfNeeded(load(), changedFrom = changedFrom)
     }
 
     suspend fun loadNavHistory(): List<NavPoint> = dao.getNavHistory().map { it.toDomain() }
 
-    suspend fun rebuildNavHistoryIfNeeded(snapshot: PortfolioSnapshot, asOf: LocalDate = LocalDate.now()) {
+    suspend fun rebuildNavHistoryIfNeeded(snapshot: PortfolioSnapshot, asOf: LocalDate = LocalDate.now(), changedFrom: LocalDate? = null) {
         if (snapshot.isEmpty) return
         val stored = dao.getNavHistory().map { it.toDomain() }
-        val decision = rebuildNav(snapshot, asOf, dao.getNavRebuildState()?.fingerprint, stored)
+        val decision = rebuildNav(snapshot, asOf, dao.getNavRebuildState()?.fingerprint, stored, changedFrom)
         if (decision.skip) return
         dao.replaceNavHistory(
             items = decision.points.map(NavHistoryEntity::from),

@@ -143,15 +143,10 @@ class LedgerEntryViewModel(
 
     private suspend fun reload() {
         snapshot = repository.load()
-        val cash = ledger.cashEur(
-            ledger.transactionsOnOrBefore(snapshot.transactions, LocalDate.MAX),
-            snapshot.assets.associateBy { it.id },
-        )
         _state.update {
             it.copy(
                 loading = false,
                 assets = snapshot.assets.filter { asset -> asset.assetType != AssetType.CASH },
-                cashEur = cash.stripTrailingZeros().toPlainString(),
                 eurPerUsd = it.eurPerUsd.ifBlank {
                     snapshot.fxRates.maxByOrNull { rate -> rate.date }?.eurPerUsd?.toPlainString().orEmpty()
                 },
@@ -162,23 +157,29 @@ class LedgerEntryViewModel(
 
     private fun refreshHints() {
         val current = _state.value
+        val asOf = parseDate(current.date)
+        val prior =
+            if (asOf == null) {
+                snapshot.transactions
+            } else {
+                ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
+            }
+        val cash = ledger.cashEur(prior, snapshot.assets.associateBy { it.id })
         val asset = snapshot.assets.firstOrNull { it.id == current.existingAssetId }
         val remaining =
             if (asset == null || current.type != TransactionType.SELL) {
                 null
             } else {
-                val asOf = parseDate(current.date)
-                val prior =
-                    if (asOf == null) {
-                        snapshot.transactions
-                    } else {
-                        ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
-                    }
                 ledger.position(prior.filter { it.assetId == asset.id }).quantity
                     .stripTrailingZeros()
                     .toPlainString()
             }
-        _state.update { it.copy(remainingQty = remaining) }
+        _state.update {
+            it.copy(
+                remainingQty = remaining,
+                cashEur = cash.stripTrailingZeros().toPlainString(),
+            )
+        }
     }
 
     private fun buildRequest(state: LedgerUiState): LedgerEntryRequest? {
