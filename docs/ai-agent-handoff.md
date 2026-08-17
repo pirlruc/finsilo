@@ -29,9 +29,11 @@ Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Ro
 
 ## Intentionally not in this tree
 
-- Phase 2 Compose forms for Buy/Sell/Deposit/Withdrawal.
-- Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled.
-- Private `guardrails` / `methodologies` / `github-scaffold` submodules until `CURSOR_REPO_READ_TOKEN` is injected into a run that actually has it (this run has no linked environment; only `GH_CACHE_TOKEN` was present).
+- Phase 2 Compose forms for Buy/Sell/Deposit/Withdrawal (see `docs/improvements.md` O1–O4).
+- Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled (O13).
+- Private `guardrails` / `methodologies` / `github-scaffold` submodules until `CURSOR_REPO_READ_TOKEN` is present in the VM (O14).
+
+Open issues with phase and recommended fix: [`docs/improvements.md`](improvements.md).
 
 ## Market feed (GET only)
 
@@ -53,6 +55,6 @@ The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUse
 
 ## Sample data
 
-`SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, PPR, CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button.
+`SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, PPR, CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only (O11).
 
 *Last updated: 2026-08-17*
