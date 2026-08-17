@@ -1,0 +1,58 @@
+# Org-default Dependabot seed (SC-DEP-001/002/003).
+# Seeded once into .github/dependabot.yml by sync-templates.sh — never overwritten.
+# Add one updates entry per package ecosystem present (uv, docker, pre-commit, …).
+# Cadence and open-PR limit: docs/guardrails/supply-chain/profile.thresholds.yml
+# Multi-ecosystem docs:
+# https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configuring-multi-ecosystem-updates
+# Process: https://github.com/pirlruc/methodologies/blob/main/github-issue-adr/docs/process/dependency-updates.md
+#
+# Personal-account private git / OCI (uncomment only after creating Dependabot secrets).
+#
+# These registries stay commented on purpose. Uncommented stubs that reference
+# secrets a new adopter has not created make Dependabot fail closed for every
+# consumer. Create the secrets under Settings → Secrets and variables →
+# Dependabot (not Actions). Dependabot secrets are invisible to workflow jobs.
+#
+#   DEPENDABOT_GITHUB_TOKEN  fine-grained PAT, Contents: Read, covering private
+#                            submodules and reusable-workflow hosts — not only
+#                            package deps. Wire as github-private below.
+#   DOCKERHUB_USERNAME       dhi.io / Docker Hub username
+#   DOCKERHUB_TOKEN          matching registry token
+#
+# registries:
+#   github-private:
+#     type: git
+#     url: https://github.com
+#     username: x-access-token
+#     password: ${{secrets.DEPENDABOT_GITHUB_TOKEN}}
+#   dhi:
+#     type: docker-registry
+#     url: https://dhi.io
+#     username: ${{secrets.DOCKERHUB_USERNAME}}
+#     password: ${{secrets.DOCKERHUB_TOKEN}}
+# Then add `registries: [github-private]` (and/or dhi) under each updates entry
+# that needs them.
+# When migrating from per-ecosystem configs, close stale Dependabot PRs before
+# expecting the grouped all-dependencies PR (open-PR limit otherwise blocks).
+
+version: 2
+
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: Europe/Lisbon
+    commit-message:
+      prefix: build
+      include: scope
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies
+  - package-ecosystem: gradle
+    directory: /
+    patterns: ["*"]
+    multi-ecosystem-group: all-dependencies

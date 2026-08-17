@@ -16,9 +16,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -83,7 +94,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardRoute(viewModel: DashboardViewModel) {
+fun DashboardRoute(
+    viewModel: DashboardViewModel,
+    onAddTransaction: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     DashboardScreen(
         state = state,
@@ -92,6 +107,8 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         onClear = viewModel::clearPortfolio,
         onSync = viewModel::syncMarketData,
         onSaveKey = viewModel::saveAlphaVantageKey,
+        onAddTransaction = onAddTransaction,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -104,6 +121,8 @@ fun DashboardScreen(
     onClear: () -> Unit,
     onSync: () -> Unit,
     onSaveKey: (String) -> Unit,
+    onAddTransaction: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
@@ -111,6 +130,9 @@ fun DashboardScreen(
             TopAppBar(
                 title = { Text("FinSilo") },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Target allocation")
+                    }
                     IconButton(onClick = { showKeyDialog = true }) {
                         Icon(Icons.Outlined.Key, contentDescription = "Alpha Vantage key")
                     }
@@ -127,12 +149,17 @@ fun DashboardScreen(
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddTransaction) {
+                Icon(Icons.Outlined.Add, contentDescription = "Add transaction")
+            }
+        },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.error != null -> ErrorState(state.error)
-                state.empty -> EmptyState(onLoadSample)
+                state.empty -> EmptyState(onLoadSample, onAddTransaction)
                 state.report != null -> DashboardContent(state.report, state.range, state.statusMessage, onRangeSelected)
             }
         }
@@ -150,7 +177,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun EmptyState(onLoadSample: () -> Unit) {
+private fun EmptyState(onLoadSample: () -> Unit, onAddTransaction: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -159,11 +186,13 @@ private fun EmptyState(onLoadSample: () -> Unit) {
         Text("No holdings yet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "This dashboard reads only the on-device encrypted ledger. Load a synthetic sample to review allocation, TWR, and YOC, or store an optional Alpha Vantage key and sync quotes (Frankfurter, Stooq, and CoinGecko work without a key).",
+            "This dashboard reads the on-device encrypted ledger. Add a buy, deposit, or interest row, or load a synthetic sample to review allocation, TWR, and YOC.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(20.dp))
+        Button(onClick = onAddTransaction) { Text("Add transaction") }
+        Spacer(Modifier.height(12.dp))
         Button(onClick = onLoadSample) { Text("Load sample portfolio") }
     }
 }

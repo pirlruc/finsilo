@@ -6,13 +6,18 @@ import com.pirlruc.finsilo.data.local.DailyMarketDataEntity
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.local.TargetAllocationEntity
 import com.pirlruc.finsilo.data.local.TransactionEntity
+import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.TargetAllocation
+import com.pirlruc.finsilo.domain.model.Transaction
+import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
 
 class RoomPortfolioRepository(
     private val database: FinsiloDatabase,
-) : PortfolioReadRepository, SamplePortfolioWriter {
+) : PortfolioReadRepository, SamplePortfolioWriter, LedgerWriteRepository {
     private val dao get() = database.portfolioDao()
 
     override suspend fun load(): PortfolioSnapshot =
@@ -36,6 +41,22 @@ class RoomPortfolioRepository(
 
     override suspend fun clear() {
         dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+    }
+
+    override suspend fun upsertAsset(asset: Asset) {
+        dao.insertAssets(listOf(AssetEntity.from(asset)))
+    }
+
+    override suspend fun insertTransaction(transaction: Transaction) {
+        dao.insertTransactions(listOf(TransactionEntity.from(transaction)))
+    }
+
+    override suspend fun replaceTargets(targets: List<TargetAllocation>) {
+        dao.replaceTargets(targets.map(TargetAllocationEntity::from))
+    }
+
+    override suspend fun upsertFxRate(rate: CurrencyRate) {
+        dao.insertFxRates(listOf(CurrencyRateEntity.from(rate)))
     }
 
     suspend fun upsertQuotes(

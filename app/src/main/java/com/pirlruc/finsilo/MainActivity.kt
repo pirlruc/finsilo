@@ -4,9 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.pirlruc.finsilo.ui.dashboard.DashboardRoute
-import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
+import com.pirlruc.finsilo.ui.FinsiloApp
 import com.pirlruc.finsilo.ui.theme.FinsiloTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,9 +14,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as FinsiloApplication).container
         setContent {
             FinsiloTheme {
-                val viewModel: DashboardViewModel =
-                    viewModel(factory = DashboardViewModel.factory(container))
-                DashboardRoute(viewModel)
+                FinsiloApp(container)
             }
         }
     }

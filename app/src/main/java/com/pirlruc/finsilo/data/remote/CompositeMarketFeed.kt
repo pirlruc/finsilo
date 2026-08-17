@@ -55,35 +55,36 @@ class CompositeMarketFeed(
 
     override suspend fun dailyHistory(asset: Asset): List<PriceBar> {
         val errors = ArrayList<String>()
+        val ticker = asset.feedSymbol
         when (asset.assetType) {
             AssetType.CRYPTO ->
                 runCatching { coinGecko(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
             AssetType.COMMODITY -> {
                 runCatching { stooqCommodity(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
                 runCatching { alphaVantageCommodity(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-                throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for ${asset.symbol}" })
+                throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for $ticker" })
             }
             else -> Unit
         }
-        if (looksEuropean(asset.symbol)) {
-            runCatching { stooq(asset.symbol) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
+        if (looksEuropean(ticker)) {
+            runCatching { stooq(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
         }
-        runCatching { alphaVantageDaily(asset.symbol) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-        runCatching { stooq(asset.symbol) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-        throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for ${asset.symbol}" })
+        runCatching { alphaVantageDaily(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
+        runCatching { stooq(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
+        throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for $ticker" })
     }
 
     override suspend fun analystRating(asset: Asset): AnalystRating {
         if (asset.assetType != AssetType.STOCK && asset.assetType != AssetType.ETF) return AnalystRating.NONE
         val key = keys.alphaVantageKey() ?: return AnalystRating.NONE
         val json = http.get(
-            "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.symbol))}&apikey=${enc(key)}",
+            "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.feedSymbol))}&apikey=${enc(key)}",
         )
         return runCatching { AlphaVantageParser.analystRating(json) }.getOrDefault(AnalystRating.NONE)
     }
 
     private suspend fun coinGecko(asset: Asset): List<PriceBar> {
-        val id = CRYPTO_IDS[asset.symbol.uppercase()] ?: asset.symbol.lowercase()
+        val id = CRYPTO_IDS[asset.feedSymbol.uppercase()] ?: asset.feedSymbol.lowercase()
         val json = http.get("https://api.coingecko.com/api/v3/coins/$id/market_chart?vs_currency=usd&days=200&interval=daily")
         return CoinGeckoParser.dailyCloses(json)
     }
@@ -106,7 +107,7 @@ class CompositeMarketFeed(
 
     private suspend fun alphaVantageCommodity(asset: Asset): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for commodities")
-        val symbol = asset.symbol.uppercase()
+        val symbol = asset.feedSymbol.uppercase()
         if (symbol == "XAU" || symbol == "GOLD" || symbol == "XAUUSD") {
             val json = http.get(
                 "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=XAU&to_currency=USD&apikey=${enc(key)}",
@@ -122,7 +123,7 @@ class CompositeMarketFeed(
     }
 
     private suspend fun stooqCommodity(asset: Asset): List<PriceBar> {
-        val ticker = COMMODITY_STOOQ[asset.symbol.uppercase()] ?: return emptyList()
+        val ticker = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
         val csv = http.get("https://stooq.com/q/d/l/?s=$ticker&i=d")
         return StooqParser.dailyCloses(csv)
     }

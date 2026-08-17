@@ -2,11 +2,13 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers **Phase 6 (dashboard)** plus the **encrypted local foundation**, **GET-only market sync**, and **TWR / YOC** the charts require. Full transaction-entry UI (Phase 2) and notification workers (Phase 5) are not in this tree.
+This repository currently delivers **Phase 2 (data entry)**, **Phase 6 (dashboard)**, the **encrypted local foundation**, **GET-only market sync**, and **TWR / YOC**. Notification workers (Phase 5) are not in this tree.
 
 ## What works now
 
 - Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation).
+- Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest, including optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused.
+- Settings for `target_allocation` weights (must sum to 100).
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.
 - Jetpack Compose dashboard:
   - Donut chart of current allocation by investment type (Vico).
@@ -27,13 +29,13 @@ This repository currently delivers **Phase 6 (dashboard)** plus the **encrypted 
 | TWR splits | Only **buys funded with external cash** (cost exceeds uninvested cash) and **withdrawals**. `DEPOSIT_CASH`, internal buys, dividends, and interest do not open a sub-period. |
 | YOC | Both **TTM** (dividends in the last 365 days / remaining FIFO cost) and **last payment × inferred frequency** (1, 2, 4, or 12 from the TTM count). |
 | minSdk | **26** (java.time + Keystore defaults). |
-| Guardrails / methodologies / github-scaffold | Private. This environment requested `CURSOR_REPO_READ_TOKEN`; until it is injected those repos stay unpinned. Templates were not invented as a fake submodule. |
+| Guardrails / methodologies / github-scaffold | Private analog repos. `docs/guardrails` @ **1.3.0**, `.github/scaffold` @ **1.2.0**. Methodologies is cited ([github-issue-adr @ 1.2.0](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr)), not vendored. |
 
 ## Architecture
 
 Clean architecture, two Gradle modules:
 
-- `:domain` — pure Kotlin (JVM). Valuation, FIFO ledger, allocation, history, TWR, YOC, signals, feed parsers. Covered by JUnit 5.
+- `:domain` — pure Kotlin (JVM). Valuation, FIFO ledger, allocation, history, TWR, YOC, signals, feed parsers, ledger-entry validation. Covered by JUnit 5.
 - `:app` — Compose UI, Room, SQLCipher, Vico, WorkManager (23:00 daily sync), OkHttp GET-only client.
 
 No Hilt. Constructor injection from `AppContainer` keeps the first slice small and testable.
@@ -49,11 +51,17 @@ Requirements: JDK 17+, Android SDK 35/36.
 
 `local.properties` is gitignored. Point `sdk.dir` or `ANDROID_HOME` at your SDK.
 
+Private submodules (`docs/guardrails`, `.github/scaffold`) need GitHub access. After clone:
+
+```bash
+git submodule update --init
+```
+
 The app requests **INTERNET** for GET-only quote sync. Cleartext is disabled.
 
 ## Methodology
 
-[github-issue-adr](https://github.com/pirlruc/methodologies) (Epic = decision record, no ADR markdown files) and [guardrails](https://github.com/pirlruc/guardrails) were not cloneable from this environment without `CURSOR_REPO_READ_TOKEN`. Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv) analog:
+Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv) analog and [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr):
 
 - [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md)
 - [`docs/improvements.md`](docs/improvements.md) — decided RFC answers plus **open issues with phase and recommended fix**

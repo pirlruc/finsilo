@@ -54,6 +54,12 @@ interface PortfolioDao {
     suspend fun deleteAssets()
 
     @Transaction
+    suspend fun replaceTargets(items: List<TargetAllocationEntity>) {
+        deleteTargets()
+        if (items.isNotEmpty()) insertTargets(items)
+    }
+
+    @Transaction
     suspend fun replaceAll(
         assets: List<AssetEntity>,
         transactions: List<TransactionEntity>,

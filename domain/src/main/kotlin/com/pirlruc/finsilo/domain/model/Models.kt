@@ -9,7 +9,17 @@ data class Asset(
     val name: String,
     val assetType: AssetType,
     val baseCurrency: Currency,
-)
+    /** ISO 6166 ISIN when the user has one (typical for PPR / EU funds). */
+    val isin: String? = null,
+    /**
+     * Listed ticker used for GET-only quotes. Display [symbol] may be an ISIN
+     * or a local name; sync uses this when present.
+     */
+    val quoteSymbol: String? = null,
+) {
+    val feedSymbol: String
+        get() = quoteSymbol?.takeIf { it.isNotBlank() } ?: symbol
+}
 
 data class Transaction(
     val id: String,

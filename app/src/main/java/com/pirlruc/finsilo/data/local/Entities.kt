@@ -24,12 +24,22 @@ data class AssetEntity(
     val name: String,
     @ColumnInfo(name = "asset_type") val assetType: AssetType,
     @ColumnInfo(name = "base_currency") val baseCurrency: Currency,
+    val isin: String? = null,
+    @ColumnInfo(name = "quote_symbol") val quoteSymbol: String? = null,
 ) {
-    fun toDomain(): Asset = Asset(assetId, symbol, name, assetType, baseCurrency)
+    fun toDomain(): Asset = Asset(assetId, symbol, name, assetType, baseCurrency, isin, quoteSymbol)
 
     companion object {
         fun from(asset: Asset) =
-            AssetEntity(asset.id, asset.symbol, asset.name, asset.assetType, asset.baseCurrency)
+            AssetEntity(
+                asset.id,
+                asset.symbol,
+                asset.name,
+                asset.assetType,
+                asset.baseCurrency,
+                asset.isin,
+                asset.quoteSymbol,
+            )
     }
 }
 

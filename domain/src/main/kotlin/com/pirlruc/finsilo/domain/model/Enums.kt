@@ -14,6 +14,12 @@ enum class AssetType {
     /** Bank deposits and Portuguese CTs have no market feed; NAV is principal + interest. */
     val isLocallyValued: Boolean
         get() = this == DEPOSIT || this == CT
+
+    val allowsInterest: Boolean
+        get() = this == DEPOSIT || this == CT || this == PPR
+
+    val allowsDividend: Boolean
+        get() = this == STOCK || this == ETF || this == PPR
 }
 
 enum class Currency {

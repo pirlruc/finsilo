@@ -27,7 +27,12 @@ class SyncMarketDataUseCase(
         val rows = ArrayList<DailyMarketData>()
         for (asset in snapshot.assets) {
             if (asset.assetType.isLocallyValued || asset.assetType == AssetType.CASH) continue
-            if (asset.assetType == AssetType.PPR && '.' !in asset.symbol) continue
+            if (asset.assetType == AssetType.PPR &&
+                asset.quoteSymbol.isNullOrBlank() &&
+                '.' !in asset.feedSymbol
+            ) {
+                continue
+            }
             val history = runCatching { feed.dailyHistory(asset) }
                 .onFailure { failures += "${asset.symbol}: ${it.message}" }
                 .getOrNull()
