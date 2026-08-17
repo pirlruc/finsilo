@@ -125,12 +125,12 @@ data class DailyMarketDataEntity(
 @Entity(tableName = "currency_history")
 data class CurrencyRateEntity(
     @PrimaryKey val date: LocalDate,
-    @ColumnInfo(name = "usd_eur_rate") val usdPerEur: BigDecimal,
+    @ColumnInfo(name = "eur_usd_rate") val eurPerUsd: BigDecimal,
 ) {
-    fun toDomain(): CurrencyRate = CurrencyRate(date, usdPerEur)
+    fun toDomain(): CurrencyRate = CurrencyRate(date, eurPerUsd)
 
     companion object {
-        fun from(row: CurrencyRate) = CurrencyRateEntity(row.date, row.usdPerEur)
+        fun from(row: CurrencyRate) = CurrencyRateEntity(row.date, row.eurPerUsd)
     }
 }
 

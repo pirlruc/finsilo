@@ -22,7 +22,7 @@ class PortfolioValuator(
         val assetsById = snapshot.assets.associateBy { it.id }
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
         val marketByAsset = ledger.indexMarket(snapshot.marketData)
-        val usdPerEur = ledger.usdPerEurOn(asOf, snapshot.fxRates)
+        val eurPerUsd = ledger.eurPerUsdOn(asOf, snapshot.fxRates)
 
         return snapshot.assets.mapNotNull { asset ->
             val txs = txsByAsset[asset.id].orEmpty()
@@ -43,7 +43,7 @@ class PortfolioValuator(
                 val lot = ledger.position(txs)
                 if (lot.quantity.signum() == 0) return@mapNotNull null
                 val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs) ?: return@mapNotNull null
-                val priceEur = toEur(native, asset.baseCurrency, usdPerEur)
+                val priceEur = toEur(native, asset.baseCurrency, eurPerUsd)
                 val value = times(lot.quantity, priceEur)
                 HoldingValuation(
                     asset = asset,

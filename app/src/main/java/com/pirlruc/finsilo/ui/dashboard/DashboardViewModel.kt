@@ -22,11 +22,15 @@ data class DashboardUiState(
     val error: String? = null,
     val range: HistoryRange = HistoryRange.THREE_MONTHS,
     val report: DashboardReport? = null,
+    val syncing: Boolean = false,
+    val statusMessage: String? = null,
+    val hasAlphaVantageKey: Boolean = false,
 )
 
 class DashboardViewModel(
     private val repository: RoomPortfolioRepository,
     private val getDashboard: GetDashboardUseCase,
+    private val container: AppContainer,
     private val today: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
     private val _state = MutableStateFlow(DashboardUiState())
@@ -42,7 +46,12 @@ class DashboardViewModel(
             runCatching {
                 val snapshot = repository.load()
                 if (snapshot.isEmpty) {
-                    DashboardUiState(loading = false, empty = true, range = _state.value.range)
+                    DashboardUiState(
+                        loading = false,
+                        empty = true,
+                        range = _state.value.range,
+                        hasAlphaVantageKey = container.keys.alphaVantageKey() != null,
+                    )
                 } else {
                     val asOf = resolveAsOf(snapshot.marketData.maxOfOrNull { it.date }, snapshot.transactions.maxOfOrNull { it.date })
                     DashboardUiState(
@@ -50,6 +59,8 @@ class DashboardViewModel(
                         empty = false,
                         range = _state.value.range,
                         report = getDashboard(snapshot, _state.value.range, asOf),
+                        statusMessage = _state.value.statusMessage,
+                        hasAlphaVantageKey = container.keys.alphaVantageKey() != null,
                     )
                 }
             }.onSuccess { next -> _state.value = next }
@@ -86,6 +97,38 @@ class DashboardViewModel(
         }
     }
 
+    fun saveAlphaVantageKey(key: String) {
+        container.keys.setAlphaVantageKey(key)
+        _state.update {
+            it.copy(
+                hasAlphaVantageKey = key.isNotBlank(),
+                statusMessage = if (key.isBlank()) "Alpha Vantage key cleared" else "Alpha Vantage key stored on-device",
+            )
+        }
+    }
+
+    fun syncMarketData() {
+        viewModelScope.launch {
+            _state.update { it.copy(syncing = true, statusMessage = "Syncing quotes…") }
+            runCatching {
+                val snapshot = repository.load()
+                val asOf = today()
+                val fx = runCatching {
+                    com.pirlruc.finsilo.domain.model.CurrencyRate(asOf, container.marketFeed.eurPerUsd())
+                }.getOrNull()
+                val result = com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
+                repository.upsertQuotes(result.marketData, fx)
+                result
+            }.onSuccess { result ->
+                val extra = if (result.failures.isEmpty()) "" else " (${result.failures.size} skipped)"
+                _state.update { it.copy(syncing = false, statusMessage = "Updated ${result.marketData.size} daily rows$extra") }
+                refresh()
+            }.onFailure { error ->
+                _state.update { it.copy(syncing = false, statusMessage = error.message ?: "Sync failed") }
+            }
+        }
+    }
+
     private fun resolveAsOf(lastMarket: LocalDate?, lastTx: LocalDate?): LocalDate {
         val observed = listOfNotNull(lastMarket, lastTx).maxOrNull()
         val todayDate = today()
@@ -101,7 +144,7 @@ class DashboardViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return DashboardViewModel(container.repository, container.getDashboard) as T
+                    return DashboardViewModel(container.repository, container.getDashboard, container) as T
                 }
             }
     }

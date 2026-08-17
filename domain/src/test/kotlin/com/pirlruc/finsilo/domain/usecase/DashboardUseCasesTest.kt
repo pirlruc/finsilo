@@ -122,6 +122,8 @@ class DashboardUseCasesTest {
         assertTrue(dashboard.signals.any { it.cross == TechnicalCross.GOLDEN })
         assertTrue(dashboard.allocation.slices.any { it.assetType == AssetType.ETF })
         assertTrue(dashboard.allocation.slices.any { it.assetType == AssetType.CT })
+        assertTrue(dashboard.allocation.slices.any { it.assetType == AssetType.COMMODITY })
+        assertTrue(dashboard.yoc.any { it.asset.symbol == "AAPL" && it.paymentsPerYear == 4 })
     }
 
     private fun snapshotWithBuy(buyDate: LocalDate): PortfolioSnapshot {

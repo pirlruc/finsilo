@@ -25,6 +25,7 @@ enum class TransactionType {
     BUY,
     SELL,
     DEPOSIT_CASH,
+    WITHDRAWAL,
     DIVIDEND,
     INTEREST,
 }

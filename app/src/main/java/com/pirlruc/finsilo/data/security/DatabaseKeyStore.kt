@@ -45,6 +45,12 @@ class DatabaseKeyStore(context: Context) {
         return generated
     }
 
+    fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
+
+    fun setAlphaVantageKey(key: String) {
+        prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).apply()
+    }
+
     private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
 
     private fun String.hexToBytes(): ByteArray =
@@ -53,5 +59,6 @@ class DatabaseKeyStore(context: Context) {
     companion object {
         private const val PREFS_FILE = "finsilo_secure"
         private const val KEY_PASSPHRASE = "sqlcipher_passphrase"
+        private const val KEY_ALPHA_VANTAGE = "alpha_vantage_key"
     }
 }

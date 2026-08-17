@@ -19,8 +19,8 @@ data class Transaction(
     val quantity: BigDecimal,
     val unitPriceNative: BigDecimal,
     /**
-     * USD per 1 EUR at execution (e.g. 1.10 means 1 EUR = 1.10 USD).
-     * EUR cash = native USD / this rate. Always 1 for EUR-denominated rows.
+     * EUR per 1 USD at execution (e.g. 0.92 means 1 USD = 0.92 EUR).
+     * EUR cash = native USD * this rate. Always 1 for EUR-denominated rows.
      */
     val exchangeRateAtExecution: BigDecimal,
     val unitPriceEur: BigDecimal,
@@ -40,7 +40,7 @@ data class DailyMarketData(
 
 data class CurrencyRate(
     val date: LocalDate,
-    val usdPerEur: BigDecimal,
+    val eurPerUsd: BigDecimal,
 )
 
 data class TargetAllocation(

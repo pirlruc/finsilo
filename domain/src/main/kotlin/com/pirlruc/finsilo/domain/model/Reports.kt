@@ -65,4 +65,37 @@ data class DashboardReport(
     val allocation: AllocationReport,
     val history: HistoryReport,
     val signals: List<MarketSignal>,
+    val twr: TwrReport,
+    val yoc: List<YocReport>,
+)
+
+data class TwrReport(
+    val asOf: LocalDate,
+    val twrPercent: BigDecimal,
+    val subPeriods: List<TwrSubPeriod>,
+)
+
+data class TwrSubPeriod(
+    val from: LocalDate,
+    val to: LocalDate,
+    val returnPercent: BigDecimal,
+    val split: TwrSplit?,
+)
+
+enum class TwrSplit {
+    EXTERNAL_BUY,
+    WITHDRAWAL,
+}
+
+data class YocReport(
+    val asset: Asset,
+    val remainingCostEur: BigDecimal,
+    val ttmPercent: BigDecimal?,
+    val lastTimesFrequencyPercent: BigDecimal?,
+    val paymentsPerYear: Int?,
+)
+
+data class PriceBar(
+    val date: LocalDate,
+    val closeNative: BigDecimal,
 )

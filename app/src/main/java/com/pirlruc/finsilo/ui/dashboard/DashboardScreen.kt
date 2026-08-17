@@ -17,6 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,13 +29,17 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +69,7 @@ import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.MarketSignal
 import com.pirlruc.finsilo.domain.model.NavPoint
+import com.pirlruc.finsilo.domain.model.YocReport
 import com.pirlruc.finsilo.domain.model.RelativeToAverage
 import com.pirlruc.finsilo.domain.model.TechnicalCross
 import com.pirlruc.finsilo.ui.formatEur
@@ -82,6 +90,8 @@ fun DashboardRoute(viewModel: DashboardViewModel) {
         onRangeSelected = viewModel::setRange,
         onLoadSample = viewModel::loadSample,
         onClear = viewModel::clearPortfolio,
+        onSync = viewModel::syncMarketData,
+        onSaveKey = viewModel::saveAlphaVantageKey,
     )
 }
 
@@ -92,12 +102,23 @@ fun DashboardScreen(
     onRangeSelected: (HistoryRange) -> Unit,
     onLoadSample: () -> Unit,
     onClear: () -> Unit,
+    onSync: () -> Unit,
+    onSaveKey: (String) -> Unit,
 ) {
+    var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("FinSilo") },
                 actions = {
+                    IconButton(onClick = { showKeyDialog = true }) {
+                        Icon(Icons.Outlined.Key, contentDescription = "Alpha Vantage key")
+                    }
+                    if (!state.empty) {
+                        IconButton(onClick = onSync, enabled = !state.syncing) {
+                            Icon(Icons.Outlined.Sync, contentDescription = "Sync quotes")
+                        }
+                    }
                     if (state.report != null) {
                         IconButton(onClick = onClear) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Clear portfolio")
@@ -112,9 +133,19 @@ fun DashboardScreen(
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.error != null -> ErrorState(state.error)
                 state.empty -> EmptyState(onLoadSample)
-                state.report != null -> DashboardContent(state.report, state.range, onRangeSelected)
+                state.report != null -> DashboardContent(state.report, state.range, state.statusMessage, onRangeSelected)
             }
         }
+    }
+    if (showKeyDialog) {
+        AlphaVantageKeyDialog(
+            hasKey = state.hasAlphaVantageKey,
+            onDismiss = { showKeyDialog = false },
+            onSave = { key ->
+                onSaveKey(key)
+                showKeyDialog = false
+            },
+        )
     }
 }
 
@@ -128,7 +159,7 @@ private fun EmptyState(onLoadSample: () -> Unit) {
         Text("No holdings yet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "This dashboard reads only the on-device encrypted ledger. Load a synthetic sample portfolio to review allocation and history charts, or wait until transaction entry (Phase 2) is wired.",
+            "This dashboard reads only the on-device encrypted ledger. Load a synthetic sample to review allocation, TWR, and YOC, or store an optional Alpha Vantage key and sync quotes (Frankfurter, Stooq, and CoinGecko work without a key).",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -150,15 +181,22 @@ private fun ErrorState(message: String) {
 private fun DashboardContent(
     report: DashboardReport,
     range: HistoryRange,
+    statusMessage: String?,
     onRangeSelected: (HistoryRange) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        if (statusMessage != null) {
+            Text(statusMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
         SummaryRow(report)
         AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
         HistoryCard(report.history.points, range, onRangeSelected)
+        if (report.yoc.isNotEmpty()) {
+            YocCard(report.yoc)
+        }
         if (report.signals.isNotEmpty()) {
             SignalsCard(report.signals)
         }
@@ -181,6 +219,12 @@ private fun SummaryRow(report: DashboardReport) {
             value = formatSignedEur(pnl),
             caption = if (pnl.signum() >= 0) "Open gains" else "Open losses",
             valueColor = if (pnl.signum() < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        )
+        MetricCard(
+            modifier = Modifier.weight(1f),
+            label = "TWR",
+            value = formatPercent(report.twr.twrPercent),
+            caption = "${report.twr.subPeriods.size} sub-period(s)",
         )
     }
 }
@@ -410,3 +454,68 @@ private fun TechnicalCross.label(): String =
         TechnicalCross.GOLDEN -> "Golden cross"
         TechnicalCross.DEATH -> "Death cross"
     }
+
+@Composable
+private fun YocCard(yoc: List<YocReport>) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Yield on cost", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "TTM uses cash dividends in the last 12 months. Last×freq annualizes the most recent payment by the TTM count (1, 2, 4, or 12).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            yoc.forEach { row ->
+                val ttm = row.ttmPercent?.let { formatPercent(it) } ?: "—"
+                val last = row.lastTimesFrequencyPercent?.let { formatPercent(it) } ?: "—"
+                val freq = row.paymentsPerYear?.toString() ?: "—"
+                Text(
+                    "${row.asset.symbol}  TTM $ttm  ·  last×$freq $last",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlphaVantageKeyDialog(
+    hasKey: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var value by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Alpha Vantage key") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    if (hasKey) {
+                        "A key is stored on-device. Free tier is about 25 calls/day. FX still comes from Frankfurter, crypto from CoinGecko, and EU prices from Stooq without a key."
+                    } else {
+                        "Optional. Free tier is about 25 calls/day. FX still comes from Frankfurter, crypto from CoinGecko, and EU prices from Stooq without a key."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text("API key") },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(value) }) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (hasKey) {
+                    TextButton(onClick = { onSave("") }) { Text("Clear") }
+                }
+                TextButton(onClick = onDismiss) { Text("Close") }
+            }
+        },
+    )
+}

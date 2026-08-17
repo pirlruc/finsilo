@@ -12,7 +12,7 @@ import androidx.room.TypeConverters
         CurrencyRateEntity::class,
         TargetAllocationEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(FinsiloTypeConverters::class)

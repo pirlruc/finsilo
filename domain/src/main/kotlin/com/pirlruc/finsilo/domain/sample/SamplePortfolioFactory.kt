@@ -28,6 +28,7 @@ object SamplePortfolioFactory {
     const val PPR_ID: String = "asset-ppr"
     const val CT_ID: String = "asset-ct"
     const val DEPOSIT_ID: String = "asset-deposit"
+    const val GOLD_ID: String = "asset-gold"
     const val CASH_ID: String = "asset-cash"
 
     fun create(asOf: LocalDate = LocalDate.of(2026, 8, 16)): PortfolioSnapshot {
@@ -53,6 +54,7 @@ object SamplePortfolioFactory {
             Asset(PPR_ID, "PTYAAAA00001", "PPR Moderado", AssetType.PPR, Currency.EUR),
             Asset(CT_ID, "CT-POUPANCA", "Certificados de Tesouro Poupança", AssetType.CT, Currency.EUR),
             Asset(DEPOSIT_ID, "DEP-CGD", "Depósito a prazo", AssetType.DEPOSIT, Currency.EUR),
+            Asset(GOLD_ID, "XAU", "Gold (spot)", AssetType.COMMODITY, Currency.USD),
             Asset(CASH_ID, "EUR-CASH", "Euro cash", AssetType.CASH, Currency.EUR),
         )
 
@@ -62,22 +64,23 @@ object SamplePortfolioFactory {
             TargetAllocation(AssetType.STOCK, bd("20")),
             TargetAllocation(AssetType.CRYPTO, bd("10")),
             TargetAllocation(AssetType.PPR, bd("15")),
-            TargetAllocation(AssetType.CT, bd("8")),
-            TargetAllocation(AssetType.DEPOSIT, bd("5")),
+            TargetAllocation(AssetType.CT, bd("6")),
+            TargetAllocation(AssetType.DEPOSIT, bd("4")),
+            TargetAllocation(AssetType.COMMODITY, bd("3")),
             TargetAllocation(AssetType.CASH, bd("2")),
         )
 
-    private fun usdPerEurOn(date: LocalDate, fx: List<CurrencyRate>): BigDecimal =
-        fx.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.usdPerEur ?: bd("1.08")
+    private fun eurPerUsdOn(date: LocalDate, fx: List<CurrencyRate>): BigDecimal =
+        fx.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.eurPerUsd ?: bd("0.92")
 
     private fun fxHistory(start: LocalDate, asOf: LocalDate): List<CurrencyRate> {
         val random = Random(7)
         val rates = ArrayList<CurrencyRate>()
-        var rate = bd("1.085")
+        var rate = bd("0.922")
         var date = start
         while (!date.isAfter(asOf)) {
-            val tick = (random.nextDouble() - 0.48) * 0.004
-            rate = rate.add(BigDecimal.valueOf(tick), MoneyMath.CONTEXT).max(bd("1.05")).min(bd("1.12"))
+            val tick = (random.nextDouble() - 0.48) * 0.003
+            rate = rate.add(BigDecimal.valueOf(tick), MoneyMath.CONTEXT).max(bd("0.88")).min(bd("0.98"))
             rates += CurrencyRate(date, rate)
             date = date.plusDays(1)
         }
@@ -86,7 +89,7 @@ object SamplePortfolioFactory {
 
     private fun transactions(start: LocalDate, fx: List<CurrencyRate>): List<Transaction> {
         val fundingDate = start.plusDays(1)
-        val fundingRate = usdPerEurOn(fundingDate, fx)
+        val fundingRate = eurPerUsdOn(fundingDate, fx)
         return listOf(
             cashDeposit("tx-cash-1", fundingDate, bd("25000"), fundingRate),
             buy("tx-aapl-1", APPLE_ID, start.plusDays(3), bd("15"), bd("185.40"), Currency.USD, fx),
@@ -95,6 +98,7 @@ object SamplePortfolioFactory {
             buy("tx-ppr-1", PPR_ID, start.plusDays(12), bd("40"), bd("12.50"), Currency.EUR, fx),
             buy("tx-ct-1", CT_ID, start.plusDays(15), bd("3000"), bd("1"), Currency.EUR, fx),
             buy("tx-dep-1", DEPOSIT_ID, start.plusDays(16), bd("2000"), bd("1"), Currency.EUR, fx),
+            buy("tx-gold-1", GOLD_ID, start.plusDays(20), bd("1.5"), bd("2300"), Currency.USD, fx),
             Transaction(
                 id = "tx-ct-int-1",
                 assetId = CT_ID,
@@ -106,21 +110,28 @@ object SamplePortfolioFactory {
                 unitPriceEur = bd("28.50"),
                 feesEur = BigDecimal.ZERO,
             ),
-            Transaction(
-                id = "tx-aapl-div-1",
-                assetId = APPLE_ID,
-                date = start.plusDays(90),
-                type = TransactionType.DIVIDEND,
-                quantity = bd("15"),
-                unitPriceNative = bd("0.25"),
-                exchangeRateAtExecution = usdPerEurOn(start.plusDays(90), fx),
-                unitPriceEur = toEur(bd("0.25"), Currency.USD, usdPerEurOn(start.plusDays(90), fx)),
-                feesEur = BigDecimal.ZERO,
-            ),
+            appleDividend("tx-aapl-div-1", start.plusDays(20), fx),
+            appleDividend("tx-aapl-div-2", start.plusDays(90), fx),
+            appleDividend("tx-aapl-div-3", start.plusDays(160), fx),
         )
     }
 
-    private fun cashDeposit(id: String, date: LocalDate, amountEur: BigDecimal, usdPerEur: BigDecimal): Transaction =
+    private fun appleDividend(id: String, date: LocalDate, fx: List<CurrencyRate>): Transaction {
+        val rate = eurPerUsdOn(date, fx)
+        return Transaction(
+            id = id,
+            assetId = APPLE_ID,
+            date = date,
+            type = TransactionType.DIVIDEND,
+            quantity = bd("15"),
+            unitPriceNative = bd("0.25"),
+            exchangeRateAtExecution = rate,
+            unitPriceEur = toEur(bd("0.25"), Currency.USD, rate),
+            feesEur = BigDecimal.ZERO,
+        )
+    }
+
+    private fun cashDeposit(id: String, date: LocalDate, amountEur: BigDecimal, eurPerUsd: BigDecimal): Transaction =
         Transaction(
             id = id,
             assetId = CASH_ID,
@@ -128,7 +139,7 @@ object SamplePortfolioFactory {
             type = TransactionType.DEPOSIT_CASH,
             quantity = amountEur,
             unitPriceNative = BigDecimal.ONE,
-            exchangeRateAtExecution = usdPerEur,
+            exchangeRateAtExecution = eurPerUsd,
             unitPriceEur = BigDecimal.ONE,
             feesEur = BigDecimal.ZERO,
         )
@@ -142,7 +153,7 @@ object SamplePortfolioFactory {
         currency: Currency,
         fx: List<CurrencyRate>,
     ): Transaction {
-        val rate = if (currency == Currency.EUR) BigDecimal.ONE else usdPerEurOn(date, fx)
+        val rate = if (currency == Currency.EUR) BigDecimal.ONE else eurPerUsdOn(date, fx)
         val eur = toEur(nativePrice, currency, rate)
         return Transaction(
             id = id,
@@ -163,11 +174,14 @@ object SamplePortfolioFactory {
         val btc = walk(start, asOf, bd("62000"), 0.025, 33, ratingsAround(asOf, AnalystRating.NONE, AnalystRating.NONE))
         val ppr = walk(start, asOf, bd("12.55"), 0.003, 44, ratingsAround(asOf, AnalystRating.HOLD, AnalystRating.BUY))
 
+        val gold = walk(start, asOf, bd("2320"), 0.008, 55, ratingsAround(asOf, AnalystRating.NONE, AnalystRating.NONE))
+
         return buildList {
             addAll(withSma(APPLE_ID, apple, goldenCrossNearEnd = true))
             addAll(withSma(VWCE_ID, vwce, goldenCrossNearEnd = false))
             addAll(withSma(BTC_ID, btc, goldenCrossNearEnd = false))
             addAll(withSma(PPR_ID, ppr, goldenCrossNearEnd = false))
+            addAll(withSma(GOLD_ID, gold, goldenCrossNearEnd = false))
         }
     }
 

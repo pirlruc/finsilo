@@ -38,12 +38,12 @@ object MoneyMath {
     /**
      * Convert a native amount to EUR.
      *
-     * [usdPerEur] is USD per 1 EUR (RFC example: 1.10). USD amounts become
-     * `native / usdPerEur`, matching `unit_price_eur = unit_price_native / exchange_rate`.
+     * [eurPerUsd] is EUR per 1 USD (e.g. 0.92 means 1 USD = 0.92 EUR).
+     * USD amounts become `native * eurPerUsd`. EUR amounts are unchanged.
      */
-    fun toEur(amountNative: BigDecimal, currency: Currency, usdPerEur: BigDecimal): BigDecimal =
+    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUsd: BigDecimal): BigDecimal =
         when (currency) {
             Currency.EUR -> amountNative
-            Currency.USD -> div(amountNative, usdPerEur)
+            Currency.USD -> times(amountNative, eurPerUsd)
         }
 }

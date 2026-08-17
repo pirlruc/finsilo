@@ -35,28 +35,28 @@ class PortfolioValuatorTest {
     private val asOf = LocalDate.of(2026, 8, 16)
 
     @Test
-    fun usdHoldingIsConvertedWithUsdPerEurRate() {
+    fun usdHoldingIsConvertedWithEurPerUsdRate() {
+        val eurPerUsd = MoneyMath.div(bd("1"), bd("1.10"))
         val snapshot = snapshot(
             assets = listOf(apple, cash),
             transactions = listOf(
                 cashIn("t0", LocalDate.of(2026, 1, 1), bd("2000")),
-                buy("t1", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("110"), Currency.USD, bd("1.10"), fees = BigDecimal.ZERO),
+                buy("t1", apple.id, LocalDate.of(2026, 1, 2), bd("10"), bd("110"), Currency.USD, eurPerUsd, fees = BigDecimal.ZERO),
             ),
             market = listOf(DailyMarketData(apple.id, asOf, bd("220"))),
-            fx = listOf(CurrencyRate(asOf, bd("1.10"))),
+            fx = listOf(CurrencyRate(asOf, eurPerUsd)),
         )
 
         val report = valuator.allocation(snapshot, asOf)
         val stock = report.holdings.single { it.asset.id == apple.id }
-        // 220 USD / 1.10 = 200 EUR; 10 shares = 2000 EUR
+        // 220 USD * (1/1.10) = 200 EUR; 10 shares = 2000 EUR
         assertMoney("200", stock.priceEur, "price")
         assertMoney("2000", stock.valueEur, "value")
-        // cost: 10 * (110/1.10) = 1000 EUR; unrealized 1000
         assertMoney("1000", stock.unrealizedPnlEur, "unrealized")
     }
 
     @Test
-    fun sellUsesMovingAverageCostAndDoesNotChangeRemainingAverage() {
+    fun sellConsumesOldestLotsFirst() {
         val ledger = PositionLedger()
         val txs = listOf(
             buy("b1", apple.id, LocalDate.of(2026, 1, 1), bd("10"), bd("100"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
@@ -65,8 +65,29 @@ class PortfolioValuatorTest {
         )
         val lot = ledger.position(txs)
         assertMoney("15", lot.quantity, "qty")
-        // remaining cost = 3000 * 15/20 = 2250; avg stays 150
-        assertMoney("150", lot.averageCostEur, "avg")
+        // FIFO remaining: 5 @ 100 + 10 @ 200 = 2500; avg 166.666...
+        assertMoney("2500", lot.remainingCostEur, "cost")
+    }
+
+    @Test
+    fun commodityIsMarkedToMarketAgainstFifoCost() {
+        val gold = Asset("gold", "XAU", "Gold", AssetType.COMMODITY, Currency.USD)
+        val eurPerUsd = bd("0.92")
+        val snapshot = snapshot(
+            assets = listOf(gold, cash),
+            transactions = listOf(
+                cashIn("c0", LocalDate.of(2026, 1, 1), bd("10000")),
+                buy("b1", gold.id, LocalDate.of(2026, 1, 2), bd("2"), bd("2000"), Currency.USD, eurPerUsd, fees = BigDecimal.ZERO),
+            ),
+            market = listOf(DailyMarketData(gold.id, asOf, bd("2500"))),
+            fx = listOf(CurrencyRate(asOf, eurPerUsd)),
+        )
+        val holding = valuator.allocation(snapshot, asOf).holdings.single { it.asset.id == gold.id }
+        // 2 * 2500 USD * 0.92 = 4600 EUR; cost 2 * 2000 * 0.92 = 3680; pnl 920
+        assertMoney("4600", holding.valueEur, "value")
+        assertMoney("3680", holding.costEur, "cost")
+        assertMoney("920", holding.unrealizedPnlEur, "pnl")
+        assertEquals(AssetType.COMMODITY, holding.asset.assetType)
     }
 
     @Test
@@ -145,7 +166,7 @@ class PortfolioValuatorTest {
             fx = emptyList(),
         )
         val stock = valuator.valueHoldings(snapshot, asOf).single { it.asset.id == apple.id }
-        // fallback usdPerEur=1 so 2*100 = 200
+        // fallback eurPerUsd=1 so 2*100 = 200
         assertEquals(0, bd("200").compareTo(stock.valueEur))
     }
 
@@ -177,11 +198,11 @@ class PortfolioValuatorTest {
         qty: BigDecimal,
         native: BigDecimal,
         currency: Currency,
-        usdPerEur: BigDecimal,
+        eurPerUsd: BigDecimal,
         fees: BigDecimal = bd("1.50"),
     ): Transaction {
-        val eur = MoneyMath.toEur(native, currency, usdPerEur)
-        return Transaction(id, assetId, date, TransactionType.BUY, qty, native, usdPerEur, eur, fees)
+        val eur = MoneyMath.toEur(native, currency, eurPerUsd)
+        return Transaction(id, assetId, date, TransactionType.BUY, qty, native, eurPerUsd, eur, fees)
     }
 
     private fun sell(

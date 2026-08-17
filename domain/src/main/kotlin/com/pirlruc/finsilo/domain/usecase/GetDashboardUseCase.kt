@@ -9,6 +9,8 @@ class GetDashboardUseCase(
     private val allocation: GetAllocationUseCase = GetAllocationUseCase(),
     private val history: GetPortfolioHistoryUseCase = GetPortfolioHistoryUseCase(),
     private val signals: GetMarketSignalsUseCase = GetMarketSignalsUseCase(),
+    private val twr: GetTimeWeightedReturnUseCase = GetTimeWeightedReturnUseCase(),
+    private val yoc: GetYocUseCase = GetYocUseCase(),
 ) {
     operator fun invoke(
         snapshot: PortfolioSnapshot,
@@ -20,5 +22,7 @@ class GetDashboardUseCase(
             allocation = allocation(snapshot, asOf),
             history = history(snapshot, range, asOf),
             signals = signals(snapshot, asOf),
+            twr = twr(snapshot, asOf),
+            yoc = yoc(snapshot, asOf),
         )
 }
