@@ -1,7 +1,6 @@
 package com.pirlruc.finsilo.domain.importcsv
 
 import com.pirlruc.finsilo.domain.model.Asset
-import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.usecase.LedgerEntryRequest
@@ -24,23 +23,34 @@ data class ImportBrokerCsvResult(
  * Parses Trading 212 / DEGIRO / Revolut CSVs and writes FIFO ledger rows.
  * Buys that need cash insert a same-day [TransactionType.DEPOSIT_CASH] first.
  */
-class ImportBrokerCsvUseCase(private val record: RecordLedgerEntryUseCase = RecordLedgerEntryUseCase()) {
+class ImportBrokerCsvUseCase internal constructor(private val applyLedger: (PortfolioSnapshot, LedgerEntryRequest) -> LedgerEntryResult) {
+    constructor(record: RecordLedgerEntryUseCase = RecordLedgerEntryUseCase()) : this(
+        { snapshot, request -> record(snapshot, request) },
+    )
+
     private val funder = ImportCashFunder()
+
     operator fun invoke(snapshot: PortfolioSnapshot, csvTexts: List<String>): ImportBrokerCsvResult {
         val parsed = BrokerCsv.parseAll(csvTexts)
         if (parsed.error != null) {
             return ImportBrokerCsvResult(0, 0, 0, emptyList(), snapshot, parsed.error)
         }
-        return ImportWalk(snapshot, record, funder).apply(parsed.lines)
+        return ImportWalk(snapshot, applyLedger, funder).apply(parsed.lines)
     }
 }
 
-private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordLedgerEntryUseCase, private val funder: ImportCashFunder) {
+private class ImportWalk(
+    initial: PortfolioSnapshot,
+    private val applyLedger: (PortfolioSnapshot, LedgerEntryRequest) -> LedgerEntryResult,
+    private val funder: ImportCashFunder,
+) {
     private var snapshot = initial
     private var accepted = 0
     private var fundedDeposits = 0
     private var duplicates = 0
     private val skipped = ArrayList<String>()
+    private val already = ImportFingerprints.counts(initial)
+    private val seen = HashMap<String, Int>()
 
     fun apply(lines: List<BrokerCsvLine>): ImportBrokerCsvResult {
         ordered(lines).forEach { line -> handle(line) }
@@ -54,10 +64,10 @@ private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordL
         }
         val request = requestFor(line)
         if (request == null) {
-            skipped += "Line ${line.sourceLine}: No holding for ${line.symbol.ifBlank { "row" }}."
+            skipped += describeSkip(line)
             return
         }
-        if (isDuplicate(line, request)) {
+        if (isDuplicate(line)) {
             duplicates += 1
             return
         }
@@ -65,21 +75,30 @@ private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordL
     }
 
     private fun persist(line: BrokerCsvLine, request: LedgerEntryRequest) {
-        fundIfNeeded(request)
-        when (val result = record(snapshot, request)) {
+        val fundedId = fundIfNeeded(request)
+        when (val result = applyLedger(snapshot, request)) {
             is LedgerEntryResult.Accepted -> accept(result)
-            is LedgerEntryResult.Rejected -> skipped += "Line ${line.sourceLine}: ${result.reason}"
+            is LedgerEntryResult.Rejected -> {
+                if (fundedId != null) undoFund(fundedId)
+                skipped += "Line ${line.sourceLine}: ${result.reason}"
+            }
         }
     }
 
-    private fun fundIfNeeded(request: LedgerEntryRequest) {
-        val asset = previewAsset(request) ?: return
-        val deposit = funder.depositFor(snapshot, request, asset) ?: return
-        val result = record(snapshot, deposit)
-        if (result is LedgerEntryResult.Accepted) {
-            accept(result)
-            fundedDeposits += 1
-        }
+    private fun fundIfNeeded(request: LedgerEntryRequest): String? {
+        val asset = previewAsset(request) ?: return null
+        val deposit = funder.depositFor(snapshot, request, asset) ?: return null
+        val result = applyLedger(snapshot, deposit)
+        if (result !is LedgerEntryResult.Accepted) return null
+        accept(result)
+        fundedDeposits += 1
+        return result.transaction.id
+    }
+
+    private fun undoFund(txId: String) {
+        snapshot = snapshot.copy(transactions = snapshot.transactions.filterNot { it.id == txId })
+        accepted -= 1
+        fundedDeposits -= 1
     }
 
     private fun accept(result: LedgerEntryResult.Accepted) {
@@ -101,7 +120,12 @@ private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordL
         if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL) {
             return LedgerEntryRequest(type, date, line.quantity, BigDecimal.ONE, BigDecimal.ZERO)
         }
+        return holdingRequest(type, date, line)
+    }
+
+    private fun holdingRequest(type: TransactionType, date: java.time.LocalDate, line: BrokerCsvLine): LedgerEntryRequest? {
         val existing = matchAsset(line)
+        if (existing != null && existing.baseCurrency != line.currency) return null
         if (type != TransactionType.BUY && existing == null) return null
         return LedgerEntryRequest(
             type = type,
@@ -113,6 +137,14 @@ private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordL
             newAsset = if (existing == null) draft(line) else null,
             eurPerUsd = line.eurPerUsd,
         )
+    }
+
+    private fun describeSkip(line: BrokerCsvLine): String {
+        val existing = matchAsset(line)
+        if (existing != null && existing.baseCurrency != line.currency) {
+            return "Line ${line.sourceLine}: CSV ${line.currency} does not match holding ${existing.baseCurrency}."
+        }
+        return "Line ${line.sourceLine}: No holding for ${line.symbol.ifBlank { "row" }}."
     }
 
     private fun previewAsset(request: LedgerEntryRequest): Asset? {
@@ -131,18 +163,12 @@ private class ImportWalk(initial: PortfolioSnapshot, private val record: RecordL
         return snapshot.assets.firstOrNull { matchesSymbol(it, symbol, quote) }
     }
 
-    private fun isDuplicate(line: BrokerCsvLine, request: LedgerEntryRequest): Boolean {
-        val assetId = request.existingAssetId ?: cashAssetId() ?: return false
-        return snapshot.transactions.any { tx ->
-            tx.date == request.date &&
-                tx.type == request.type &&
-                tx.assetId == assetId &&
-                tx.quantity.compareTo(line.quantity) == 0 &&
-                tx.unitPriceNative.compareTo(line.unitPriceNative) == 0
-        }
+    private fun isDuplicate(line: BrokerCsvLine): Boolean {
+        val fp = ImportFingerprints.of(line)
+        val n = (seen[fp] ?: 0) + 1
+        seen[fp] = n
+        return n <= (already[fp] ?: 0)
     }
-
-    private fun cashAssetId(): String? = snapshot.assets.firstOrNull { it.assetType == AssetType.CASH }?.id
 
     private fun ordered(lines: List<BrokerCsvLine>): List<BrokerCsvLine> =
         lines.sortedWith(compareBy({ it.date ?: java.time.LocalDate.MAX }, { importRank(it.type) }, { it.sourceLine }))

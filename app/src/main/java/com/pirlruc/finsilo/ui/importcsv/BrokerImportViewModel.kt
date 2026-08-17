@@ -46,21 +46,18 @@ class BrokerImportViewModel(
             _state.update { it.copy(importing = false, error = result.error) }
             return
         }
+        if (result.accepted == 0) {
+            _state.update { it.copy(importing = false, status = brokerImportSummary(result), error = null) }
+            return
+        }
         runCatching { repository.write(result.snapshot) }
             .onSuccess {
-                _state.update { it.copy(importing = false, status = summary(result), error = null) }
-                if (result.accepted > 0) onImported()
+                _state.update { it.copy(importing = false, status = brokerImportSummary(result), error = null) }
+                onImported()
             }
             .onFailure { error ->
                 _state.update { it.copy(importing = false, error = error.message ?: "Could not save import") }
             }
-    }
-
-    private fun summary(result: ImportBrokerCsvResult): String {
-        val skips = if (result.skipped.isEmpty()) "" else " Skipped ${result.skipped.size}."
-        val dups = if (result.duplicates == 0) "" else " ${result.duplicates} duplicate(s)."
-        val funded = if (result.fundedDeposits == 0) "" else " ${result.fundedDeposits} cash top-up(s) to fund buys."
-        return "Imported ${result.accepted} row(s).$funded$dups$skips"
     }
 
     companion object {
@@ -69,4 +66,16 @@ class BrokerImportViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T = BrokerImportViewModel(container.repository) as T
         }
     }
+}
+
+internal fun brokerImportSummary(result: ImportBrokerCsvResult): String {
+    val skips =
+        if (result.skipped.isEmpty()) {
+            ""
+        } else {
+            " Skipped ${result.skipped.size}: ${result.skipped.take(3).joinToString("; ")}."
+        }
+    val dups = if (result.duplicates == 0) "" else " ${result.duplicates} duplicate(s)."
+    val funded = if (result.fundedDeposits == 0) "" else " ${result.fundedDeposits} cash top-up(s) to fund buys."
+    return "Imported ${result.accepted} row(s).$funded$dups$skips"
 }

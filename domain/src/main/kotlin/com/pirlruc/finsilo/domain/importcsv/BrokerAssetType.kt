@@ -12,14 +12,10 @@ internal object BrokerAssetType {
         return when {
             ticker in cryptoTickers || "CRYPTO" in blob || "BITCOIN" in blob -> AssetType.CRYPTO
             ticker == "XAU" || blob.contains("GOLD") && "ETF" !in blob -> AssetType.COMMODITY
-            looksEtf(blob, isin) -> AssetType.ETF
+            looksEtf(blob) -> AssetType.ETF
             else -> AssetType.STOCK
         }
     }
 
-    private fun looksEtf(blob: String, isin: String?): Boolean {
-        if (listOf("ETF", "UCITS", "VANGUARD", "ISHARES", "CORE MSCI").any { it in blob }) return true
-        val code = isin?.uppercase().orEmpty()
-        return code.startsWith("IE") || code.startsWith("LU")
-    }
+    private fun looksEtf(blob: String): Boolean = listOf("ETF", "UCITS", "VANGUARD", "ISHARES", "CORE MSCI").any { it in blob }
 }

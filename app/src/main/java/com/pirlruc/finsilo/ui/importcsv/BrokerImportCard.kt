@@ -23,8 +23,8 @@ fun BrokerImportCard(state: BrokerImportUiState, onImportCsvs: (List<String>) ->
     val context = LocalContext.current
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-            val texts = uris.mapNotNull { uri -> readCsv(context, uri) }
-            if (texts.isNotEmpty()) onImportCsvs(texts)
+            if (uris.isEmpty()) return@rememberLauncherForActivityResult
+            onImportCsvs(uris.mapNotNull { uri -> readCsv(context, uri) })
         }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

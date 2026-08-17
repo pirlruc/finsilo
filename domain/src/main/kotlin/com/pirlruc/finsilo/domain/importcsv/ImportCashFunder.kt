@@ -4,6 +4,8 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import com.pirlruc.finsilo.domain.usecase.LedgerEntryRequest
@@ -15,7 +17,7 @@ internal class ImportCashFunder(private val ledger: PositionLedger = PositionLed
         if (request.type != TransactionType.BUY) return null
         val rate = executionRate(snapshot, request, asset) ?: return null
         val unitEur = toEur(request.unitPriceNative, asset.baseCurrency, rate)
-        val cost = request.quantity.multiply(unitEur).add(request.feesEur)
+        val cost = plus(times(request.quantity, unitEur), request.feesEur)
         val assets = snapshot.assets.associateBy { it.id } + (asset.id to asset)
         val cash = ledger.cashEur(snapshot.transactions, assets)
         val gap = cost.subtract(cash)

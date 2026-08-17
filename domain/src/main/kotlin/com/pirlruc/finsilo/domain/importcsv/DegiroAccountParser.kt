@@ -42,7 +42,7 @@ internal object DegiroAccountParser {
         if ((product.isBlank() && isin == null) || amount.signum() <= 0) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Dividend missing product or amount", date)
         }
-        val quote = BrokerQuoteSymbol.fromVenue(isin ?: product, "", isin)
+        val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         val booked = BookedAmounts(BigDecimal.ONE, amount, com.pirlruc.finsilo.domain.model.Currency.EUR, BigDecimal.ZERO, null)
         return BrokerLines.holding(
             HoldingDraft(
@@ -50,10 +50,10 @@ internal object DegiroAccountParser {
                 sourceLine = sourceLine,
                 date = date,
                 type = TransactionType.DIVIDEND,
-                symbol = quote,
+                symbol = symbol,
                 name = product,
                 isin = isin,
-                quoteSymbol = quote,
+                quoteSymbol = null,
                 booked = booked,
                 externalId = row.get("Order Id", "Order ID"),
             ),
@@ -69,17 +69,17 @@ internal object DegiroAccountParser {
             BrokerMoney.book(
                 MoneyParts(qty, "", "EUR", change.abs().toPlainString(), "EUR", row.get("FX"), "", "EUR"),
             ) ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account trade missing amount", date)
-        val quote = BrokerQuoteSymbol.fromVenue(isin ?: product, "", isin)
+        val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         return BrokerLines.holding(
             HoldingDraft(
                 format = BrokerCsvFormat.DEGIRO_ACCOUNT,
                 sourceLine = sourceLine,
                 date = date,
                 type = if (kind == AccountKind.BUY) TransactionType.BUY else TransactionType.SELL,
-                symbol = quote,
+                symbol = symbol,
                 name = product,
                 isin = isin,
-                quoteSymbol = quote,
+                quoteSymbol = null,
                 booked = booked,
                 externalId = row.get("Order Id", "Order ID"),
             ),

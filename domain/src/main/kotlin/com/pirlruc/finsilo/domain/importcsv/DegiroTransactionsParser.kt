@@ -35,7 +35,7 @@ internal object DegiroTransactionsParser {
     ): BrokerCsvLine {
         val booked = BrokerMoney.book(money(row, signedQty.abs()))
             ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_TRANSACTIONS, sourceLine, "Missing price", date)
-        val quote = BrokerQuoteSymbol.fromVenue(isin ?: product, row.get("Venue", "Beurs", "Uitvoeringsplaats"), isin)
+        val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         val type = if (signedQty.signum() < 0) TransactionType.SELL else TransactionType.BUY
         return BrokerLines.holding(
             HoldingDraft(
@@ -43,10 +43,10 @@ internal object DegiroTransactionsParser {
                 sourceLine = sourceLine,
                 date = date,
                 type = type,
-                symbol = quote,
+                symbol = symbol,
                 name = product,
                 isin = isin,
-                quoteSymbol = quote,
+                quoteSymbol = null,
                 booked = booked,
                 externalId = row.get("Order ID", "Order-ID", "Order Id"),
             ),

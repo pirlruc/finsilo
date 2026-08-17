@@ -2,7 +2,7 @@ package com.pirlruc.finsilo.domain.importcsv
 
 /**
  * RFC-4180-ish CSV splitter. Detects comma vs semicolon from the first
- * non-empty line so DEGIRO (semicolon) and T212/Revolut (comma) share one reader.
+ * data-looking line so a title row above a DEGIRO semicolon file still parses.
  */
 object CsvReader {
     /** Split [text] into rows of cells, stripping a leading BOM. */
@@ -13,10 +13,10 @@ object CsvReader {
     }
 
     internal fun detectDelimiter(text: String): Char {
-        val line = text.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
-        val semi = line.count { it == ';' }
-        val comma = line.count { it == ',' }
-        return if (semi > comma) ';' else ','
+        val lines = text.lineSequence().filter { it.isNotBlank() }.take(15).toList()
+        if (lines.isEmpty()) return ','
+        val best = lines.maxBy { line -> maxOf(line.count { it == ';' }, line.count { it == ',' }) }
+        return if (best.count { it == ';' } > best.count { it == ',' }) ';' else ','
     }
 }
 
@@ -31,8 +31,7 @@ private class CsvLexer(private val text: String, private val delimiter: Char) {
         while (i < text.length) {
             consume(text[i])
         }
-        finishCell()
-        if (row.isNotEmpty()) rows += row.toList()
+        flushTail()
         return rows
     }
 
@@ -74,8 +73,18 @@ private class CsvLexer(private val text: String, private val delimiter: Char) {
     }
 
     private fun finishRow() {
+        if (cell.isEmpty() && row.isEmpty()) {
+            i += 1
+            return
+        }
         finishCell()
         rows += row.toList()
         row.clear()
+    }
+
+    private fun flushTail() {
+        if (cell.isEmpty() && row.isEmpty()) return
+        row += cell.toString()
+        rows += row.toList()
     }
 }

@@ -23,28 +23,6 @@ internal object BrokerQuoteSymbol {
             "BB" to "BR",
         )
 
-    private val venueSuffix =
-        mapOf(
-            "NDQ" to "US",
-            "NSY" to "US",
-            "NASDAQ" to "US",
-            "NYSE" to "US",
-            "XET" to "DE",
-            "XETR" to "DE",
-            "FRA" to "DE",
-            "EPA" to "PA",
-            "PAR" to "PA",
-            "AMS" to "AS",
-            "LSE" to "L",
-            "LON" to "L",
-            "MAD" to "MC",
-            "MIL" to "MI",
-            "SWX" to "SW",
-            "ELI" to "LS",
-            "LIS" to "LS",
-            "BRU" to "BR",
-        )
-
     private val isinCountry =
         mapOf(
             "US" to "US",
@@ -71,14 +49,8 @@ internal object BrokerQuoteSymbol {
         return "$root.$suffix"
     }
 
-    fun fromVenue(symbol: String, venue: String, isin: String?): String {
-        val root = symbol.substringBefore('.').ifBlank { isin.orEmpty() }
-        if (root.isEmpty()) return symbol
-        val fromVenue = venueSuffix[venue.trim().uppercase()]
-        val fromIsin = isin?.take(2)?.uppercase()?.let { isinCountry[it] }
-        val suffix = fromVenue ?: fromIsin ?: return root
-        return "$root.$suffix"
-    }
+    /** DEGIRO exports a product name and ISIN, not a listed ticker. */
+    fun fromDegiro(product: String, isin: String?): String = isin?.ifBlank { null } ?: product
 
     fun fromIsin(ticker: String, isin: String?): String {
         val root = ticker.substringBefore('.').ifBlank { return ticker }
