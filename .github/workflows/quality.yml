@@ -49,7 +49,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Maintainability index (domain SEI)
+      - name: Maintainability index (domain + app SEI)
         run: |
           pip install --disable-pip-version-check "multimetric==2.4.4"
           python3 scripts/check-maintainability.py

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Fail closed on min_maintainability_index for :domain production Kotlin (KT-CPLX-002).
+"""Fail closed on min_maintainability_index for production Kotlin (KT-CPLX-002).
 
 Tool: multimetric (Kotlin-capable). Formula: SEI / Oman-Hagemeister (same 171-scale
 as radon and Metrix++). Gate is the worst *file* MI, not the concatenated overall.
-Compose UI under :app is out of scope (LIM-MI-UI): per-file MI is dominated by
-@Composable length, not cyclomatic structure.
+Scans :domain and :app main sources.
 """
 from __future__ import annotations
 
@@ -17,15 +16,25 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from read_kotlin_threshold import read_threshold  # noqa: E402
 
-SOURCE = ROOT / "domain" / "src" / "main" / "kotlin"
+SOURCES = (
+    ROOT / "domain" / "src" / "main" / "kotlin",
+    ROOT / "app" / "src" / "main" / "java",
+)
 MULTIMETRIC = "2.4.4"
+
+
+def kotlin_files() -> list[str]:
+    files: list[str] = []
+    for source in SOURCES:
+        files.extend(str(path) for path in source.rglob("*.kt"))
+    return sorted(files)
 
 
 def main() -> int:
     required = read_threshold("min_maintainability_index")
-    files = sorted(str(path) for path in SOURCE.rglob("*.kt"))
+    files = kotlin_files()
     if not files:
-        print(f"No Kotlin sources under {SOURCE}", file=sys.stderr)
+        print("No Kotlin sources under domain/ or app/", file=sys.stderr)
         return 1
     try:
         proc = subprocess.run(
@@ -54,7 +63,7 @@ def main() -> int:
         scores.append((float(mi), path))
     scores.sort()
     lowest, worst = scores[0]
-    print(f"Domain SEI maintainability: min {lowest:.3f} (gate {required}) worst={worst}")
+    print(f"SEI maintainability: min {lowest:.3f} (gate {required}) worst={worst}")
     if lowest + 1e-9 < required:
         print("Files below gate:", file=sys.stderr)
         for mi, path in scores:

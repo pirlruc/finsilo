@@ -16,8 +16,8 @@ Product phases **1–6** are implemented. Guardrails (Phase 7): quality (includi
 
 | Module | Path | Notes |
 | --- | --- | --- |
-| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard, ledger form, target settings, Vico charts, encrypted Room v4 (schema exported, including `nav_history`), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`, `QuoteCurrency` (USD feeds × FX → EUR), `AppLockCrypto`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
+| app | `app/` | Compose dashboard (split screens), ledger form (buy/sell every type), PIN/biometric lock with recovery code, target settings, Vico charts, encrypted Room v4 (schema exported, including `nav_history`), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
 
 ## How to run checks
 
@@ -72,12 +72,13 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
+- Open value backlog (not started): [FS-017](issues.yml) encrypted backup, [FS-018](issues.yml) PT FIFO report, [FS-019](issues.yml) NAV widget, [FS-020](issues.yml) threshold alerts, [FS-021](issues.yml) dual-currency display, [FS-022](issues.yml) manual quotes, [FS-023](issues.yml) templates, [FS-024](issues.yml) watchlist. Do not reopen [FS-DEC-001](issues.yml).
 
 Phase 7 still open:
 
-- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; **line is green, branch is ~73%**. See [limitations.md](limitations.md) LIM-COV.
+- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; **line is green, branch is ~81%**. See [limitations.md](limitations.md) LIM-COV.
 
-Untracked limits (Kover branch 95, private analog clone, Semgrep registry, Compose MI, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
+Untracked limits (Kover branch 95, private analog clone, Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
 Do not record a fake lowered-gate deviation.
 
@@ -93,11 +94,12 @@ Do not record a fake lowered-gate deviation.
 | Unlisted PPR | Local NAV (buy + interest); skipped on sync | — |
 | Listed PPR | `quoteSymbol` / exchange suffix; routed like an ETF | — |
 
-The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
+The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. USD feeds (CoinGecko, AV US/commodities, Stooq XAU) stay USD and convert with stored EUR-per-USD even when the instrument is booked in EUR (`QuoteCurrency`). Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD-quoted holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
 
 ## Security
 
 - SQLCipher passphrase and optional Alpha Vantage key in EncryptedSharedPreferences / Android Keystore.
+- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN.
 - `android:allowBackup="false"` and backup exclusion rules.
 - INTERNET permission for GET-only sync; cleartext disabled.
 - `POST_NOTIFICATIONS` for Phase 5 alerts; skipped at runtime if denied (API 33+).

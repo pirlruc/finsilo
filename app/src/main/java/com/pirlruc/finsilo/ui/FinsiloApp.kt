@@ -19,6 +19,8 @@ import com.pirlruc.finsilo.ui.dashboard.DashboardRoute
 import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryRoute
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryViewModel
+import com.pirlruc.finsilo.ui.lock.AppLockGate
+import com.pirlruc.finsilo.ui.lock.LockViewModel
 import com.pirlruc.finsilo.ui.settings.TargetSettingsRoute
 import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
 
@@ -31,6 +33,14 @@ private enum class AppScreen {
 @Composable
 fun FinsiloApp(container: AppContainer) {
     RequestNotificationPermission()
+    val lock: LockViewModel = viewModel(factory = LockViewModel.factory(container))
+    AppLockGate(lock) {
+        UnlockedApp(container, lock)
+    }
+}
+
+@Composable
+private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.DASHBOARD) }
     val dashboard: DashboardViewModel = viewModel(factory = DashboardViewModel.factory(container))
     when (screen) {
@@ -54,6 +64,7 @@ fun FinsiloApp(container: AppContainer) {
             val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
             TargetSettingsRoute(
                 viewModel = settings,
+                lock = lock,
                 onClose = {
                     screen = AppScreen.DASHBOARD
                     dashboard.refresh()

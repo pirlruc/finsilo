@@ -26,22 +26,39 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.ui.lock.LockUiState
+import com.pirlruc.finsilo.ui.lock.LockViewModel
+import com.pirlruc.finsilo.ui.lock.SecuritySettingsCard
 import com.pirlruc.finsilo.ui.theme.label
 
 @Composable
-fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, onClose: () -> Unit) {
+fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val lockState by lock.state.collectAsStateWithLifecycle()
     TargetSettingsScreen(
         state = state,
+        lock = lockState,
         onClose = onClose,
         onWeight = viewModel::setWeight,
         onSave = { viewModel.save(onClose) },
+        onToggleBiometric = lock::persistBiometric,
+        onRotateRecovery = lock::rotateRecovery,
+        onDismissRecovery = lock::clearNewRecovery,
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TargetSettingsScreen(state: TargetSettingsUiState, onClose: () -> Unit, onWeight: (AssetType, String) -> Unit, onSave: () -> Unit) {
+fun TargetSettingsScreen(
+    state: TargetSettingsUiState,
+    lock: LockUiState,
+    onClose: () -> Unit,
+    onWeight: (AssetType, String) -> Unit,
+    onSave: () -> Unit,
+    onToggleBiometric: (Boolean) -> Unit,
+    onRotateRecovery: () -> Unit,
+    onDismissRecovery: () -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -84,6 +101,16 @@ fun TargetSettingsScreen(state: TargetSettingsUiState, onClose: () -> Unit, onWe
             Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
                 Text("Save targets")
             }
+            SecuritySettingsCard(
+                biometricEnabled = lock.biometric,
+                biometricAvailable = lock.biometricAvailable,
+                newRecoveryCode = lock.newRecoveryCode,
+                status = lock.status,
+                error = lock.error,
+                onToggleBiometric = onToggleBiometric,
+                onRotateRecovery = onRotateRecovery,
+                onDismissRecovery = onDismissRecovery,
+            )
         }
     }
 }

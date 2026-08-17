@@ -755,7 +755,7 @@ milestones:
             were not wired. ktlint + detekt run locally and in CI (GATE-001-T1/T2).
             gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). Kover
             reads thresholds fail-closed (T3): line coverage is above 95%;
-            branch coverage is still ~73% — see docs/limitations.md LIM-COV.
+            branch coverage is still ~81% — see docs/limitations.md LIM-COV.
           goal: >-
             CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
             KT-TEST-002, KT-DOC-001, KT-SEC-002/003, and CI-001…CI-012 without
@@ -825,6 +825,7 @@ milestones:
               - python3 scripts/check-detekt-complexity.py
               - python3 scripts/check-maintainability.py
               - Formatter/linter run locally and in CI
+              - :app Compose sources are included in the SEI MI gate
             guardrail_refs:
               - KT-BUILD-002
               - KT-CPLX-001
@@ -1015,3 +1016,288 @@ milestones:
             verification:
               - bash scripts/issues-sync.sh --validate-only
               - rg -n "GATE-AND-001|GATE-002|CI-009" docs/issues.yml
+
+  - name: Backlog — next product value
+    epics:
+      - id: FS-017
+        status: open
+        title: Encrypted on-device backup and restore of the ledger
+        overview:
+          problem: >-
+            The Room/SQLCipher database is device-local. A factory reset or
+            phone swap currently loses the ledger. Users asked for recoverability
+            of app entry (PIN/recovery code) but not yet of the holdings file.
+          goal: >-
+            Export an encrypted backup the user can store offline, and restore
+            it onto a new install after unlocking with the existing PIN/recovery
+            flow. Do not add a cloud account. Do not reopen FS-DEC-001.
+        architecture:
+          target: Encrypted Room database plus AppLockStore
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/security
+        acceptance_criteria:
+          - User can export a backup file that is not plaintext SQLite
+          - Restore requires the current app lock (PIN, biometrics, or recovery code)
+          - Sample-only installs are not a substitute for this backup
+        guardrail_refs:
+          - KT-SEC-001
+        tasks:
+          - id: FS-017-T1
+            status: open
+            title: Design backup file format and restore validation
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Restore of a truncated file is refused
+          - id: FS-017-T2
+            status: open
+            title: Add export and restore UI behind the app lock
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings
+            verification:
+              - Export/restore is unreachable before unlock
+              - ./gradlew :app:lintDebug
+
+      - id: FS-018
+        status: open
+        title: Portuguese FIFO capital-gains CSV/PDF report
+        overview:
+          problem: >-
+            FIFO lots already exist for NAV, but there is no year-end report a
+            user can hand to a accountant for Portuguese plus-valias.
+          goal: >-
+            Export realized FIFO gains/losses per calendar year as CSV and a
+            printable PDF, using stored EUR prices. Do not change FIFO math.
+        architecture:
+          target: PositionLedger FIFO lots
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            - app/src/main/java/com/pirlruc/finsilo/ui
+        acceptance_criteria:
+          - Report lists sells with acquired date, cost EUR, proceeds EUR, and gain
+          - CSV and PDF share the same figures
+          - Unlisted PPR/CT/deposit redemptions are labeled as redemptions
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-018-T1
+            status: open
+            title: Domain report from FIFO lots for a calendar year
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            verification:
+              - ./gradlew :domain:test
+          - id: FS-018-T2
+            status: open
+            title: CSV and PDF export from settings
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings
+            verification:
+              - ./gradlew :app:lintDebug
+
+      - id: FS-019
+        status: open
+        title: Home-screen widget for glanceable EUR NAV
+        overview:
+          problem: >-
+            Opening the locked app is the only way to see NAV. A widget would
+            show last stored EUR total without a live API call.
+          goal: >-
+            A 2x1/2x2 widget that reads persisted nav_history. Tapping it opens
+            the lock screen, not the dashboard.
+        architecture:
+          target: Android App Widget using stored NAV
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo
+        acceptance_criteria:
+          - Widget never calls market APIs
+          - Widget does not bypass the app lock
+        guardrail_refs:
+          - KT-SEC-001
+        tasks:
+          - id: FS-019-T1
+            status: open
+            title: Widget provider bound to last nav_history point
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo
+                - app/src/main/AndroidManifest.xml
+            verification:
+              - ./gradlew :app:assembleDebug
+
+      - id: FS-020
+        status: open
+        title: Intraday price alerts beyond the 23:00 worker
+        overview:
+          problem: >-
+            Phase 5 alerts run once a day at 23:00. Users who want a threshold
+            on a single holding have no intra-day path.
+          goal: >-
+            Optional per-holding EUR or percent thresholds, evaluated on the
+            existing GET-only sync (manual or scheduled). Stay inside AV quota.
+            Do not add unofficial Yahoo.
+        architecture:
+          target: DailyMarketSyncWorker plus domain alerts
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/sync
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+        acceptance_criteria:
+          - Thresholds persist on-device
+          - Evaluation uses stored quotes, not a new unofficial feed
+        guardrail_refs:
+          - KT-API-001
+        tasks:
+          - id: FS-020-T1
+            status: open
+            title: Domain threshold evaluation on stored bars
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+            verification:
+              - ./gradlew :domain:test
+          - id: FS-020-T2
+            status: open
+            title: Per-holding threshold UI and notification
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo
+            verification:
+              - ./gradlew :app:lintDebug
+
+      - id: FS-021
+        status: open
+        title: Dual-currency display without changing stored FX
+        overview:
+          problem: >-
+            NAV is EUR. USD-feed holdings already convert via EUR-per-USD, but
+            the UI does not show the native USD quote beside the EUR value.
+          goal: >-
+            Optional display of native USD quotes next to EUR NAV. Stored FX
+            remains EUR per 1 USD. Do not reopen FS-DEC-001.
+        architecture:
+          target: Dashboard holdings list
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market/QuoteCurrency.kt
+        acceptance_criteria:
+          - Display-only; ledger and NAV math unchanged
+          - USD quotes still convert with stored FX
+        guardrail_refs:
+          - KT-API-001
+        tasks:
+          - id: FS-021-T1
+            status: open
+            title: Show native quote next to EUR value for USD-feed holdings
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+            verification:
+              - ./gradlew :app:lintDebug
+              - ./gradlew :domain:test
+
+      - id: FS-022
+        status: open
+        title: Manual quote override for unlisted assets
+        overview:
+          problem: >-
+            Unlisted PPR/CT/deposits are locally valued. Users sometimes have a
+            statement NAV that is not a buy, sell, or interest row.
+          goal: >-
+            Allow a dated manual native quote that mark-to-market can use without
+            inventing a market feed. Listed instruments stay on GET-only APIs.
+        architecture:
+          target: DailyMarketData plus ledger form
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+        acceptance_criteria:
+          - Manual quotes are stored as daily bars, not as synthetic transactions
+          - Listed tickers still sync from Stooq/AV/CoinGecko
+        guardrail_refs:
+          - KT-API-001
+        tasks:
+          - id: FS-022-T1
+            status: open
+            title: Persist a manual close for locally valued instruments
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+            verification:
+              - ./gradlew :domain:test
+
+      - id: FS-023
+        status: open
+        title: Recurring deposit and interest templates
+        overview:
+          problem: >-
+            Monthly deposit contributions and CT/PPR interest are entered by
+            hand each time.
+          goal: >-
+            User-defined templates that pre-fill a ledger row (amount, instrument,
+            type). They do not auto-post; the user still confirms. No cloud sync.
+        architecture:
+          target: Ledger entry form
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+        acceptance_criteria:
+          - Templates cover BUY (contribution), INTEREST, and DEPOSIT_CASH
+          - Saving a template does not write a transaction until the user saves
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-023-T1
+            status: open
+            title: Store templates on-device and apply them to the ledger form
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+                - app/src/main/java/com/pirlruc/finsilo/data/local
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+
+      - id: FS-024
+        status: open
+        title: Watchlist that does not mix with the live ledger
+        overview:
+          problem: >-
+            Users may want to follow a ticker without buying it. A paper book
+            must not change FIFO, TWR splits, or pie targets on the live ledger.
+          goal: >-
+            A separate watchlist of symbols with stored quotes. It must not write
+            Transaction rows and must not reopen FS-DEC-001 product answers.
+        architecture:
+          target: Separate watchlist store, reuse GET-only feeds
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market
+        acceptance_criteria:
+          - Watchlist quotes never appear in allocation, TWR, or YOC
+          - Same GET-only routing as live holdings (no unofficial Yahoo)
+        guardrail_refs:
+          - KT-API-001
+        tasks:
+          - id: FS-024-T1
+            status: open
+            title: Watchlist model isolated from PortfolioSnapshot transactions
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            verification:
+              - ./gradlew :domain:test
+              - Allocation of the live ledger is unchanged when the watchlist is non-empty
+          - id: FS-024-T2
+            status: open
+            title: Watchlist UI and GET-only refresh
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo
+            verification:
+              - ./gradlew :app:lintDebug
+

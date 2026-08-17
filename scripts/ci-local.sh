@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Local parity for Phase 7 gates that currently pass.
 # Kover 95/95 is wired but not yet green: ./gradlew :domain:koverVerify
-# (docs/limitations.md LIM-COV).
+# (docs/limitations.md LIM-COV). Maintainability scans :domain and :app.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

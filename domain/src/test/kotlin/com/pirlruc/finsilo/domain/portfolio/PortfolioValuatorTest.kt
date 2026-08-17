@@ -352,6 +352,25 @@ class PortfolioValuatorTest {
     }
 
     @Test
+    fun eurBookedCryptoUsesUsdQuoteTimesFx() {
+        val btc = Asset("btc", "BTC", "Bitcoin", AssetType.CRYPTO, Currency.EUR)
+        val snapshot =
+            snapshot(
+                assets = listOf(btc, cash),
+                transactions =
+                listOf(
+                    cashIn("c0", LocalDate.of(2026, 1, 1), bd("20000")),
+                    buy("b1", btc.id, LocalDate.of(2026, 1, 2), bd("1"), bd("10000"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+                ),
+                market = listOf(DailyMarketData(btc.id, asOf, bd("20000"))),
+                fx = listOf(CurrencyRate(asOf, bd("0.50"))),
+            )
+        val holding = valuator.allocation(snapshot, asOf).holdings.single { it.asset.id == btc.id }
+        assertMoney("10000", holding.valueEur, "usd quote * fx")
+        assertTrue(valuator.missingUsdFx(snapshot.copy(fxRates = emptyList())))
+    }
+
+    @Test
     fun emptySnapshotHasZeroTotal() {
         val report = valuator.allocation(PortfolioSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()), asOf)
         assertEquals(0, BigDecimal.ZERO.compareTo(report.totalValueEur))

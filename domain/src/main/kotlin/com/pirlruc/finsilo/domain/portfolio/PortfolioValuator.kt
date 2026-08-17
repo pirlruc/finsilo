@@ -1,12 +1,16 @@
 package com.pirlruc.finsilo.domain.portfolio
 
+import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
+import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HoldingValuation
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.Transaction
+import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.minus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.percentOf
@@ -42,32 +46,19 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
                     unrealizedPnlEur = minus(value, cost),
                 )
             } else {
-                val lot = ledger.position(txs)
-                if (lot.quantity.signum() == 0) return@mapNotNull null
-                val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs) ?: return@mapNotNull null
-                val rate = priceRate(asset, eurPerUsd) ?: return@mapNotNull null
-                val priceEur = toEur(native, asset.baseCurrency, rate)
-                val value = times(lot.quantity, priceEur)
-                HoldingValuation(
-                    asset = asset,
-                    quantity = lot.quantity,
-                    priceEur = priceEur,
-                    valueEur = value,
-                    costEur = lot.remainingCostEur,
-                    unrealizedPnlEur = minus(value, lot.remainingCostEur),
-                )
+                marketableHolding(asset, txs, asOf, marketByAsset, eurPerUsd)
             }
         }
     }
 
-    fun missingUsdFx(snapshot: PortfolioSnapshot): Boolean = snapshot.fxRates.isEmpty() &&
-        snapshot.assets.any { it.baseCurrency == Currency.USD && !it.locallyValued }
+    fun missingUsdFx(snapshot: PortfolioSnapshot): Boolean =
+        snapshot.fxRates.isEmpty() && snapshot.assets.any { QuoteCurrency.needsUsdFx(it) }
 
     /** User-visible reasons holdings were left out of NAV. */
     fun valuationWarnings(snapshot: PortfolioSnapshot, asOf: LocalDate): List<String> {
         val warnings = ArrayList<String>(2)
         if (missingUsdFx(snapshot)) {
-            warnings += "USD holdings need an FX quote before they can be valued."
+            warnings += "USD market quotes need an FX rate (EUR per 1 USD) before they can be valued."
         }
         val omitted = unpricedSymbols(snapshot, asOf)
         if (omitted.isNotEmpty()) {
@@ -83,15 +74,52 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         val skipUsd = missingUsdFx(snapshot)
         return snapshot.assets.mapNotNull { asset ->
             if (asset.locallyValued || asset.assetType == AssetType.CASH) return@mapNotNull null
-            if (skipUsd && asset.baseCurrency == Currency.USD) return@mapNotNull null
+            if (skipUsd && QuoteCurrency.needsUsdFx(asset)) return@mapNotNull null
             val qty = ledger.position(txsByAsset[asset.id].orEmpty()).quantity
             if (qty.signum() == 0) return@mapNotNull null
             if (ledger.marketOnOrBefore(asset.id, asOf, marketByAsset) != null) null else asset.symbol
         }
     }
 
-    private fun priceRate(asset: Asset, eurPerUsd: BigDecimal?): BigDecimal? =
-        if (asset.baseCurrency == Currency.EUR) BigDecimal.ONE else eurPerUsd
+    private fun marketableHolding(
+        asset: Asset,
+        txs: List<Transaction>,
+        asOf: LocalDate,
+        marketByAsset: Map<String, List<DailyMarketData>>,
+        eurPerUsd: BigDecimal?,
+    ): HoldingValuation? {
+        val lot = ledger.position(txs)
+        if (lot.quantity.signum() == 0) return null
+        val priceEur = pricedInEur(asset, asOf, marketByAsset, txs, eurPerUsd) ?: return null
+        val value = times(lot.quantity, priceEur)
+        return HoldingValuation(
+            asset = asset,
+            quantity = lot.quantity,
+            priceEur = priceEur,
+            valueEur = value,
+            costEur = lot.remainingCostEur,
+            unrealizedPnlEur = minus(value, lot.remainingCostEur),
+        )
+    }
+
+    /**
+     * Live USD feeds (crypto, commodities, US listings) convert with EUR-per-USD
+     * even when the instrument is booked in EUR. Last-trade fallback stays in the
+     * booking currency.
+     */
+    private fun pricedInEur(
+        asset: Asset,
+        asOf: LocalDate,
+        marketByAsset: Map<String, List<DailyMarketData>>,
+        txs: List<Transaction>,
+        eurPerUsd: BigDecimal?,
+    ): BigDecimal? {
+        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
+        val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs) ?: return null
+        val currency = if (market != null) QuoteCurrency.of(asset) else asset.baseCurrency
+        val rate = if (currency == Currency.EUR) BigDecimal.ONE else eurPerUsd
+        return rate?.let { toEur(native, currency, it) }
+    }
 
     fun cashEur(snapshot: PortfolioSnapshot, asOf: LocalDate): BigDecimal {
         val assetsById = snapshot.assets.associateBy { it.id }
@@ -153,14 +181,14 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         )
     }
 
-    private fun costOfLocalInstrument(transactions: List<com.pirlruc.finsilo.domain.model.Transaction>): BigDecimal {
+    private fun costOfLocalInstrument(transactions: List<Transaction>): BigDecimal {
         var cost = ZERO
         for (tx in transactions) {
             cost =
                 when (tx.type) {
-                    com.pirlruc.finsilo.domain.model.TransactionType.BUY ->
+                    TransactionType.BUY ->
                         plus(cost, plus(tx.notionalEur, tx.feesEur))
-                    com.pirlruc.finsilo.domain.model.TransactionType.SELL -> {
+                    TransactionType.SELL -> {
                         // Withdrawals reduce remaining principal cost, not below zero.
                         val reduced = minus(cost, tx.notionalEur)
                         if (reduced.signum() < 0) ZERO else reduced
@@ -176,7 +204,7 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         symbol = "EUR",
         name = "Cash",
         assetType = AssetType.CASH,
-        baseCurrency = com.pirlruc.finsilo.domain.model.Currency.EUR,
+        baseCurrency = Currency.EUR,
     )
 
     companion object {

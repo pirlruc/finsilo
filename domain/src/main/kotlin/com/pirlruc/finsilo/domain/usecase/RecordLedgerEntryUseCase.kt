@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.usecase
 
+import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
@@ -66,36 +67,21 @@ class RecordLedgerEntryUseCase(
         resolved: Pair<Asset, Boolean>,
     ): LedgerEntryResult {
         val (asset, created) = resolved
-        val typeError = validateType(asset, request.type) ?: validateCurrency(asset)
-        val rate = fxRate(asset, request, snapshot)
-        val transaction = rate?.let { transactionFor(asset, request, it) }
-        val ledgerError = transaction?.let { validateAgainstLedger(snapshot, asset, it) }
-        return firstReject(typeError, rate, transaction, ledgerError)
-            ?: LedgerEntryResult.Accepted(
-                asset = asset,
-                createdAsset = created,
-                transaction = requireNotNull(transaction),
-                fxRate = seededMtMFx(asset, request.date, requireNotNull(rate), snapshot),
-            )
+        validateType(asset, request.type)?.let { return it }
+        val rate = fxRate(asset, request, snapshot) ?: return missingFx()
+        val transaction = transactionFor(asset, request, rate)
+        validateAgainstLedger(snapshot, asset, transaction)?.let { return it }
+        return LedgerEntryResult.Accepted(
+            asset = asset,
+            createdAsset = created,
+            transaction = transaction,
+            fxRate = seededMtMFx(asset, request, snapshot),
+        )
     }
 
-    private fun firstReject(
-        typeError: LedgerEntryResult.Rejected?,
-        rate: BigDecimal?,
-        transaction: Transaction?,
-        ledgerError: LedgerEntryResult.Rejected?,
-    ): LedgerEntryResult.Rejected? {
-        if (typeError != null) return typeError
-        if (rate == null) {
-            return LedgerEntryResult.Rejected(
-                "EUR per 1 USD is required for USD rows when no FX history is stored.",
-            )
-        }
-        if (transaction == null) return missingAssetPlaceholder()
-        return ledgerError
-    }
-
-    private fun missingAssetPlaceholder(): LedgerEntryResult.Rejected = LedgerEntryResult.Rejected("Choose an existing instrument.")
+    private fun missingFx(): LedgerEntryResult.Rejected = LedgerEntryResult.Rejected(
+        "EUR per 1 USD is required for USD rows when no FX history is stored.",
+    )
 
     private fun missingAsset(request: LedgerEntryRequest): LedgerEntryResult.Rejected = LedgerEntryResult.Rejected(
         when (request.type) {
@@ -167,11 +153,6 @@ class RecordLedgerEntryUseCase(
     private fun validateType(asset: Asset, type: TransactionType): LedgerEntryResult.Rejected? =
         typeError(asset, type)?.let { LedgerEntryResult.Rejected(it) }
 
-    private fun validateCurrency(asset: Asset): LedgerEntryResult.Rejected? {
-        if (asset.assetType != AssetType.CRYPTO || asset.baseCurrency == Currency.USD) return null
-        return LedgerEntryResult.Rejected("Crypto quotes are USD (CoinGecko). Use USD as the instrument currency.")
-    }
-
     private fun typeError(asset: Asset, type: TransactionType): String? {
         if (type == TransactionType.INTEREST) {
             return unless(asset.assetType.allowsInterest, "Interest applies to deposits, CTs, and PPR.")
@@ -203,13 +184,14 @@ class RecordLedgerEntryUseCase(
 
     /**
      * Execution FX already lives on [Transaction.exchangeRateAtExecution].
-     * Seed [currency_history] only when that date has no MTM row, so a typed
-     * trade rate cannot REPLACE a Frankfurter (or earlier) quote for the day.
+     * Seed [currency_history] from the typed EUR-per-USD when that date has no
+     * MTM row, including EUR-booked instruments whose live feed is still USD.
      */
-    private fun seededMtMFx(asset: Asset, date: LocalDate, rate: BigDecimal, snapshot: PortfolioSnapshot): CurrencyRate? {
-        if (asset.baseCurrency != Currency.USD) return null
-        if (snapshot.fxRates.any { it.date == date }) return null
-        return CurrencyRate(date, rate)
+    private fun seededMtMFx(asset: Asset, request: LedgerEntryRequest, snapshot: PortfolioSnapshot): CurrencyRate? {
+        if (!QuoteCurrency.needsUsdFx(asset)) return null
+        if (snapshot.fxRates.any { it.date == request.date }) return null
+        val typed = request.eurPerUsd ?: return null
+        return CurrencyRate(request.date, typed)
     }
 
     private fun validateAgainstLedger(snapshot: PortfolioSnapshot, asset: Asset, transaction: Transaction): LedgerEntryResult.Rejected? {

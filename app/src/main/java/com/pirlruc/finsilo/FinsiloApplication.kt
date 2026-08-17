@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
+import com.pirlruc.finsilo.data.security.AppLockStore
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
@@ -39,6 +40,7 @@ class AppContainer(application: Application) {
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
     val marketFeed = CompositeMarketFeed(keys = keyStore)
     val keys: DatabaseKeyStore = keyStore
+    val lockStore = AppLockStore(application)
 
     companion object {
         private const val DB_NAME = "finsilo.db"

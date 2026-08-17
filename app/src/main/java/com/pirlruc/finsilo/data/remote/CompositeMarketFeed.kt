@@ -20,9 +20,9 @@ import java.time.LocalDate
 /**
  * Free-tier quotes only. Routing:
  * - FX: Frankfurter (ECB, no key), Alpha Vantage if a key is stored
- * - Crypto: CoinGecko (no key)
+ * - Crypto: CoinGecko `market_chart` in USD (EUR via stored FX; instrument may be booked in EUR)
  * - EU listings (`.DE` / Stooq suffix): Stooq, then Alpha Vantage
- * - Commodities: Stooq (XAU) then Alpha Vantage commodity series / XAU FX
+ * - Commodities: Stooq (XAUUSD) then Alpha Vantage commodity series / XAU FX (USD, EUR via FX)
  * - US stocks / ratings: Alpha Vantage (key, ~25 calls/day on the free tier)
  */
 class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), private val keys: DatabaseKeyStore) : MarketFeed {

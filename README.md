@@ -2,13 +2,14 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers product phases **1–6**. Phase **7** wires the guardrail workflows that can run on this public repo (quality including domain maintainability index, Android lint/assemble/Robolectric, gitleaks, semgrep, dependency-review, Dokka/KDoc, CycloneDX SBOM). Kover branch coverage is still below 95% — see [`docs/limitations.md`](docs/limitations.md).
+This repository currently delivers product phases **1–6**. Phase **7** wires the guardrail workflows that can run on this public repo (quality including domain+app maintainability index, Android lint/assemble/Robolectric, gitleaks, semgrep, dependency-review, Dokka/KDoc, CycloneDX SBOM). Kover branch coverage is still below 95% — see [`docs/limitations.md`](docs/limitations.md).
 
 ## What works now
 
 - Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation, persisted `nav_history`).
-- Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest, including optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused. Unlisted PPR interest stays in NAV.
-- Settings for `target_allocation` weights (must sum to 100).
+- First-launch **PIN** (optional biometrics) and a one-time **recovery code** that resets the PIN.
+- Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest on every investment type (cash uses deposit/withdrawal). Optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused. Unlisted PPR interest stays in NAV. Sell on CT/deposit/unlisted PPR is a redemption.
+- Settings for `target_allocation` weights (must sum to 100) and lock/recovery rotation.
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.
 - Jetpack Compose dashboard:
   - Donut chart of current allocation by investment type (Vico).
@@ -24,7 +25,7 @@ This repository currently delivers product phases **1–6**. Phase **7** wires t
 | FX | Stored and applied as **EUR per 1 USD**. USD → EUR is `native * eurPerUsd`. |
 | Pie slices | One slice per investment type (Cash, CT, Deposit, Commodity, …). CT/deposit interest stays inside those instruments. |
 | Cost basis | **FIFO lots** (oldest buy consumed first), aligned with Portuguese capital-gains reporting. |
-| Quotes | Free GET-only feeds only. **No unofficial Yahoo JSON.** Alpha Vantage (optional key, ~25 calls/day), Frankfurter FX, Stooq EU/XAU, CoinGecko crypto. SMA 50/200 are computed locally so AV quota is not spent on SMA. |
+| Quotes | Free GET-only feeds only. **No unofficial Yahoo JSON.** Alpha Vantage (optional key, ~25 calls/day), Frankfurter FX, Stooq EU/XAU, CoinGecko crypto. USD feeds convert with EUR-per-USD even when the instrument is booked in EUR. SMA 50/200 are computed locally so AV quota is not spent on SMA. |
 | Commodities | Mark-to-market: current price versus FIFO buy cost, same as stocks. XAU via Stooq (`xauusd`) or Alpha Vantage `CURRENCY_EXCHANGE_RATE`; WTI/BRENT/… via Alpha Vantage commodity series. |
 | TWR splits | Only **buys funded with external cash** (cost exceeds uninvested cash) and **withdrawals**. `DEPOSIT_CASH`, internal buys, dividends, and interest do not open a sub-period. |
 | YOC | Both **TTM** (dividends in the last 365 days / remaining FIFO cost) and **last payment × inferred frequency** (1, 2, 4, or 12 from the TTM count). |

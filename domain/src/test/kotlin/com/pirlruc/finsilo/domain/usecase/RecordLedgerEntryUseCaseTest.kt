@@ -262,8 +262,8 @@ class RecordLedgerEntryUseCaseTest {
     }
 
     @Test
-    fun cryptoMustBeUsd() {
-        val snapshot = cashOnly(bd("5000"))
+    fun cryptoMayBeBookedInEurAndStillSeedsUsdFx() {
+        val snapshot = cashOnly(bd("5000")).copy(fxRates = emptyList())
         val result =
             useCase(
                 snapshot,
@@ -274,10 +274,69 @@ class RecordLedgerEntryUseCaseTest {
                     unitPriceNative = bd("10000"),
                     feesEur = BigDecimal.ZERO,
                     newAsset = NewAssetDraft("BTC", "Bitcoin", AssetType.CRYPTO, Currency.EUR),
+                    eurPerUsd = bd("0.92"),
                 ),
             )
-        assertTrue(result is LedgerEntryResult.Rejected)
-        assertTrue((result as LedgerEntryResult.Rejected).reason.contains("USD"))
+        val accepted = result as LedgerEntryResult.Accepted
+        assertEquals(Currency.EUR, accepted.asset.baseCurrency)
+        assertEquals(0, bd("10000").compareTo(accepted.transaction.unitPriceEur))
+        assertEquals(0, bd("0.92").compareTo(requireNotNull(accepted.fxRate).eurPerUsd))
+    }
+
+    @Test
+    fun invalidAmountsAndMissingInstrumentAreRejected() {
+        val snapshot = cashOnly(bd("5000"))
+        assertTrue(
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.BUY, asOf, bd("0"), bd("1"), BigDecimal.ZERO, newAsset = NewAssetDraft("X", "X", AssetType.STOCK, Currency.EUR)),
+            ) is LedgerEntryResult.Rejected,
+        )
+        assertTrue(
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.BUY, asOf, bd("1"), bd("-1"), BigDecimal.ZERO, newAsset = NewAssetDraft("X", "X", AssetType.STOCK, Currency.EUR)),
+            ) is LedgerEntryResult.Rejected,
+        )
+        assertTrue(
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.BUY, asOf, bd("1"), bd("1"), bd("-1"), newAsset = NewAssetDraft("X", "X", AssetType.STOCK, Currency.EUR)),
+            ) is LedgerEntryResult.Rejected,
+        )
+        assertTrue(
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.BUY, asOf, bd("1"), bd("1"), BigDecimal.ZERO, newAsset = NewAssetDraft("X", "X", AssetType.STOCK, Currency.USD), eurPerUsd = bd("0")),
+            ) is LedgerEntryResult.Rejected,
+        )
+        val missing =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.SELL, asOf, bd("1"), bd("1"), BigDecimal.ZERO),
+            )
+        assertTrue((missing as LedgerEntryResult.Rejected).reason.contains("existing instrument"))
+        val blankBuy =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(TransactionType.BUY, asOf, bd("1"), bd("1"), BigDecimal.ZERO),
+            )
+        assertTrue((blankBuy as LedgerEntryResult.Rejected).reason.contains("new instrument"))
+        val cashMissing =
+            useCase(
+                snapshot.copy(assets = emptyList(), transactions = emptyList()),
+                LedgerEntryRequest(TransactionType.DEPOSIT_CASH, asOf, bd("1"), BigDecimal.ONE, BigDecimal.ZERO),
+            )
+        assertTrue(cashMissing is LedgerEntryResult.Accepted)
+        val dividendOnCt =
+            useCase(
+                cashOnly(bd("4000")).copy(
+                    assets = listOf(cash, ct),
+                    transactions = listOf(cashIn(bd("4000"))),
+                ),
+                LedgerEntryRequest(TransactionType.DIVIDEND, asOf, BigDecimal.ONE, bd("1"), BigDecimal.ZERO, existingAssetId = ct.id),
+            )
+        assertTrue(dividendOnCt is LedgerEntryResult.Rejected)
     }
 
     @Test
