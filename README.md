@@ -56,4 +56,4 @@ The app requests **INTERNET** for GET-only quote sync. Cleartext is disabled.
 [github-issue-adr](https://github.com/pirlruc/methodologies) (Epic = decision record, no ADR markdown files) and [guardrails](https://github.com/pirlruc/guardrails) were not cloneable from this environment without `CURSOR_REPO_READ_TOKEN`. Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv) analog:
 
 - [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md)
-- [`docs/improvements.md`](docs/improvements.md)
+- [`docs/improvements.md`](docs/improvements.md) — decided RFC answers plus **open issues with phase and recommended fix**
