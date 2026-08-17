@@ -12,7 +12,7 @@
 
 ## Current slice
 
-Phase 2 data entry + bug pass (unlisted PPR NAV, FX seed vs MTM, atomic ledger write, decimal parse) + analog pins + authored `docs/issues.yml`.
+Phase 2 data entry + bug pass + analog pins + `docs/issues.yml` as the only backlog. Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
 
 | Module | Path | Notes |
 | --- | --- | --- |
@@ -72,9 +72,11 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 - Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled ([FS-013](issues.yml)).
 - Phase 3 hardening [FS-005](issues.yml) / [FS-007](issues.yml) / [FS-009](issues.yml) (listed PPR quote routing is [FS-006-T3](issues.yml)).
 - Full Room schema export / ending remaining destructive fallback from v1 ([FS-012-T2](issues.yml)).
-- ktlint/detekt/Kover/gitleaks/semgrep ([GATE-001-T2](issues.yml)…T4). Do not record a fake lowered-gate deviation.
+- ktlint/detekt/Kover/gitleaks/semgrep/Dokka ([GATE-001-T2](issues.yml)…T5).
+- Android lint, `:app:assembleDebug` in CI, instrumented tests ([GATE-AND-001](issues.yml)).
+- Do not record a fake lowered-gate deviation.
 
-Open issues with phase and recommended fix: [`docs/improvements.md`](improvements.md) (map) and [`docs/issues.yml`](issues.yml) (source of truth).
+Open work: [`docs/issues.yml`](issues.yml). [`docs/improvements.md`](improvements.md) is an index only.
 
 ## Market feed (GET only)
 

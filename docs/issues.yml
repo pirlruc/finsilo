@@ -86,6 +86,52 @@ milestones:
 
   - name: Phase 1 — Foundation
     epics:
+      - id: FS-DEC-001
+        status: done
+        title: Lock RFC follow-up product decisions
+        overview:
+          problem: >-
+            Product constraints lived only in docs/improvements.md, so agents
+            could reopen FX direction, FIFO, quote routing, TWR splits, YOC,
+            minSdk, or analog pins. github-issue-adr requires those decisions
+            on an Epic, not a parallel markdown backlog.
+          goal: >-
+            The nine RFC follow-up answers are the decision record. Do not
+            reopen them unless the user explicitly changes them. Remaining
+            work is the open epics in this file (former O1–O13 leftovers and
+            second-pass bugs).
+        architecture:
+          target: Product constraints for every later epic
+          modules:
+            - docs/issues.yml
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            - app/src/main/java/com/pirlruc/finsilo
+        acceptance_criteria:
+          - FX is EUR per 1 USD; USD converts as native times eurPerUsd; column currency_history.eur_usd_rate
+          - Pie keeps a Cash slice; CT/deposit/unlisted-PPR interest stays inside those instruments; slices by investment type
+          - Open cost is FIFO lots, not a moving average
+          - Free GET-only APIs only (Frankfurter, CoinGecko, Stooq, optional Alpha Vantage); no unofficial Yahoo JSON; SMA 50/200 on-device
+          - COMMODITY is mark-to-market versus FIFO buy cost
+          - TWR splits only on external-cash buys and withdrawals
+          - YOC is TTM and last payment times inferred frequency (1/2/4/12)
+          - minSdk 26 unchanged
+          - Guardrails and github-scaffold pinned; methodologies cited by tag; analog heimdallcv; do not invent templates
+        guardrail_refs:
+          - KT-API-001
+          - KT-DELIV-001
+        tasks:
+          - id: FS-DEC-001-T1
+            status: done
+            title: Encode the RFC answers in domain and docs/issues.yml
+            instructions:
+              files:
+                - docs/issues.yml
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PortfolioValuator.kt
+            verification:
+              - bash scripts/issues-sync.sh --validate-only
+              - ./gradlew :domain:test
+
       - id: FS-012
         status: open
         title: Room schema export and remaining destructive fallback
@@ -227,6 +273,149 @@ milestones:
               - KT-SEC-003
               - CI-005
               - CI-012
+          - id: GATE-001-T5
+            status: open
+            title: Enforce Kotlin API/doc coverage in CI
+            instructions:
+              files:
+                - domain/build.gradle.kts
+                - .github/workflows
+            verification:
+              - Doc coverage job reads doc_coverage from kotlin/profile.thresholds.yml
+              - Missing thresholds file fails closed
+            guardrail_refs:
+              - KT-DOC-001
+              - CI-011
+              - CI-022
+
+      - id: GATE-AND-001
+        status: open
+        title: Wire Android-module gates (lint, assemble, instrumented tests)
+        overview:
+          problem: >-
+            There is no android/ guardrails pack. The Kotlin profile's only
+            Android-specific tool is Android lint (KT-BUILD-002). FinSilo's
+            :app module never runs lint or assemble in CI, has no instrumented
+            tests despite AndroidJUnitRunner, exportSchema is false, and
+            release minify is off. Domain JUnit is not an Android gate.
+          goal: >-
+            :app:lintDebug, :app:assembleDebug, and a first Compose/Room
+            instrumented suite run locally and in CI with SHA-pinned actions.
+            Do not copy cppdevops. Do not invent an android/ pack. Do not
+            record a fake lowered-gate deviation.
+        architecture:
+          target: :app Android application module
+          modules:
+            - app/build.gradle.kts
+            - app/src/main/AndroidManifest.xml
+            - app/src/androidTest
+            - .github/workflows
+            - docs/guardrails/kotlin/profile.md
+        acceptance_criteria:
+          - ./gradlew :app:lintDebug is blocking in CI (KT-BUILD-002)
+          - ./gradlew :app:assembleDebug is in CI (KT-BUILD-001)
+          - At least one instrumented or Robolectric test covers ledger save or dashboard load
+          - Room schema export remains FS-012-T2; this epic does not replace it
+        guardrail_refs:
+          - KT-BUILD-001
+          - KT-BUILD-002
+          - KT-TEST-001
+          - CI-006
+          - CI-010
+          - CI-014
+        tasks:
+          - id: GATE-AND-001-T1
+            status: open
+            title: Run Android lint in CI with local parity
+            instructions:
+              files:
+                - app/build.gradle.kts
+                - .github/workflows
+            verification:
+              - ./gradlew :app:lintDebug
+              - Lint job is a separate workflow or job from domain-tests (CI-006)
+            guardrail_refs:
+              - KT-BUILD-002
+              - CI-008
+              - CI-009
+          - id: GATE-AND-001-T2
+            status: open
+            title: Assemble the debug APK in CI
+            instructions:
+              files:
+                - .github/workflows
+                - app/build.gradle.kts
+            verification:
+              - ./gradlew :app:assembleDebug
+              - Workflow pins JDK and Android SDK actions by SHA (CI-001)
+            guardrail_refs:
+              - KT-BUILD-001
+              - CI-001
+              - CI-010
+          - id: GATE-AND-001-T3
+            status: open
+            title: Add instrumented or Robolectric tests for Compose and Room
+            instructions:
+              files:
+                - app/src/androidTest
+                - app/build.gradle.kts
+            verification:
+              - testInstrumentationRunner remains AndroidJUnitRunner
+              - A failing Room/Compose test fails CI
+            guardrail_refs:
+              - KT-TEST-001
+              - KT-TEST-003
+              - CI-010
+
+      - id: GATE-002
+        status: done
+        title: Record Kotlin/Android gate map versus C++ and Python packs
+        overview:
+          problem: >-
+            FinSilo is an Android/Kotlin app. Agents compared it to cppdevops
+            or copied Python tools. The org has no android/ pack. Fulfillment
+            must cite Kotlin (plus Android lint) and the four CI workflow
+            categories, not C++ DYN/NDK or Python ruff/mypy.
+          goal: >-
+            One decision record: which pack applies, which tools map per
+            category, what FinSilo actually runs today, and which CI phases
+            are missing. Follow-up work stays in GATE-001 and GATE-AND-001.
+        architecture:
+          target: Guardrail pack selection for this repo
+          modules:
+            - docs/guardrails/kotlin/profile.md
+            - docs/guardrails/java/profile.md
+            - docs/guardrails/cpp/profile.md
+            - docs/guardrails/python/profile.md
+            - docs/guardrails/ci/guardrails.md
+            - .github/workflows/domain-tests.yml
+        acceptance_criteria:
+          - Governing pack is Kotlin; Android lint is the only Android-specific org tool
+          - Java pack is not the primary gate (no Java sources); do not run SpotBugs/Checkstyle
+          - Do not vendor cppdevops, clang-tidy, ASan, lizard, ruff, mypy, or bandit
+          - CI-009 quality, CI-011 docs, and CI-012 security workflows are absent today
+          - CI-010 is partial (domain JUnit only; no Kover; no :app tests)
+          - Kotlin has no DYN category; C++ ASan/UBSan/valgrind is not an Android requirement
+          - No docs/guardrail-deviations.yml entries (gaps are open epics, not lowered gates)
+        guardrail_refs:
+          - KT-BUILD-002
+          - CI-006
+          - CI-009
+          - CI-010
+          - CI-011
+          - CI-012
+        tasks:
+          - id: GATE-002-T1
+            status: done
+            title: Author the category map in this epic and issues.yml
+            instructions:
+              files:
+                - docs/issues.yml
+                - docs/improvements.md
+                - docs/ai-agent-handoff.md
+            verification:
+              - bash scripts/issues-sync.sh --validate-only
+              - rg -n "GATE-AND-001|GATE-002|CI-009" docs/issues.yml
 
   - name: Phase 2 — Data entry
     epics:

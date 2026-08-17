@@ -65,7 +65,7 @@ Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv
 
 - [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md)
 - [`docs/issues.yml`](docs/issues.yml) — authored Epic/Task backlog (source of truth)
-- [`docs/improvements.md`](docs/improvements.md) — decided RFC answers plus map from O-numbers to Epic IDs
+- [`docs/improvements.md`](docs/improvements.md) — index into `docs/issues.yml`
 
 ```bash
 bash scripts/setup-issue-scaffold.sh
