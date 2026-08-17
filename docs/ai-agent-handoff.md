@@ -57,6 +57,16 @@ bash scripts/sync-templates.sh
 
 Issue content lives only in `docs/issues.yml`. Changing an `id` orphans the GitHub issue.
 
+GitHub publish is **blocked in this VM**: `CURSOR_REPO_READ_TOKEN` is a fine-grained PAT with `issues=read` (`X-Accepted-GitHub-Permissions: issues=read; pull_requests=read`). `setup-issue-scaffold.sh` and `issues-sync.py` therefore 403 on label/milestone/issue create. After the owner grants **Issues: Read and write** (and Contents remains as today), run:
+
+```bash
+bash scripts/setup-issue-scaffold.sh
+bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
+bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
+```
+
+Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns.
+
 ## Intentionally not in this tree
 
 - Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled ([FS-013](issues.yml)).

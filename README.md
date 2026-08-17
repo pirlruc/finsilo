@@ -71,3 +71,5 @@ Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv
 bash scripts/setup-issue-scaffold.sh
 bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
 ```
+
+Creating labels, milestones, and issues needs a GitHub token with **Issues: Read and write**. A Contents-only or `issues=read` token 403s.

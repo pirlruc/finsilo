@@ -16,6 +16,8 @@ bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-
 bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
 ```
 
+Those commands 403 until a PAT with **Issues: Read and write** is available (`issues=read` is not enough to create labels, milestones, or issues). The authored manifest is still the source of truth.
+
 ## Decided
 
 1. **FX quote direction.** EUR per 1 USD. USD amounts convert as `native * eurPerUsd`. Column: `currency_history.eur_usd_rate`.
