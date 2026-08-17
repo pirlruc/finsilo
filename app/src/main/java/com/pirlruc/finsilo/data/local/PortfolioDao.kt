@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import java.time.LocalDate
 
 @Dao
 interface PortfolioDao {
@@ -52,6 +53,22 @@ interface PortfolioDao {
 
     @Query("DELETE FROM assets")
     suspend fun deleteAssets()
+
+    @Query("SELECT COUNT(*) FROM currency_history WHERE date = :date")
+    suspend fun countFxOn(date: LocalDate): Int
+
+    @Transaction
+    suspend fun insertLedgerEntry(
+        asset: AssetEntity?,
+        transaction: TransactionEntity,
+        fx: CurrencyRateEntity?,
+    ) {
+        if (asset != null) insertAssets(listOf(asset))
+        insertTransactions(listOf(transaction))
+        if (fx != null && countFxOn(fx.date) == 0) {
+            insertFxRates(listOf(fx))
+        }
+    }
 
     @Transaction
     suspend fun replaceTargets(items: List<TargetAllocationEntity>) {

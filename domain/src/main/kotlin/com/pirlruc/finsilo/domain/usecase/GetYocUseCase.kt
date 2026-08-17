@@ -27,7 +27,7 @@ class GetYocUseCase(
         val ttmStart = asOf.minusDays(365)
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
         return snapshot.assets.mapNotNull { asset ->
-            if (asset.assetType == AssetType.CASH || asset.assetType.isLocallyValued) return@mapNotNull null
+            if (asset.assetType == AssetType.CASH || asset.locallyValued) return@mapNotNull null
             val txs = txsByAsset[asset.id].orEmpty()
             val lots = ledger.position(txs)
             if (lots.quantity.signum() <= 0 || lots.remainingCostEur.signum() <= 0) return@mapNotNull null

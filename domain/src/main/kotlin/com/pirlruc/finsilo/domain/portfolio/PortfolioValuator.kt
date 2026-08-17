@@ -27,7 +27,7 @@ class PortfolioValuator(
         return snapshot.assets.mapNotNull { asset ->
             val txs = txsByAsset[asset.id].orEmpty()
             if (txs.isEmpty()) return@mapNotNull null
-            if (asset.assetType.isLocallyValued) {
+            if (asset.locallyValued) {
                 val value = ledger.locallyValuedEur(txs)
                 if (value.signum() == 0) return@mapNotNull null
                 val cost = costOfLocalInstrument(txs)

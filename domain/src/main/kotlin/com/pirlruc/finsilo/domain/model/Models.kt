@@ -19,6 +19,20 @@ data class Asset(
 ) {
     val feedSymbol: String
         get() = quoteSymbol?.takeIf { it.isNotBlank() } ?: symbol
+
+    /**
+     * Deposits, CTs, and unlisted PPR have no market feed. NAV is principal
+     * plus interest. A PPR with a listed [quoteSymbol] (or an exchange suffix
+     * on [feedSymbol]) is mark-to-market like an ETF.
+     */
+    val locallyValued: Boolean
+        get() = assetType.isLocallyValued || isUnlistedPpr
+
+    val isUnlistedPpr: Boolean
+        get() =
+            assetType == AssetType.PPR &&
+                quoteSymbol.isNullOrBlank() &&
+                '.' !in feedSymbol
 }
 
 data class Transaction(

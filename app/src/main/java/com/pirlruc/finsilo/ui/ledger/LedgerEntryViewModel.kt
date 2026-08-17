@@ -77,7 +77,10 @@ class LedgerEntryViewModel(
         refreshHints()
     }
 
-    fun setDate(value: String) = _state.update { it.copy(date = value) }
+    fun setDate(value: String) {
+        _state.update { it.copy(date = value) }
+        refreshHints()
+    }
 
     fun setQuantity(value: String) = _state.update { it.copy(quantity = value) }
 
@@ -122,9 +125,11 @@ class LedgerEntryViewModel(
                     _state.update { it.copy(saving = false, error = result.reason) }
                 is LedgerEntryResult.Accepted -> {
                     runCatching {
-                        if (result.createdAsset) repository.upsertAsset(result.asset)
-                        repository.insertTransaction(result.transaction)
-                        result.fxRate?.let { repository.upsertFxRate(it) }
+                        repository.saveLedgerEntry(
+                            asset = result.asset.takeIf { result.createdAsset },
+                            transaction = result.transaction,
+                            fxRate = result.fxRate,
+                        )
                     }.onSuccess {
                         _state.update { it.copy(saving = false, status = "Saved ${result.transaction.type.name.lowercase()}") }
                         onSaved()
@@ -159,7 +164,11 @@ class LedgerEntryViewModel(
             if (asset == null || current.type != TransactionType.SELL) {
                 null
             } else {
-                ledger.position(snapshot.transactions.filter { it.assetId == asset.id }).quantity
+                val asOf = parseDate(current.date)
+                val prior =
+                    if (asOf == null) snapshot.transactions
+                    else ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
+                ledger.position(prior.filter { it.assetId == asset.id }).quantity
                     .stripTrailingZeros()
                     .toPlainString()
             }

@@ -7,7 +7,7 @@ This repository currently delivers **Phase 2 (data entry)**, **Phase 6 (dashboar
 ## What works now
 
 - Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation).
-- Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest, including optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused.
+- Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest, including optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused. Unlisted PPR interest stays in NAV.
 - Settings for `target_allocation` weights (must sum to 100).
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.
 - Jetpack Compose dashboard:
@@ -64,4 +64,10 @@ The app requests **INTERNET** for GET-only quote sync. Cleartext is disabled.
 Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv) analog and [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr):
 
 - [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md)
-- [`docs/improvements.md`](docs/improvements.md) — decided RFC answers plus **open issues with phase and recommended fix**
+- [`docs/issues.yml`](docs/issues.yml) — authored Epic/Task backlog (source of truth)
+- [`docs/improvements.md`](docs/improvements.md) — decided RFC answers plus map from O-numbers to Epic IDs
+
+```bash
+bash scripts/setup-issue-scaffold.sh
+bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
+```

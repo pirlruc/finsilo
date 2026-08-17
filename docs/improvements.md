@@ -1,8 +1,20 @@
 # Improvements
 
-Product decisions from the RFC follow-up are recorded first. Open issues include the **phase** they belong in and a **recommended solution**. Do not reopen decided items unless the user explicitly changes them.
+Product decisions from the RFC follow-up are recorded first. The living backlog is
+[`docs/issues.yml`](issues.yml), synced to GitHub with
+[github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr)
+(`Epic: [ID] …` / `Task: [ID] …`). Do not reopen decided items unless the user
+explicitly changes them.
 
 RFC phases: **1** foundation (Room/SQLCipher) · **2** data entry · **3** market APIs · **4** calc engine · **5** notifications · **6** dashboard.
+
+Sync:
+
+```bash
+bash scripts/setup-issue-scaffold.sh
+bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
+bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
+```
 
 ## Decided
 
@@ -16,37 +28,47 @@ RFC phases: **1** foundation (Room/SQLCipher) · **2** data entry · **3** marke
 8. **minSdk 26.** Unchanged.
 9. **Guardrails / methodologies / github-scaffold.** Pin with `CURSOR_REPO_READ_TOKEN`. Analog: [heimdallcv](https://github.com/pirlruc/heimdallcv). Methodologies is cited by tag, not vendored as a submodule. Do not invent fake submodules.
 
-## Open issues
+## Issue map (RFC leftovers → github-issue-adr)
 
-| ID | Issue | Phase | Recommendation / status |
+| RFC | Epic | Milestone | Status |
 | --- | --- | --- | --- |
-| **O1** | No Compose forms for Buy / Sell / Deposit / Withdrawal / interest. Dashboard can only load the synthetic sample. | **2** | **Done this slice.** One ledger form per `TransactionType`, writing through `RoomPortfolioRepository`. Validates quantity, native price, EUR conversion (`native * eurPerUsd` for USD), and fees. Reuses `GetDashboardUseCase` after save. |
-| **O2** | Selling more than remaining FIFO quantity still credits the **full sell cash** while lots go to zero. | **2** (block in UI); **4** (ledger guard) | **Phase 2 done.** `RecordLedgerEntryUseCase` refuses the save when `quantity > PositionLedger.position(...).quantity`. Phase 4: make `consumeFifo` return unfilled qty and credit cash only for filled quantity. |
-| **O3** | Withdrawal larger than uninvested cash makes **cash negative**. Pie omits a negative cash slice; total NAV still includes it. | **2** (block in UI); **4** (policy) | **Phase 2 done.** Withdrawals above `cashEur` are refused. Phase 4: keep the ledger from going negative unless you later add an explicit “overdraft / external” type. Do not hide negative cash only in the pie. |
-| **O4** | Target weights are seeded in the sample but there is no settings UI. Drift (±5%) is computed against whatever is in `target_allocation`. | **2** | **Done this slice.** Settings form: one percent field per `AssetType`, sum must be 100, persist via `replaceTargets`. Same ±5% band (`exceedsDriftBand`). |
-| **O5** | Empty FX history still falls back to **`eurPerUsd = 1`**, which mis-values USD holdings. A *present* later quote is already carried backward; sync already stores a Frankfurter `from..to` range. | **3** | After a successful sync, require at least one FX row before valuing USD assets. If FX fetch fails, keep last stored rates and surface the failure on the dashboard. Only use `1.0` for EUR-only portfolios. |
-| **O6** | Unlisted **PPR** symbols (no exchange suffix) are skipped on sync so they do not burn Alpha Vantage quota. Sample PPR still has synthetic prices. | **2** + **3** | **Phase 2 fields done.** `Asset.isin` and `Asset.quoteSymbol` are stored separately from the display name. Sync uses `feedSymbol` and skips PPR when `quoteSymbol` is blank and the feed symbol has no exchange suffix. Phase 3: if the user supplies a listed ticker, route it like an ETF (Stooq then AV). If not, treat PPR like a locally valued fund NAV entered by the user (same pattern as CT interest). |
-| **O7** | Gold via Alpha Vantage XAU is a **spot bar**, not a series. History without a key depends on Stooq `xauusd`. | **3** | Keep Stooq `xauusd` as the history source. Use AV `CURRENCY_EXCHANGE_RATE` only as a same-day fallback when Stooq is empty. Do not replace a stored XAU series with a single spot bar on sync. |
-| **O8** | Quote parsing is **regex over JSON/CSV**. Fragile if a provider changes payload shape. | **3** | Keep regex while the feed set is small. When adding a third AV function or a new provider, add `kotlinx.serialization` (or Moshi) in `:domain` for JSON only; keep Stooq as CSV. Do not pull an unofficial Yahoo client. |
-| **O9** | Alpha Vantage free tier is ~**25 calls/day**. `TIME_SERIES_DAILY` full + `OVERVIEW` per US name will exhaust it quickly. | **3** | Sync US names sequentially; persist last-success per `asset_id`; skip `OVERVIEW` unless the last rating row is older than 7 days. Prefer Stooq/CoinGecko/Frankfurter first so AV is only for US listings and commodities that have no free series. Quota `Note` payloads already fail that symbol. |
-| **O10** | TWR is **O(transactions × full NAV rebuild)**. History is **O(days × holdings)**. Fine for a few years, not for a decade of daily points plus many lots. | **4** | Cache `totalNavEur` by date in memory for one `GetDashboardUseCase` call (history, TWR, and allocation share it). Later, persist a `nav_history` table rebuilt only when the ledger or quotes change. Do not change TWR split rules (external buy + withdrawal only). |
-| **O11** | Sample AAPL SMA 200 is shortened when fewer than 200 closes exist, and the last bar is **forced through a golden cross**. | **6** now (demo only); **5** when notifications ship | Leave the force in `SamplePortfolioFactory` but keep it commented as demo-only. Live sync must never invent a cross. Phase 5 notifications should use `GetMarketSignalsUseCase` on stored SMAs only. |
-| **O12** | Room used destructive migration on schema change (v2). Alpha is OK; real user ledgers are not. | **1** before first non-sample install | **Started this slice.** v3 adds `isin` / `quote_symbol` via `MIGRATION_2_3`. `fallbackToDestructiveMigrationFrom(1)` only. Export schema and stop remaining fallback before a non-sample install ships. |
-| **O13** | Phase 5 notifications are not implemented. Signal math already exists on the dashboard. Daily quote `WorkManager` at 23:00 already exists. | **5** | Reuse `GetMarketSignalsUseCase` and `exceedsDriftBand`. Fire after the existing 23:00 sync worker succeeds. Channels: rating change, golden/death cross, allocation drift. No extra network in the notification path. |
-| **O14** | Private `methodologies`, `guardrails`, and `github-scaffold` were unpinned. | **Now** (tooling, not a product phase) | **Done this slice.** `CURSOR_REPO_READ_TOKEN` was present (length 93, `github_pat_` prefix). Cloned `pirlruc/methodologies` (cite only), pinned `docs/guardrails` @ `1.3.0` and `.github/scaffold` @ `1.2.0`. Synced templates from the scaffold. Did not invent templates. |
+| O1 | [FS-001](issues.yml) Compose ledger forms | Phase 2 | **done** |
+| O2 | [FS-002](issues.yml) FIFO oversell | Phase 4 (UI guard done) | **open** (`FS-002-T2`) |
+| O3 | [FS-003](issues.yml) Cash overdraft | Phase 4 (UI guard done) | **open** (`FS-003-T2`) |
+| O4 | [FS-004](issues.yml) Target settings | Phase 2 | **done** |
+| O5 | [FS-005](issues.yml) FX `= 1` fallback | Phase 3 | **open** |
+| O6 | [FS-006](issues.yml) PPR listed vs unlisted | Phase 2 + 3 | **open** (`FS-006-T3` listed routing) |
+| O7 | [FS-007](issues.yml) XAU spot vs series | Phase 3 | **open** |
+| O8 | [FS-008](issues.yml) Parser robustness | Phase 3 | **open** |
+| O9 | [FS-009](issues.yml) Alpha Vantage quota | Phase 3 | **open** |
+| O10 | [FS-010](issues.yml) TWR/NAV cache | Phase 4 | **open** |
+| O11 | [FS-011](issues.yml) Sample vs live honesty | Phase 6 | **open** (`FS-011-T2`) |
+| O12 | [FS-012](issues.yml) Room migrations | Phase 1 | **open** (`FS-012-T2`) |
+| O13 | [FS-013](issues.yml) Notifications | Phase 5 | **open** |
+| O14 | [TOOL-001](issues.yml) Analog pins + github-issue-adr | Tooling | **done** |
+
+New findings from the second pass (also in `docs/issues.yml`):
+
+| Epic | Issue | Status |
+| --- | --- | --- |
+| [FS-014](issues.yml) | Typed execution FX must not REPLACE `currency_history` for that date | **done** |
+| [FS-015](issues.yml) | Asset + transaction + FX seed in one Room `@Transaction` | **done** |
+| [FS-016](issues.yml) | European/US decimal parse (`1.234,56` / `1,234.56`) | **done** |
+| [GATE-001](issues.yml) | Kotlin quality, coverage, and security gates | **open** (`GATE-001-T1` domain-test CI **done**) |
 
 ## Suggested order
 
-1. **O14** if the token is in this VM (done).
-2. **Phase 2:** O1 + O2 + O3 + O4 and O6 fields (done).
-3. **Phase 3 hardening:** O5, O7, O9 (O8 only when a parser next breaks). O6 listed-PPR routing.
-4. **Phase 5:** O13 (O11 live path must stay honest).
-5. **Phase 4 cache / Phase 1 migrations:** O10, O12 remainder when real data exists.
+1. **TOOL-001** analog pins and issue sync (done).
+2. **Phase 2:** FS-001, FS-002-T1, FS-003-T1, FS-004, FS-006-T1/T2, FS-014, FS-015, FS-016 (done).
+3. **Phase 3:** FS-005, FS-007, FS-009, FS-006-T3 (FS-008 when a parser next breaks).
+4. **Phase 5:** FS-013 (FS-011 live path must stay honest).
+5. **Phase 4 / Phase 1 remainder:** FS-010, FS-002-T2, FS-003-T2, FS-012-T2.
+6. **GATE-001-T2…T4** ktlint/detekt, Kover, secret/SAST — do not record a fake lowered-gate deviation.
 
 ## Known limitations
 
-- Missing FX history falls back to `eurPerUsd = 1`, which mis-values USD assets (O5).
-- NAV history is O(days × holdings). Fine for a few years; downsample already kicks in above 180 points for the chart only.
-- Alpha Vantage free tier is about 25 calls/day. Sync skips a symbol rather than retrying against unofficial feeds.
-- Gold history without a key depends on Stooq `xauusd`. Alpha Vantage XAU is a spot exchange rate (one bar), not a full series.
-- Sample SMA 200 is shortened when fewer than 200 closes exist; AAPL’s last bar is forced through a golden cross so the dashboard can demonstrate the signal. That is demo-only, not a market event.
+- Missing FX history falls back to `eurPerUsd = 1`, which mis-values USD assets ([FS-005](issues.yml)).
+- NAV history is O(days × holdings). Fine for a few years; downsample already kicks in above 180 points for the chart only ([FS-010](issues.yml)).
+- Alpha Vantage free tier is about 25 calls/day. Sync skips a symbol rather than retrying against unofficial feeds ([FS-009](issues.yml)).
+- Gold history without a key depends on Stooq `xauusd`. Alpha Vantage XAU is a spot exchange rate (one bar), not a full series ([FS-007](issues.yml)).
+- Sample SMA 200 is shortened when fewer than 200 closes exist; AAPL’s last bar is forced through a golden cross so the dashboard can demonstrate the signal. That is demo-only, not a market event ([FS-011](issues.yml)).

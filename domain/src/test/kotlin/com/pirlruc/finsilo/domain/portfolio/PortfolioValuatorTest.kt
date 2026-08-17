@@ -91,6 +91,82 @@ class PortfolioValuatorTest {
     }
 
     @Test
+    fun unlistedPprInterestStaysInNavNotCash() {
+        val ppr = Asset(
+            "ppr",
+            "PTYAAAA00001",
+            "PPR Moderado",
+            AssetType.PPR,
+            Currency.EUR,
+            isin = "PTYAAAA00001",
+            quoteSymbol = null,
+        )
+        val snapshot = snapshot(
+            assets = listOf(ppr, cash),
+            transactions = listOf(
+                cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                buy("b1", ppr.id, LocalDate.of(2026, 1, 2), bd("40"), bd("12.50"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+                Transaction(
+                    id = "i1",
+                    assetId = ppr.id,
+                    date = LocalDate.of(2026, 6, 1),
+                    type = TransactionType.INTEREST,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("15"),
+                    exchangeRateAtExecution = BigDecimal.ONE,
+                    unitPriceEur = bd("15"),
+                    feesEur = BigDecimal.ZERO,
+                ),
+            ),
+            market = emptyList(),
+            fx = emptyList(),
+        )
+        val report = valuator.allocation(snapshot, asOf)
+        val holding = report.holdings.single { it.asset.id == ppr.id }
+        assertTrue(ppr.locallyValued)
+        assertMoney("515", holding.valueEur, "ppr value")
+        assertMoney("4500", report.cashEur, "cash after buy, interest stays in PPR")
+        assertTrue(report.slices.any { it.assetType == AssetType.PPR })
+    }
+
+    @Test
+    fun listedPprUsesMarketPriceAndPaysInterestToCash() {
+        val listed = Asset(
+            "ppr-listed",
+            "PPR Moderado",
+            "PPR Moderado",
+            AssetType.PPR,
+            Currency.EUR,
+            quoteSymbol = "VWCE.DE",
+        )
+        val snapshot = snapshot(
+            assets = listOf(listed, cash),
+            transactions = listOf(
+                cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                buy("b1", listed.id, LocalDate.of(2026, 1, 2), bd("10"), bd("100"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+                Transaction(
+                    id = "i1",
+                    assetId = listed.id,
+                    date = LocalDate.of(2026, 6, 1),
+                    type = TransactionType.INTEREST,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("20"),
+                    exchangeRateAtExecution = BigDecimal.ONE,
+                    unitPriceEur = bd("20"),
+                    feesEur = BigDecimal.ZERO,
+                ),
+            ),
+            market = listOf(DailyMarketData(listed.id, asOf, bd("110"))),
+            fx = emptyList(),
+        )
+        val report = valuator.allocation(snapshot, asOf)
+        assertTrue(!listed.locallyValued)
+        assertMoney("1100", report.holdings.single { it.asset.id == listed.id }.valueEur, "mtm")
+        // cash: 5000 - 1000 + 20 interest
+        assertMoney("4020", report.cashEur, "cash")
+    }
+
+    @Test
     fun depositAndInterestAreLocallyValuedWithoutMarketPrice() {
         val snapshot = snapshot(
             assets = listOf(ct, cash),

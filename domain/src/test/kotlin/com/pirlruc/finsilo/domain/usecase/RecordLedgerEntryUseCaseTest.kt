@@ -114,7 +114,43 @@ class RecordLedgerEntryUseCaseTest {
         assertEquals(0, bd("50").compareTo(accepted.transaction.unitPriceEur))
         assertEquals("US0378331005", accepted.asset.isin)
         assertTrue(accepted.createdAsset)
-        assertEquals(0, bd("0.50").compareTo(accepted.fxRate!!.eurPerUsd))
+        assertEquals(null, accepted.fxRate)
+    }
+
+    @Test
+    fun usdBuySeedsMtMFxOnlyWhenThatDateHasNoRow() {
+        val emptyFx = cashOnly(bd("5000")).copy(fxRates = emptyList())
+        val seeded = useCase(
+            emptyFx,
+            LedgerEntryRequest(
+                type = TransactionType.BUY,
+                date = asOf,
+                quantity = bd("2"),
+                unitPriceNative = bd("100"),
+                feesEur = BigDecimal.ZERO,
+                newAsset = NewAssetDraft("AAPL", "Apple Inc.", AssetType.STOCK, Currency.USD),
+                eurPerUsd = bd("0.50"),
+            ),
+        ) as LedgerEntryResult.Accepted
+        val seededFx = requireNotNull(seeded.fxRate)
+        assertEquals(0, bd("0.50").compareTo(seededFx.eurPerUsd))
+        assertEquals(asOf, seededFx.date)
+
+        val alreadyQuoted = cashOnly(bd("5000"))
+        val skipped = useCase(
+            alreadyQuoted,
+            LedgerEntryRequest(
+                type = TransactionType.BUY,
+                date = asOf,
+                quantity = bd("1"),
+                unitPriceNative = bd("100"),
+                feesEur = BigDecimal.ZERO,
+                newAsset = NewAssetDraft("MSFT", "Microsoft", AssetType.STOCK, Currency.USD),
+                eurPerUsd = bd("0.10"),
+            ),
+        ) as LedgerEntryResult.Accepted
+        assertEquals(null, skipped.fxRate)
+        assertEquals(0, bd("10").compareTo(skipped.transaction.unitPriceEur))
     }
 
     @Test

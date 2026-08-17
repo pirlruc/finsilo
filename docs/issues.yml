@@ -1,0 +1,792 @@
+# Authored backlog for FinSilo. Source of truth for GitHub Epic/Task issues.
+#
+# Schema: https://github.com/pirlruc/github-scaffold/blob/1.2.0/docs/issues-schema.md
+# Methodology: https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr
+#
+# The Epic is the decision record — there are no ADR markdown files.
+# Deviations from guardrails go in docs/guardrail-deviations.yml, not here.
+#
+# `id` values are permanent: issues are matched by the [ID] in their title.
+# Product RFC leftovers keep their O-number in overview text for traceability.
+#
+# Sync:
+#   bash scripts/setup-issue-scaffold.sh
+#   bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --validate-only
+#   bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
+#   bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
+
+milestones:
+  - name: Tooling — Analog & methodology
+    epics:
+      - id: TOOL-001
+        status: done
+        title: Pin analog repos and adopt github-issue-adr
+        overview:
+          problem: >-
+            Guardrails, methodologies, and github-scaffold were unpinned, so
+            agents invented templates and had no authored backlog to sync.
+          goal: >-
+            Pin analog SHAs, sync scaffold templates, author docs/issues.yml,
+            and bootstrap GitHub labels/milestones. Methodologies is cited by
+            tag, not vendored. RFC leftover O14.
+        architecture:
+          target: Analog pins plus docs/issues.yml as the decision log
+          modules:
+            - docs/guardrails
+            - .github/scaffold
+            - docs/issues.yml
+            - docs/issues-sync-targets.yml
+            - scripts/issues-sync.sh
+            - .cursor/rules
+        acceptance_criteria:
+          - docs/guardrails is pinned at tag 1.3.0
+          - .github/scaffold is pinned at tag 1.2.0
+          - Issue/PR templates and Cursor rules come from sync-templates.sh
+          - docs/issues.yml is the authored backlog; no docs/adr/
+          - Wrapper scripts under scripts/ call the scaffold copies
+        guardrail_refs:
+          - KT-DELIV-001
+        tasks:
+          - id: TOOL-001-T1
+            status: done
+            title: Pin guardrails and github-scaffold submodules
+            instructions:
+              files:
+                - .gitmodules
+                - docs/guardrails
+                - .github/scaffold
+            verification:
+              - git -C docs/guardrails describe --tags --exact-match HEAD
+              - git -C .github/scaffold describe --tags --exact-match HEAD
+          - id: TOOL-001-T2
+            status: done
+            title: Sync GitHub templates and Cursor rules from the scaffold
+            instructions:
+              files:
+                - .github/ISSUE_TEMPLATE
+                - .github/pull_request_template.md
+                - .cursor/rules
+                - docs/guardrail-deviations.yml
+            verification:
+              - test -f .github/ISSUE_TEMPLATE/epic-template.md
+              - test -f .cursor/rules/github-issue-adr.mdc
+          - id: TOOL-001-T3
+            status: done
+            title: Author issues.yml, targets, and root wrapper scripts
+            instructions:
+              files:
+                - docs/issues.yml
+                - docs/issues-sync-targets.yml
+                - scripts/issues-sync.sh
+                - scripts/setup-issue-scaffold.sh
+                - scripts/sync-templates.sh
+            verification:
+              - bash scripts/issues-sync.sh --validate-only
+              - test -x scripts/setup-issue-scaffold.sh
+
+  - name: Phase 1 — Foundation
+    epics:
+      - id: FS-012
+        status: open
+        title: Room schema export and remaining destructive fallback
+        overview:
+          problem: >-
+            Room still uses fallbackToDestructiveMigrationFrom(1) and
+            exportSchema is false. Alpha is OK; a real user ledger is not.
+            RFC leftover O12.
+          goal: >-
+            Export schema, keep additive migrations from the current version,
+            and drop remaining destructive fallback before a non-sample install.
+        architecture:
+          target: Encrypted Room database
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+        acceptance_criteria:
+          - MIGRATION_2_3 for isin/quote_symbol remains
+          - Schema JSON is exported for version 3+
+          - Destructive fallback from v1 is removed before first non-sample install
+        guardrail_refs:
+          - KT-API-002
+        tasks:
+          - id: FS-012-T1
+            status: done
+            title: Add MIGRATION_2_3 for ISIN and quote symbol
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/Entities.kt
+            verification:
+              - grep MIGRATION_2_3 app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+          - id: FS-012-T2
+            status: open
+            title: Export schema and drop remaining destructive fallback
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+                - app/schemas
+            verification:
+              - exportSchema is true and schemas/ is committed
+              - fallbackToDestructiveMigrationFrom is gone
+
+      - id: GATE-001
+        status: open
+        title: Wire Kotlin quality, coverage, and security gates
+        overview:
+          problem: >-
+            Org Kotlin gates (ktlint, detekt, Kover 95/95, gitleaks, semgrep)
+            are not wired. Inventing a lowered-gate deviation without Engineering
+            Lead approval is forbidden. A domain-test workflow is the first honest
+            CI slice; remaining gates stay open.
+          goal: >-
+            CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
+            KT-TEST-002, KT-DOC-001, KT-SEC-002/003, and CI-001…CI-012 without
+            copying cppdevops job bodies.
+        architecture:
+          target: Gradle modules plus GitHub Actions
+          modules:
+            - .github/workflows/domain-tests.yml
+            - domain/build.gradle.kts
+            - app/build.gradle.kts
+            - docs/guardrails/kotlin/profile.thresholds.yml
+        acceptance_criteria:
+          - Domain unit tests run in CI with SHA-pinned actions
+          - Formatter, detekt, coverage, secret scan, and SAST are separate follow-up tasks
+          - Thresholds are read from docs/guardrails/kotlin/profile.thresholds.yml
+          - No fake deviation entry in docs/guardrail-deviations.yml
+        guardrail_refs:
+          - KT-BUILD-002
+          - KT-CPLX-001
+          - KT-CPLX-002
+          - KT-TEST-002
+          - KT-DOC-001
+          - KT-SEC-002
+          - KT-SEC-003
+          - CI-001
+          - CI-006
+          - CI-010
+          - CI-025
+        tasks:
+          - id: GATE-001-T1
+            status: done
+            title: Add SHA-pinned domain unit-test workflow
+            instructions:
+              files:
+                - .github/workflows/domain-tests.yml
+            verification:
+              - ./gradlew :domain:test
+              - Workflow pins actions/checkout and actions/setup-java by SHA
+            guardrail_refs:
+              - CI-001
+              - CI-002
+              - CI-003
+              - CI-010
+              - CI-025
+              - KT-TEST-001
+          - id: GATE-001-T2
+            status: open
+            title: Add ktlint and detekt with complexity gates
+            instructions:
+              files:
+                - build.gradle.kts
+                - domain/build.gradle.kts
+                - app/build.gradle.kts
+                - .github/workflows
+            verification:
+              - detekt ComplexMethod max is 10 from profile.thresholds.yml
+              - Formatter/linter run locally and in CI
+            guardrail_refs:
+              - KT-BUILD-002
+              - KT-CPLX-001
+              - KT-CPLX-002
+              - CI-009
+          - id: GATE-001-T3
+            status: open
+            title: Enforce Kover statement and branch coverage
+            instructions:
+              files:
+                - domain/build.gradle.kts
+                - docs/guardrails/kotlin/profile.thresholds.yml
+            verification:
+              - Coverage job reads statement_coverage and branch_coverage from the profile
+              - Missing thresholds file fails closed
+            guardrail_refs:
+              - KT-TEST-002
+              - CI-010
+              - CI-022
+          - id: GATE-001-T4
+            status: open
+            title: Add secret scan and SAST in CI
+            instructions:
+              files:
+                - .github/workflows
+            verification:
+              - gitleaks (or equivalent) and semgrep (or equivalent) run on PRs
+              - High/Critical findings fail the job
+            guardrail_refs:
+              - KT-SEC-002
+              - KT-SEC-003
+              - CI-005
+              - CI-012
+
+  - name: Phase 2 — Data entry
+    epics:
+      - id: FS-001
+        status: done
+        title: Compose ledger forms for every transaction type
+        overview:
+          problem: >-
+            The dashboard could only load the synthetic sample. Users could not
+            record Buy, Sell, Deposit, Withdrawal, Dividend, or Interest.
+            RFC leftover O1.
+          goal: >-
+            One Compose form per TransactionType writing through
+            RecordLedgerEntryUseCase and RoomPortfolioRepository.
+        architecture:
+          target: Phase 2 data-entry UI
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+        acceptance_criteria:
+          - Buy, Sell, Deposit, Withdrawal, Dividend, and Interest can be saved
+          - USD converts as native times eurPerUsd
+          - Quantity, price, and fees are validated
+        guardrail_refs:
+          - KT-API-001
+          - KT-TEST-001
+        tasks:
+          - id: FS-001-T1
+            status: done
+            title: Domain validation and Compose ledger form
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger/LedgerEntryScreen.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger/LedgerEntryViewModel.kt
+            verification:
+              - ./gradlew :domain:test
+              - ./gradlew :app:assembleDebug
+
+      - id: FS-004
+        status: done
+        title: Target allocation settings that sum to 100
+        overview:
+          problem: >-
+            Target weights were seeded in the sample with no settings UI, so
+            drift used whatever was in target_allocation. RFC leftover O4.
+          goal: >-
+            Settings form with one percent field per AssetType, sum must be 100,
+            persist via replaceTargets, keep the ±5% drift band.
+        architecture:
+          target: Target allocation settings
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui/settings
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SaveTargetAllocationUseCase.kt
+        acceptance_criteria:
+          - Weights that do not sum to 100 are rejected
+          - Persisted targets drive exceedsDriftBand
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-004-T1
+            status: done
+            title: Settings form and SaveTargetAllocationUseCase
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SaveTargetAllocationUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings/TargetSettingsScreen.kt
+            verification:
+              - ./gradlew :domain:test
+
+      - id: FS-006
+        status: open
+        title: Distinguish unlisted PPR NAV from listed PPR quotes
+        overview:
+          problem: >-
+            Unlisted PPR interest was treated as cash because only DEPOSIT and
+            CT were locally valued. Sample PPR has no exchange suffix. Listed
+            PPR should still route like an ETF. RFC leftover O6.
+          goal: >-
+            Asset.locallyValued covers unlisted PPR (blank quoteSymbol and no
+            '.' in feedSymbol). Interest stays in NAV. Listed quoteSymbol routes
+            like an ETF on sync (Phase 3).
+        architecture:
+          target: Asset identity and valuation routing
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/model/Models.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PortfolioValuator.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+        acceptance_criteria:
+          - Unlisted PPR interest increases instrument NAV, not uninvested cash
+          - Listed PPR with quoteSymbol is mark-to-market
+          - Sync skips unlisted PPR and quotes listed PPR like an ETF
+        guardrail_refs:
+          - KT-API-001
+          - KT-TEST-001
+        tasks:
+          - id: FS-006-T1
+            status: done
+            title: Store ISIN and quoteSymbol separately from display name
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/model/Models.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/Entities.kt
+            verification:
+              - RecordLedgerEntryUseCaseTest.pprKeepsIsinAndQuoteSymbolSeparateFromDisplayName
+          - id: FS-006-T2
+            status: done
+            title: Value unlisted PPR locally like CT
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/model/Models.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PortfolioValuator.kt
+            verification:
+              - PortfolioValuatorTest.unlistedPprInterestStaysInNavNotCash
+              - PortfolioValuatorTest.listedPprUsesMarketPriceAndPaysInterestToCash
+          - id: FS-006-T3
+            status: open
+            title: Route listed PPR quotes like an ETF
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/remote/CompositeMarketFeed.kt
+            verification:
+              - Listed PPR with quoteSymbol hits Stooq then optional Alpha Vantage
+              - Unlisted PPR is still skipped
+
+      - id: FS-014
+        status: done
+        title: Ledger execution FX must not overwrite MTM history
+        overview:
+          problem: >-
+            RecordLedgerEntryUseCase returned a CurrencyRate for every USD row
+            and the ViewModel upserted it with Room REPLACE on date. A typed
+            execution rate revalued every USD holding that day. Cost already
+            lives on Transaction.exchangeRateAtExecution.
+          goal: >-
+            Seed currency_history only when that date has no row. Execution FX
+            stays on the transaction. MTM continues to use Frankfurter history.
+        architecture:
+          target: Split execution FX from MTM FX
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+        acceptance_criteria:
+          - USD buy with an existing FX row for that date does not return fxRate
+          - Empty FX history still seeds the first MTM row for the trade date
+          - Room insert skips FX when the date already exists
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-014-T1
+            status: done
+            title: Seed MTM FX only when the trade date is missing
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+            verification:
+              - RecordLedgerEntryUseCaseTest.usdBuySeedsMtMFxOnlyWhenThatDateHasNoRow
+              - ./gradlew :domain:test
+
+      - id: FS-015
+        status: done
+        title: Persist asset, transaction, and FX seed atomically
+        overview:
+          problem: >-
+            Ledger save wrote asset then transaction then FX as three Room
+            calls. A failure after upsertAsset left an orphan instrument.
+          goal: >-
+            One @Transaction insertLedgerEntry for optional asset, required
+            transaction, and optional FX seed.
+        architecture:
+          target: Room ledger write path
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/repository/Repositories.kt
+        acceptance_criteria:
+          - LedgerEntryViewModel.save calls saveLedgerEntry once
+          - DAO method is annotated @Transaction
+        guardrail_refs:
+          - KT-CONC-001
+        tasks:
+          - id: FS-015-T1
+            status: done
+            title: Add saveLedgerEntry Room transaction
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger/LedgerEntryViewModel.kt
+            verification:
+              - grep insertLedgerEntry app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+              - ./gradlew :app:assembleDebug
+
+      - id: FS-016
+        status: done
+        title: Parse European and US decimal input
+        overview:
+          problem: >-
+            parseDecimal replaced every comma with a dot, so 1.234,56 and
+            1,234.56 both became invalid. Portuguese users type comma decimals.
+          goal: >-
+            Last comma or dot is the decimal separator; the other mark is
+            grouping. A single comma is a decimal.
+        architecture:
+          target: Shared decimal parser for ledger and settings
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/DecimalParse.kt
+        acceptance_criteria:
+          - 12,50 and 1.234,56 parse
+          - 1,234.56 and 12.50 parse
+          - Blank and malformed input return null
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-016-T1
+            status: done
+            title: Implement locale-aware parseDecimal
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/DecimalParse.kt
+                - domain/src/test/kotlin/com/pirlruc/finsilo/domain/usecase/DecimalParseTest.kt
+            verification:
+              - ./gradlew :domain:test --tests com.pirlruc.finsilo.domain.usecase.DecimalParseTest
+
+  - name: Phase 3 — Market APIs
+    epics:
+      - id: FS-005
+        status: open
+        title: Refuse eurPerUsd=1 fallback for USD portfolios
+        overview:
+          problem: >-
+            Empty FX history still values USD holdings at eurPerUsd=1, which
+            mis-states NAV. A present later quote is already carried backward.
+            RFC leftover O5.
+          goal: >-
+            After a successful sync, require at least one FX row before valuing
+            USD assets. If FX fetch fails, keep last stored rates and surface
+            the failure. Only use 1.0 for EUR-only portfolios.
+        architecture:
+          target: FX valuation honesty
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+            - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+        acceptance_criteria:
+          - USD holdings are not valued with a silent 1.0 when FX history is empty
+          - Dashboard shows the FX fetch failure
+          - EUR-only portfolios still value without FX rows
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-005-T1
+            status: open
+            title: Gate USD valuation on stored FX and surface sync failures
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetDashboardUseCase.kt
+            verification:
+              - Domain tests cover empty FX + USD holding
+              - Dashboard copy mentions the FX failure
+
+      - id: FS-007
+        status: open
+        title: Keep Stooq XAU history; AV XAU is spot-only
+        overview:
+          problem: >-
+            Alpha Vantage XAU is a spot bar. Replacing a stored series with one
+            bar on sync destroys history. RFC leftover O7.
+          goal: >-
+            Stooq xauusd remains the history source. AV CURRENCY_EXCHANGE_RATE
+            is a same-day fallback only when Stooq is empty.
+        architecture:
+          target: Commodity quote identity
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/remote/CompositeMarketFeed.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+        acceptance_criteria:
+          - Sync never replaces an XAU series with a single spot bar
+          - AV XAU is used only when Stooq returned nothing
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-007-T1
+            status: open
+            title: Prefer Stooq xauusd series over AV spot
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/remote/CompositeMarketFeed.kt
+            verification:
+              - Domain or feed tests cover empty Stooq then AV spot
+              - Stored series is preserved when Stooq succeeds
+
+      - id: FS-008
+        status: open
+        title: Replace regex quote parsers when a third JSON feed lands
+        overview:
+          problem: >-
+            Quote parsing is regex over JSON/CSV. Fragile if a provider changes
+            payload shape. RFC leftover O8.
+          goal: >-
+            Keep regex while the feed set is small. When adding a third AV
+            function or a new JSON provider, add kotlinx.serialization in
+            :domain for JSON only; keep Stooq as CSV. No unofficial Yahoo.
+        architecture:
+          target: Market feed parsers
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market
+        acceptance_criteria:
+          - No unofficial Yahoo client
+          - JSON feeds use a typed serializer once a third JSON shape is added
+        guardrail_refs:
+          - KT-SEC-001
+        tasks:
+          - id: FS-008-T1
+            status: open
+            title: Adopt kotlinx.serialization for JSON quotes when a third feed is added
+            instructions:
+              files:
+                - domain/build.gradle.kts
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market
+            verification:
+              - Existing parser tests still pass
+              - New JSON provider has golden fixtures
+
+      - id: FS-009
+        status: open
+        title: Spend Alpha Vantage quota only on US names and series gaps
+        overview:
+          problem: >-
+            Free tier is about 25 calls/day. TIME_SERIES_DAILY full plus
+            OVERVIEW per US name exhausts it. RFC leftover O9.
+          goal: >-
+            Sequential US sync; persist last-success per asset_id; skip OVERVIEW
+            unless the last rating is older than 7 days. Prefer Stooq/CoinGecko/
+            Frankfurter first.
+        architecture:
+          target: Quota-aware sync
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/remote
+        acceptance_criteria:
+          - OVERVIEW is skipped when a rating row is newer than 7 days
+          - Quota Note payloads fail that symbol rather than retrying unofficial feeds
+        guardrail_refs:
+          - KT-PERF-001
+        tasks:
+          - id: FS-009-T1
+            status: open
+            title: Persist last-success and skip fresh OVERVIEW calls
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local
+            verification:
+              - Sync tests skip OVERVIEW when rating is fresh
+              - Unofficial Yahoo is still absent
+
+  - name: Phase 4 — Calc engine
+    epics:
+      - id: FS-002
+        status: open
+        title: FIFO consumeFifo must not credit unfilled sell cash
+        overview:
+          problem: >-
+            Selling more than remaining FIFO quantity still credits full sell
+            cash while lots go to zero if a row is written outside the form.
+            UI already refuses the save. RFC leftover O2.
+          goal: >-
+            consumeFifo returns unfilled quantity and cash is credited only for
+            filled quantity. Keep the Phase 2 UI guard.
+        architecture:
+          target: PositionLedger FIFO
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+        acceptance_criteria:
+          - Oversell through the ledger credits cash only for filled qty
+          - UI rejection of oversell remains
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-002-T1
+            status: done
+            title: Refuse oversell in RecordLedgerEntryUseCase
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+            verification:
+              - RecordLedgerEntryUseCaseTest.sellAboveRemainingFifoQuantityIsRejected
+          - id: FS-002-T2
+            status: open
+            title: Return unfilled quantity from consumeFifo
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            verification:
+              - Domain test for oversell credits cash only for filled qty
+
+      - id: FS-003
+        status: open
+        title: Keep uninvested cash from going negative
+        overview:
+          problem: >-
+            Withdrawal larger than uninvested cash makes cash negative. The pie
+            omits a negative cash slice; total NAV still includes it. UI already
+            refuses the save. RFC leftover O3.
+          goal: >-
+            Ledger policy refuses or clamps overdraft unless an explicit
+            overdraft type is added later. Do not hide negative cash only in the pie.
+        architecture:
+          target: Cash policy in PositionLedger
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+        acceptance_criteria:
+          - Direct ledger replay cannot produce hidden negative cash in the pie
+          - UI rejection of oversize withdrawals remains
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-003-T1
+            status: done
+            title: Refuse oversize withdrawals in RecordLedgerEntryUseCase
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+            verification:
+              - RecordLedgerEntryUseCaseTest.withdrawalAboveCashIsRejected
+          - id: FS-003-T2
+            status: open
+            title: Encode cash overdraft policy in the ledger
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            verification:
+              - Domain test covers withdrawal above cash without a silent pie omit
+
+      - id: FS-010
+        status: open
+        title: Cache NAV so TWR and history share one walk
+        overview:
+          problem: >-
+            TWR is O(transactions × full NAV rebuild). History is O(days ×
+            holdings). Fine for a few years, not a decade of daily points.
+            RFC leftover O10.
+          goal: >-
+            Cache totalNavEur by date in memory for one GetDashboardUseCase
+            call. Later persist nav_history rebuilt when ledger or quotes change.
+            Do not change TWR split rules.
+        architecture:
+          target: Dashboard calculation engine
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetDashboardUseCase.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetTimeWeightedReturnUseCase.kt
+        acceptance_criteria:
+          - History, TWR, and allocation share one NAV walk per call
+          - TWR still splits only on external buy and withdrawal
+        guardrail_refs:
+          - KT-PERF-001
+        tasks:
+          - id: FS-010-T1
+            status: open
+            title: Memoize totalNavEur per as-of date inside one dashboard call
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PortfolioValuator.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetDashboardUseCase.kt
+            verification:
+              - Existing TWR tests still pass
+              - Dashboard sample consistency test still passes
+          - id: FS-010-T2
+            status: open
+            title: Persist nav_history rebuilt on ledger or quote change
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local
+            verification:
+              - Schema migration adds nav_history
+              - Rebuild is skipped when inputs are unchanged
+
+  - name: Phase 5 — Notifications
+    epics:
+      - id: FS-013
+        status: open
+        title: Fire rating, cross, and drift notifications after daily sync
+        overview:
+          problem: >-
+            Signal math already exists on the dashboard and WorkManager already
+            runs at 23:00, but NotificationManager is not implemented.
+            RFC leftover O13.
+          goal: >-
+            Reuse GetMarketSignalsUseCase and exceedsDriftBand after the 23:00
+            worker succeeds. Channels for rating change, golden/death cross,
+            and allocation drift. No extra network in the notification path.
+        architecture:
+          target: Notification worker on top of existing sync
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/sync/DailyMarketSyncWorker.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetMarketSignalsUseCase.kt
+        acceptance_criteria:
+          - Notifications fire only after a successful 23:00 sync
+          - Live path uses stored SMAs only (no invented golden cross)
+          - No extra HTTP in the notification path
+        guardrail_refs:
+          - KT-CONC-001
+        tasks:
+          - id: FS-013-T1
+            status: open
+            title: Post notification channels from GetMarketSignalsUseCase
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/sync
+            verification:
+              - Worker uses existing GetMarketSignalsUseCase
+              - Sample golden-cross force is not used on the live path
+
+  - name: Phase 6 — Dashboard
+    epics:
+      - id: FS-011
+        status: open
+        title: Keep sample demo signals out of live sync
+        overview:
+          problem: >-
+            Sample AAPL SMA 200 is shortened when fewer than 200 closes exist,
+            and the last bar is forced through a golden cross so the dashboard
+            can demonstrate the signal. Live sync must never invent a cross.
+            RFC leftover O11.
+          goal: >-
+            Leave the force in SamplePortfolioFactory, commented as demo-only.
+            Unlisted PPR sample rows have no invented quotes. Phase 5
+            notifications use stored SMAs only.
+        architecture:
+          target: Sample factory versus live sync
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/sample/SamplePortfolioFactory.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/SyncMarketDataUseCase.kt
+        acceptance_criteria:
+          - Sample documents the forced AAPL golden cross as demo-only
+          - Unlisted sample PPR has no synthetic daily quotes
+          - SyncMarketDataUseCase never invents a cross
+        guardrail_refs:
+          - KT-TEST-001
+        tasks:
+          - id: FS-011-T1
+            status: done
+            title: Stop inventing sample quotes for unlisted PPR
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/sample/SamplePortfolioFactory.kt
+            verification:
+              - DashboardUseCasesTest.samplePortfolioDashboardIsInternallyConsistent
+              - Sample PPR appears as a locally valued slice, not a signal
+          - id: FS-011-T2
+            status: open
+            title: Keep live SMA crosses honest when notifications ship
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/sync
+            verification:
+              - Notification path calls GetMarketSignalsUseCase on stored SMAs only

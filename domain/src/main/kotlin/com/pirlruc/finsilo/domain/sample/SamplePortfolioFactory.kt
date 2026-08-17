@@ -108,6 +108,17 @@ object SamplePortfolioFactory {
             buy("tx-dep-1", DEPOSIT_ID, start.plusDays(16), bd("2000"), bd("1"), Currency.EUR, fx),
             buy("tx-gold-1", GOLD_ID, start.plusDays(20), bd("1.5"), bd("2300"), Currency.USD, fx),
             Transaction(
+                id = "tx-ppr-int-1",
+                assetId = PPR_ID,
+                date = start.plusDays(80),
+                type = TransactionType.INTEREST,
+                quantity = bd("1"),
+                unitPriceNative = bd("15"),
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = bd("15"),
+                feesEur = BigDecimal.ZERO,
+            ),
+            Transaction(
                 id = "tx-ct-int-1",
                 assetId = CT_ID,
                 date = start.plusDays(100),
@@ -180,15 +191,12 @@ object SamplePortfolioFactory {
         val apple = walk(start, asOf, bd("186"), 0.012, 11, ratingsAround(asOf, AnalystRating.BUY, AnalystRating.HOLD))
         val vwce = walk(start, asOf, bd("118.50"), 0.006, 22, ratingsAround(asOf, AnalystRating.HOLD, AnalystRating.HOLD))
         val btc = walk(start, asOf, bd("62000"), 0.025, 33, ratingsAround(asOf, AnalystRating.NONE, AnalystRating.NONE))
-        val ppr = walk(start, asOf, bd("12.55"), 0.003, 44, ratingsAround(asOf, AnalystRating.HOLD, AnalystRating.BUY))
-
         val gold = walk(start, asOf, bd("2320"), 0.008, 55, ratingsAround(asOf, AnalystRating.NONE, AnalystRating.NONE))
 
         return buildList {
             addAll(withSma(APPLE_ID, apple, goldenCrossNearEnd = true))
             addAll(withSma(VWCE_ID, vwce, goldenCrossNearEnd = false))
             addAll(withSma(BTC_ID, btc, goldenCrossNearEnd = false))
-            addAll(withSma(PPR_ID, ppr, goldenCrossNearEnd = false))
             addAll(withSma(GOLD_ID, gold, goldenCrossNearEnd = false))
         }
     }

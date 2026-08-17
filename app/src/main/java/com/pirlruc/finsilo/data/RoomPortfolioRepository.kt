@@ -59,6 +59,14 @@ class RoomPortfolioRepository(
         dao.insertFxRates(listOf(CurrencyRateEntity.from(rate)))
     }
 
+    override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
+        dao.insertLedgerEntry(
+            asset = asset?.let(AssetEntity::from),
+            transaction = TransactionEntity.from(transaction),
+            fx = fxRate?.let(CurrencyRateEntity::from),
+        )
+    }
+
     suspend fun upsertQuotes(
         market: List<com.pirlruc.finsilo.domain.model.DailyMarketData>,
         fx: List<com.pirlruc.finsilo.domain.model.CurrencyRate>,

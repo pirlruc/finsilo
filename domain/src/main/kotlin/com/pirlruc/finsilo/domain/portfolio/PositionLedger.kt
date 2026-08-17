@@ -99,7 +99,7 @@ class PositionLedger {
         var cash = ZERO
         for (tx in transactions) {
             val asset = assetsById[tx.assetId]
-            val locallyValued = asset?.assetType?.isLocallyValued == true
+            val locallyValued = asset?.locallyValued == true
             cash = when (tx.type) {
                 TransactionType.DEPOSIT_CASH -> plus(cash, tx.notionalEur)
                 TransactionType.WITHDRAWAL -> minus(cash, tx.notionalEur)

@@ -7,7 +7,6 @@ import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
@@ -79,13 +78,11 @@ class RecordLedgerEntryUseCase(
             feesEur = request.feesEur,
         )
         validateAgainstLedger(snapshot, asset, transaction)?.let { return it }
-        val storedFx =
-            if (asset.baseCurrency == Currency.USD) CurrencyRate(request.date, rate) else null
         return LedgerEntryResult.Accepted(
             asset = asset,
             createdAsset = created,
             transaction = transaction,
-            fxRate = storedFx,
+            fxRate = seededMtMFx(asset, request.date, rate, snapshot),
         )
     }
 
@@ -167,6 +164,22 @@ class RecordLedgerEntryUseCase(
         return request.eurPerUsd ?: ledger.eurPerUsdOn(request.date, snapshot.fxRates)
     }
 
+    /**
+     * Execution FX already lives on [Transaction.exchangeRateAtExecution].
+     * Seed [currency_history] only when that date has no MTM row, so a typed
+     * trade rate cannot REPLACE a Frankfurter (or earlier) quote for the day.
+     */
+    private fun seededMtMFx(
+        asset: Asset,
+        date: LocalDate,
+        rate: BigDecimal,
+        snapshot: PortfolioSnapshot,
+    ): CurrencyRate? {
+        if (asset.baseCurrency != Currency.USD) return null
+        if (snapshot.fxRates.any { it.date == date }) return null
+        return CurrencyRate(date, rate)
+    }
+
     private fun validateAgainstLedger(
         snapshot: PortfolioSnapshot,
         asset: Asset,
@@ -214,12 +227,6 @@ class RecordLedgerEntryUseCase(
     companion object {
         const val CASH_ASSET_ID: String = "asset-cash"
     }
-}
-
-fun parseDecimal(raw: String): BigDecimal? {
-    val trimmed = raw.trim().replace(',', '.')
-    if (trimmed.isEmpty()) return null
-    return runCatching { MoneyMath.bd(trimmed) }.getOrNull()
 }
 
 fun parseDate(raw: String): LocalDate? = runCatching { LocalDate.parse(raw.trim()) }.getOrNull()

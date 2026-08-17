@@ -1,20 +1,14 @@
 # Which repos to sync and what to bootstrap them with.
 #
-# Copy to docs/issues-sync-targets.yml. Only needed when driving several repos from one
-# checkout — a single repo works without this file, using docs/issues.yml and the repo
-# inferred from `git remote`.
+# Read by issues-sync-all.sh, issues-resync-all.sh, and setup-issue-scaffold.sh
+# (via scripts/*.sh wrappers that call .github/scaffold/scripts/).
 #
-# Read by issues-sync-all.sh, issues-resync-all.sh, and setup-issue-scaffold.sh.
-#
-# `yaml` paths are relative to the directory holding this file's repo root, so they stay
-# valid regardless of where the checkout lives.
+# Milestone `name` values must match docs/issues.yml exactly. Create them with
+# bash scripts/setup-issue-scaffold.sh before the first issues-sync.
 
 targets:
   - repo: pirlruc/finsilo
     yaml: docs/issues.yml
-
-  # - repo: pirlruc/mjolnir-cpp
-  #   yaml: docs/issues.yml
 
 labels:
   - { name: epic, color: "5319E7", description: "Decision record" }
@@ -25,6 +19,16 @@ labels:
 
 milestones:
   - name: Phase 1 — Foundation
-    description: Foundation work
-  - name: Phase 2 — Modernization
-    description: Remaining modernization gaps
+    description: Encrypted Room/SQLCipher, schema migrations, Kotlin quality gates
+  - name: Phase 2 — Data entry
+    description: Ledger forms, targets, FIFO/cash guards, PPR identity
+  - name: Phase 3 — Market APIs
+    description: Free GET-only quotes, FX honesty, parsers, Alpha Vantage quota
+  - name: Phase 4 — Calc engine
+    description: FIFO remainder, cash policy, TWR/NAV cache
+  - name: Phase 5 — Notifications
+    description: Rating, cross, and allocation-drift notifications
+  - name: Phase 6 — Dashboard
+    description: Charts, sample honesty, live signals
+  - name: Tooling — Analog & methodology
+    description: Guardrails, github-scaffold, github-issue-adr
