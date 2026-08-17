@@ -15,13 +15,20 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TargetAllocationEntity::class,
     ],
     version = 3,
-    exportSchema = false,
+    exportSchema = true,
 )
 @TypeConverters(FinsiloTypeConverters::class)
 abstract class FinsiloDatabase : RoomDatabase() {
     abstract fun portfolioDao(): PortfolioDao
 
     companion object {
+        val MIGRATION_1_2: Migration =
+            object : Migration(1, 2) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    // v1 and v2 share the same tables; v2 was a Room version bump.
+                }
+            }
+
         val MIGRATION_2_3: Migration =
             object : Migration(2, 3) {
                 override fun migrate(db: SupportSQLiteDatabase) {

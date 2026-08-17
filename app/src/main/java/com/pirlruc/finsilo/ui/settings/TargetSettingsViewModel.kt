@@ -79,12 +79,9 @@ class TargetSettingsViewModel(
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return TargetSettingsViewModel(container.repository) as T
-                }
-            }
+        fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = TargetSettingsViewModel(container.repository) as T
+        }
     }
 }

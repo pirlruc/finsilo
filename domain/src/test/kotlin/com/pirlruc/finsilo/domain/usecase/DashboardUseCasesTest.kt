@@ -13,14 +13,13 @@ import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
+import java.math.BigDecimal
+import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.math.BigDecimal
-import java.time.LocalDate
 
 class DashboardUseCasesTest {
-
     private val asOf = LocalDate.of(2026, 8, 16)
     private val apple = Asset("aapl", "AAPL", "Apple", AssetType.STOCK, Currency.USD)
     private val cash = Asset("cash", "EUR", "Cash", AssetType.CASH, Currency.EUR)
@@ -67,45 +66,90 @@ class DashboardUseCasesTest {
     @Test
     fun ratingChangeAndGoldenCrossAppearOnHeldAssets() {
         val yesterday = asOf.minusDays(1)
-        val snapshot = PortfolioSnapshot(
-            assets = listOf(apple, cash),
-            transactions = listOf(
-                Transaction(
-                    id = "c",
-                    assetId = cash.id,
-                    date = asOf.minusDays(10),
-                    type = TransactionType.DEPOSIT_CASH,
-                    quantity = bd("5000"),
-                    unitPriceNative = BigDecimal.ONE,
-                    exchangeRateAtExecution = bd("1.10"),
-                    unitPriceEur = BigDecimal.ONE,
-                    feesEur = BigDecimal.ZERO,
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(apple, cash),
+                transactions =
+                listOf(
+                    Transaction(
+                        id = "c",
+                        assetId = cash.id,
+                        date = asOf.minusDays(10),
+                        type = TransactionType.DEPOSIT_CASH,
+                        quantity = bd("5000"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = bd("1.10"),
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                    Transaction(
+                        id = "b",
+                        assetId = apple.id,
+                        date = asOf.minusDays(10),
+                        type = TransactionType.BUY,
+                        quantity = bd("5"),
+                        unitPriceNative = bd("100"),
+                        exchangeRateAtExecution = bd("1.10"),
+                        unitPriceEur = bd("90.90909091"),
+                        feesEur = BigDecimal.ZERO,
+                    ),
                 ),
-                Transaction(
-                    id = "b",
-                    assetId = apple.id,
-                    date = asOf.minusDays(10),
-                    type = TransactionType.BUY,
-                    quantity = bd("5"),
-                    unitPriceNative = bd("100"),
-                    exchangeRateAtExecution = bd("1.10"),
-                    unitPriceEur = bd("90.90909091"),
-                    feesEur = BigDecimal.ZERO,
+                marketData =
+                listOf(
+                    DailyMarketData(apple.id, yesterday, bd("150"), AnalystRating.HOLD, bd("10"), bd("12")),
+                    DailyMarketData(apple.id, asOf, bd("155"), AnalystRating.BUY, bd("13"), bd("12")),
                 ),
-            ),
-            marketData = listOf(
-                DailyMarketData(apple.id, yesterday, bd("150"), AnalystRating.HOLD, bd("10"), bd("12")),
-                DailyMarketData(apple.id, asOf, bd("155"), AnalystRating.BUY, bd("13"), bd("12")),
-            ),
-            fxRates = listOf(CurrencyRate(asOf, bd("1.10"))),
-            targets = emptyList(),
-        )
+                fxRates = listOf(CurrencyRate(asOf, bd("1.10"))),
+                targets = emptyList(),
+            )
         val signals = GetMarketSignalsUseCase()(snapshot, asOf)
         val appleSignal = signals.single { it.asset.id == apple.id }
         assertTrue(appleSignal.ratingChanged)
         assertEquals(AnalystRating.HOLD, appleSignal.previousRating)
         assertEquals(AnalystRating.BUY, appleSignal.rating)
         assertEquals(TechnicalCross.GOLDEN, appleSignal.cross)
+        val alerts = GetPortfolioAlertsUseCase()(snapshot, asOf)
+        assertTrue(alerts.any { it.channel == AlertChannel.RATING })
+        assertTrue(alerts.any { it.channel == AlertChannel.CROSS })
+    }
+
+    @Test
+    fun dashboardWarnsWhenUsdHoldingsHaveNoFx() {
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(apple, cash),
+                transactions =
+                listOf(
+                    Transaction(
+                        id = "c",
+                        assetId = cash.id,
+                        date = asOf.minusDays(1),
+                        type = TransactionType.DEPOSIT_CASH,
+                        quantity = bd("500"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                    Transaction(
+                        id = "b",
+                        assetId = apple.id,
+                        date = asOf,
+                        type = TransactionType.BUY,
+                        quantity = bd("2"),
+                        unitPriceNative = bd("100"),
+                        exchangeRateAtExecution = bd("0.92"),
+                        unitPriceEur = bd("92"),
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                ),
+                marketData = listOf(DailyMarketData(apple.id, asOf, bd("100"))),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val dashboard = GetDashboardUseCase()(snapshot, HistoryRange.ALL, asOf)
+        assertTrue(dashboard.warnings.any { it.contains("FX") })
+        assertTrue(dashboard.allocation.holdings.none { it.asset.id == apple.id })
     }
 
     @Test
@@ -116,8 +160,13 @@ class DashboardUseCasesTest {
         val weightSum = dashboard.allocation.slices.fold(BigDecimal.ZERO) { acc, s -> acc.add(s.weightPercent) }
         assertEquals(0, bd("100").compareTo(weightSum.setScale(1, java.math.RoundingMode.HALF_EVEN)))
         assertTrue(dashboard.history.points.isNotEmpty())
-        assertEquals(dashboard.allocation.totalValueEur.setScale(4, java.math.RoundingMode.HALF_EVEN),
-            dashboard.history.points.last().valueEur.setScale(4, java.math.RoundingMode.HALF_EVEN))
+        assertEquals(
+            dashboard.allocation.totalValueEur.setScale(4, java.math.RoundingMode.HALF_EVEN),
+            dashboard.history.points
+                .last()
+                .valueEur
+                .setScale(4, java.math.RoundingMode.HALF_EVEN),
+        )
         assertTrue(dashboard.signals.any { it.asset.symbol == "AAPL" })
         assertTrue(dashboard.signals.any { it.cross == TechnicalCross.GOLDEN })
         assertTrue(dashboard.allocation.slices.any { it.assetType == AssetType.ETF })
@@ -126,13 +175,15 @@ class DashboardUseCasesTest {
         assertTrue(dashboard.signals.none { it.asset.assetType == AssetType.PPR })
         assertTrue(dashboard.allocation.slices.any { it.assetType == AssetType.COMMODITY })
         assertTrue(dashboard.yoc.any { it.asset.symbol == "AAPL" && it.paymentsPerYear == 4 })
+        assertTrue(dashboard.warnings.isEmpty())
     }
 
     private fun snapshotWithBuy(buyDate: LocalDate): PortfolioSnapshot {
         val vwce = Asset("vwce", "VWCE.DE", "ETF", AssetType.ETF, Currency.EUR)
         return PortfolioSnapshot(
             assets = listOf(vwce, cash),
-            transactions = listOf(
+            transactions =
+            listOf(
                 Transaction(
                     id = "c",
                     assetId = cash.id,
@@ -156,7 +207,8 @@ class DashboardUseCasesTest {
                     feesEur = BigDecimal.ZERO,
                 ),
             ),
-            marketData = generateSequence(buyDate) { it.plusDays(1) }
+            marketData =
+            generateSequence(buyDate) { it.plusDays(1) }
                 .takeWhile { !it.isAfter(asOf) }
                 .map { DailyMarketData(vwce.id, it, bd("110")) }
                 .toList(),

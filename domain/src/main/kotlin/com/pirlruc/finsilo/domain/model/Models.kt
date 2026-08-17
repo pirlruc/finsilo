@@ -62,15 +62,9 @@ data class DailyMarketData(
     val sma200: BigDecimal? = null,
 )
 
-data class CurrencyRate(
-    val date: LocalDate,
-    val eurPerUsd: BigDecimal,
-)
+data class CurrencyRate(val date: LocalDate, val eurPerUsd: BigDecimal)
 
-data class TargetAllocation(
-    val assetType: AssetType,
-    val weightPercent: BigDecimal,
-)
+data class TargetAllocation(val assetType: AssetType, val weightPercent: BigDecimal)
 
 data class PortfolioSnapshot(
     val assets: List<Asset>,

@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.pirlruc.finsilo.FinsiloApplication
+import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
 import java.time.Duration
 import java.time.LocalDate
@@ -16,18 +17,20 @@ import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
-class DailyMarketSyncWorker(
-    context: Context,
-    params: WorkerParameters,
-) : CoroutineWorker(context, params) {
+class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as FinsiloApplication).container
         val snapshot = container.repository.load()
         if (snapshot.isEmpty) return Result.success()
         val asOf = LocalDate.now()
         val synced = SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
+        val gotQuotes = synced.marketData.isNotEmpty() || synced.fxRates.isNotEmpty()
+        if (synced.failures.isNotEmpty() && !gotQuotes) return Result.retry()
         container.repository.upsertQuotes(synced.marketData, synced.fxRates)
-        return if (synced.failures.isEmpty() || synced.marketData.isNotEmpty()) Result.success() else Result.retry()
+        val updated = container.repository.load()
+        val alerts = GetPortfolioAlertsUseCase()(updated, asOf)
+        PortfolioAlertNotifier(applicationContext).publish(alerts)
+        return Result.success()
     }
 
     companion object {

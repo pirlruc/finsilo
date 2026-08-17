@@ -15,19 +15,19 @@ import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
 
-class RoomPortfolioRepository(
-    private val database: FinsiloDatabase,
-) : PortfolioReadRepository, SamplePortfolioWriter, LedgerWriteRepository {
+class RoomPortfolioRepository(private val database: FinsiloDatabase) :
+    PortfolioReadRepository,
+    SamplePortfolioWriter,
+    LedgerWriteRepository {
     private val dao get() = database.portfolioDao()
 
-    override suspend fun load(): PortfolioSnapshot =
-        PortfolioSnapshot(
-            assets = dao.getAssets().map { it.toDomain() },
-            transactions = dao.getTransactions().map { it.toDomain() },
-            marketData = dao.getMarketData().map { it.toDomain() },
-            fxRates = dao.getFxRates().map { it.toDomain() },
-            targets = dao.getTargets().map { it.toDomain() },
-        )
+    override suspend fun load(): PortfolioSnapshot = PortfolioSnapshot(
+        assets = dao.getAssets().map { it.toDomain() },
+        transactions = dao.getTransactions().map { it.toDomain() },
+        marketData = dao.getMarketData().map { it.toDomain() },
+        fxRates = dao.getFxRates().map { it.toDomain() },
+        targets = dao.getTargets().map { it.toDomain() },
+    )
 
     override suspend fun write(snapshot: PortfolioSnapshot) {
         dao.replaceAll(

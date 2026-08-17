@@ -2,7 +2,7 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers **Phase 2 (data entry)**, **Phase 6 (dashboard)**, the **encrypted local foundation**, **GET-only market sync**, and **TWR / YOC**. Notification workers (Phase 5) are not in this tree.
+This repository currently delivers product phases **1–6** (foundation, data entry, market APIs, calc engine, notifications, dashboard). Guardrails compliance (ktlint/detekt done; Kover, Android lint, SAST still open) is **Phase 7**.
 
 ## What works now
 
@@ -36,7 +36,7 @@ This repository currently delivers **Phase 2 (data entry)**, **Phase 6 (dashboar
 Clean architecture, two Gradle modules:
 
 - `:domain` — pure Kotlin (JVM). Valuation, FIFO ledger, allocation, history, TWR, YOC, signals, feed parsers, ledger-entry validation. Covered by JUnit 5.
-- `:app` — Compose UI, Room, SQLCipher, Vico, WorkManager (23:00 daily sync), OkHttp GET-only client.
+- `:app` — Compose UI, Room, SQLCipher, Vico, WorkManager (23:00 daily sync + rating/cross/drift notifications), OkHttp GET-only client.
 
 No Hilt. Constructor injection from `AppContainer` keeps the first slice small and testable.
 
@@ -46,6 +46,7 @@ Requirements: JDK 17+, Android SDK 35/36.
 
 ```bash
 ./gradlew :domain:test
+./gradlew :domain:ktlintCheck :domain:detekt
 ./gradlew :app:assembleDebug
 ```
 

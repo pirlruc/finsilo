@@ -7,12 +7,12 @@ Do not keep a second issue list here.
 | What | Where |
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
-| RFC leftovers O1–O14 and second-pass bugs | [FS-001](issues.yml)…[FS-016](issues.yml), [TOOL-001](issues.yml) |
-| Kotlin quality/coverage/security CI | [GATE-001](issues.yml) |
+| Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers), [FS-010-T2](issues.yml) (`nav_history`) |
+| Kotlin quality/coverage/security CI | [GATE-001](issues.yml) — ktlint + detekt done; Kover/gitleaks/Dokka open |
 | Android lint, assemble, instrumented tests | [GATE-AND-001](issues.yml) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |
 
-RFC phases in milestone names: **1** foundation · **2** data entry · **3** market APIs · **4** calc engine · **5** notifications · **6** dashboard.
+RFC phases in milestone names: **1** foundation · **2** data entry · **3** market APIs · **4** calc engine · **5** notifications · **6** dashboard · **7** guardrails (last).
 
 ```bash
 bash scripts/setup-issue-scaffold.sh

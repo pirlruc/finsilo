@@ -20,9 +20,7 @@ import java.time.LocalDate
  *   FIFO remaining cost. Frequency is inferred from how many dividend
  *   payments landed in the TTM window (1, 2, 4, or 12).
  */
-class GetYocUseCase(
-    private val ledger: PositionLedger = PositionLedger(),
-) {
+class GetYocUseCase(private val ledger: PositionLedger = PositionLedger()) {
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): List<YocReport> {
         val ttmStart = asOf.minusDays(365)
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
@@ -56,13 +54,12 @@ class GetYocUseCase(
     }
 
     companion object {
-        fun inferPaymentsPerYear(paymentsInTtm: Int): Int? =
-            when {
-                paymentsInTtm <= 0 -> null
-                paymentsInTtm == 1 -> 1
-                paymentsInTtm == 2 -> 2
-                paymentsInTtm in 3..5 -> 4
-                else -> 12
-            }
+        fun inferPaymentsPerYear(paymentsInTtm: Int): Int? = when {
+            paymentsInTtm <= 0 -> null
+            paymentsInTtm == 1 -> 1
+            paymentsInTtm == 2 -> 2
+            paymentsInTtm in 3..5 -> 4
+            else -> 12
+        }
     }
 }

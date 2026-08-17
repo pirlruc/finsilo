@@ -46,37 +46,35 @@ object SamplePortfolioFactory {
         )
     }
 
-    fun assets(): List<Asset> =
-        listOf(
-            Asset(APPLE_ID, "AAPL", "Apple Inc.", AssetType.STOCK, Currency.USD),
-            Asset(VWCE_ID, "VWCE.DE", "Vanguard FTSE All-World", AssetType.ETF, Currency.EUR),
-            Asset(BTC_ID, "BTC", "Bitcoin", AssetType.CRYPTO, Currency.USD),
-            Asset(
-                PPR_ID,
-                "PTYAAAA00001",
-                "PPR Moderado",
-                AssetType.PPR,
-                Currency.EUR,
-                isin = "PTYAAAA00001",
-                quoteSymbol = null,
-            ),
-            Asset(CT_ID, "CT-POUPANCA", "Certificados de Tesouro Poupança", AssetType.CT, Currency.EUR),
-            Asset(DEPOSIT_ID, "DEP-CGD", "Depósito a prazo", AssetType.DEPOSIT, Currency.EUR),
-            Asset(GOLD_ID, "XAU", "Gold (spot)", AssetType.COMMODITY, Currency.USD),
-            Asset(CASH_ID, "EUR-CASH", "Euro cash", AssetType.CASH, Currency.EUR),
-        )
+    fun assets(): List<Asset> = listOf(
+        Asset(APPLE_ID, "AAPL", "Apple Inc.", AssetType.STOCK, Currency.USD),
+        Asset(VWCE_ID, "VWCE.DE", "Vanguard FTSE All-World", AssetType.ETF, Currency.EUR),
+        Asset(BTC_ID, "BTC", "Bitcoin", AssetType.CRYPTO, Currency.USD),
+        Asset(
+            PPR_ID,
+            "PTYAAAA00001",
+            "PPR Moderado",
+            AssetType.PPR,
+            Currency.EUR,
+            isin = "PTYAAAA00001",
+            quoteSymbol = null,
+        ),
+        Asset(CT_ID, "CT-POUPANCA", "Certificados de Tesouro Poupança", AssetType.CT, Currency.EUR),
+        Asset(DEPOSIT_ID, "DEP-CGD", "Depósito a prazo", AssetType.DEPOSIT, Currency.EUR),
+        Asset(GOLD_ID, "XAU", "Gold (spot)", AssetType.COMMODITY, Currency.USD),
+        Asset(CASH_ID, "EUR-CASH", "Euro cash", AssetType.CASH, Currency.EUR),
+    )
 
-    fun targets(): List<TargetAllocation> =
-        listOf(
-            TargetAllocation(AssetType.ETF, bd("40")),
-            TargetAllocation(AssetType.STOCK, bd("20")),
-            TargetAllocation(AssetType.CRYPTO, bd("10")),
-            TargetAllocation(AssetType.PPR, bd("15")),
-            TargetAllocation(AssetType.CT, bd("6")),
-            TargetAllocation(AssetType.DEPOSIT, bd("4")),
-            TargetAllocation(AssetType.COMMODITY, bd("3")),
-            TargetAllocation(AssetType.CASH, bd("2")),
-        )
+    fun targets(): List<TargetAllocation> = listOf(
+        TargetAllocation(AssetType.ETF, bd("40")),
+        TargetAllocation(AssetType.STOCK, bd("20")),
+        TargetAllocation(AssetType.CRYPTO, bd("10")),
+        TargetAllocation(AssetType.PPR, bd("15")),
+        TargetAllocation(AssetType.CT, bd("6")),
+        TargetAllocation(AssetType.DEPOSIT, bd("4")),
+        TargetAllocation(AssetType.COMMODITY, bd("3")),
+        TargetAllocation(AssetType.CASH, bd("2")),
+    )
 
     private fun eurPerUsdOn(date: LocalDate, fx: List<CurrencyRate>): BigDecimal =
         fx.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.eurPerUsd ?: bd("0.92")
@@ -150,18 +148,17 @@ object SamplePortfolioFactory {
         )
     }
 
-    private fun cashDeposit(id: String, date: LocalDate, amountEur: BigDecimal, eurPerUsd: BigDecimal): Transaction =
-        Transaction(
-            id = id,
-            assetId = CASH_ID,
-            date = date,
-            type = TransactionType.DEPOSIT_CASH,
-            quantity = amountEur,
-            unitPriceNative = BigDecimal.ONE,
-            exchangeRateAtExecution = eurPerUsd,
-            unitPriceEur = BigDecimal.ONE,
-            feesEur = BigDecimal.ZERO,
-        )
+    private fun cashDeposit(id: String, date: LocalDate, amountEur: BigDecimal, eurPerUsd: BigDecimal): Transaction = Transaction(
+        id = id,
+        assetId = CASH_ID,
+        date = date,
+        type = TransactionType.DEPOSIT_CASH,
+        quantity = amountEur,
+        unitPriceNative = BigDecimal.ONE,
+        exchangeRateAtExecution = eurPerUsd,
+        unitPriceEur = BigDecimal.ONE,
+        feesEur = BigDecimal.ZERO,
+    )
 
     private fun buy(
         id: String,
@@ -225,31 +222,17 @@ object SamplePortfolioFactory {
         return bars
     }
 
-    private fun ratingsAround(
-        asOf: LocalDate,
-        earlier: AnalystRating,
-        later: AnalystRating,
-    ): (LocalDate) -> AnalystRating {
+    private fun ratingsAround(asOf: LocalDate, earlier: AnalystRating, later: AnalystRating): (LocalDate) -> AnalystRating {
         val changeOn = asOf.minusDays(2)
         return { date -> if (date.isBefore(changeOn)) earlier else later }
     }
 
-    private fun withSma(
-        assetId: String,
-        bars: List<PriceBar>,
-        goldenCrossNearEnd: Boolean,
-    ): List<DailyMarketData> {
+    private fun withSma(assetId: String, bars: List<PriceBar>, goldenCrossNearEnd: Boolean): List<DailyMarketData> {
         val closes = bars.map { it.close }
         return bars.mapIndexed { index, bar ->
             val sma50 = sma(closes, index, 50)
             val sma200Raw = sma(closes, index, 200) ?: sma(closes, index, 80)
-            val sma200 =
-                if (goldenCrossNearEnd && index >= bars.lastIndex - 1 && sma50 != null && sma200Raw != null) {
-                    // Force a golden cross on the last bar for dashboard demo of Phase 5 signals.
-                    if (index == bars.lastIndex) MoneyMath.minus(sma50, bd("0.50")) else MoneyMath.plus(sma50, bd("0.50"))
-                } else {
-                    sma200Raw
-                }
+            val sma200 = demoSma200(goldenCrossNearEnd, index, bars.lastIndex, sma50, sma200Raw)
             DailyMarketData(
                 assetId = assetId,
                 date = bar.date,
@@ -259,6 +242,23 @@ object SamplePortfolioFactory {
                 sma200 = sma200,
             )
         }
+    }
+
+    /**
+     * Demo-only: invent a golden cross on the last AAPL bar so the sample
+     * dashboard can show the signal card. Live sync and notifications never
+     * do this — they use stored SMAs from GetMarketSignalsUseCase only.
+     */
+    private fun demoSma200(
+        goldenCrossNearEnd: Boolean,
+        index: Int,
+        lastIndex: Int,
+        sma50: BigDecimal?,
+        sma200Raw: BigDecimal?,
+    ): BigDecimal? {
+        if (!goldenCrossNearEnd || sma50 == null || sma200Raw == null) return sma200Raw
+        if (index < lastIndex - 1) return sma200Raw
+        return if (index == lastIndex) MoneyMath.minus(sma50, bd("0.50")) else MoneyMath.plus(sma50, bd("0.50"))
     }
 
     private fun sma(closes: List<BigDecimal>, index: Int, window: Int): BigDecimal? {

@@ -232,7 +232,9 @@ private fun NewInstrumentFields(
     onIsin: (String) -> Unit,
     onQuoteSymbol: (String) -> Unit,
 ) {
-    OutlinedTextField(state.symbol, onSymbol, label = { Text("Symbol / display ticker") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(state.symbol, onSymbol, label = {
+        Text("Symbol / display ticker")
+    }, singleLine = true, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(state.name, onName, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
     TypePicker(state.assetType, onAssetType)
     CurrencyPicker(state.currency, onCurrency)
@@ -298,7 +300,10 @@ private fun TypePicker(selected: AssetType, onSelected: (AssetType) -> Unit) {
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { type ->
-                DropdownMenuItem(text = { Text(type.label()) }, onClick = { onSelected(type); expanded = false })
+                DropdownMenuItem(text = { Text(type.label()) }, onClick = {
+                    onSelected(type)
+                    expanded = false
+                })
             }
         }
     }
@@ -319,31 +324,32 @@ private fun CurrencyPicker(selected: Currency, onSelected: (Currency) -> Unit) {
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             Currency.entries.forEach { currency ->
-                DropdownMenuItem(text = { Text(currency.name) }, onClick = { onSelected(currency); expanded = false })
+                DropdownMenuItem(text = { Text(currency.name) }, onClick = {
+                    onSelected(currency)
+                    expanded = false
+                })
             }
         }
     }
 }
 
-private fun selectableAssets(state: LedgerUiState): List<Asset> =
-    when (state.type) {
-        TransactionType.INTEREST -> state.assets.filter { it.assetType.allowsInterest }
-        TransactionType.DIVIDEND -> state.assets.filter { it.assetType.allowsDividend }
-        TransactionType.SELL, TransactionType.BUY -> state.assets
-        else -> emptyList()
-    }
+private fun selectableAssets(state: LedgerUiState): List<Asset> = when (state.type) {
+    TransactionType.INTEREST -> state.assets.filter { it.assetType.allowsInterest }
+    TransactionType.DIVIDEND -> state.assets.filter { it.assetType.allowsDividend }
+    TransactionType.SELL, TransactionType.BUY -> state.assets
+    else -> emptyList()
+}
 
 private fun selectedCurrency(state: LedgerUiState): Currency {
     if (state.type == TransactionType.BUY && state.newInstrument) return state.currency
     return state.assets.firstOrNull { it.id == state.existingAssetId }?.baseCurrency ?: Currency.EUR
 }
 
-private fun TransactionType.label(): String =
-    when (this) {
-        TransactionType.BUY -> "Buy"
-        TransactionType.SELL -> "Sell"
-        TransactionType.DEPOSIT_CASH -> "Deposit"
-        TransactionType.WITHDRAWAL -> "Withdrawal"
-        TransactionType.DIVIDEND -> "Dividend"
-        TransactionType.INTEREST -> "Interest"
-    }
+private fun TransactionType.label(): String = when (this) {
+    TransactionType.BUY -> "Buy"
+    TransactionType.SELL -> "Sell"
+    TransactionType.DEPOSIT_CASH -> "Deposit"
+    TransactionType.WITHDRAWAL -> "Withdrawal"
+    TransactionType.DIVIDEND -> "Dividend"
+    TransactionType.INTEREST -> "Interest"
+}

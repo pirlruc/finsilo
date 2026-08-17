@@ -49,35 +49,30 @@ private val LightColors =
         outline = Color(0xFF8AA399),
     )
 
-fun AssetType.chartColor(): Color =
-    when (this) {
-        AssetType.STOCK -> Color(0xFF2F6F5E)
-        AssetType.ETF -> Color(0xFF5B9A78)
-        AssetType.CRYPTO -> Color(0xFFC4A35A)
-        AssetType.DEPOSIT -> Color(0xFF4A6FA5)
-        AssetType.PPR -> Color(0xFF8B5E83)
-        AssetType.CT -> Color(0xFF1F4F55)
-        AssetType.COMMODITY -> Color(0xFFB07040)
-        AssetType.CASH -> Color(0xFF7A8B7A)
-    }
+fun AssetType.chartColor(): Color = when (this) {
+    AssetType.STOCK -> Color(0xFF2F6F5E)
+    AssetType.ETF -> Color(0xFF5B9A78)
+    AssetType.CRYPTO -> Color(0xFFC4A35A)
+    AssetType.DEPOSIT -> Color(0xFF4A6FA5)
+    AssetType.PPR -> Color(0xFF8B5E83)
+    AssetType.CT -> Color(0xFF1F4F55)
+    AssetType.COMMODITY -> Color(0xFFB07040)
+    AssetType.CASH -> Color(0xFF7A8B7A)
+}
 
-fun AssetType.label(): String =
-    when (this) {
-        AssetType.STOCK -> "Stocks"
-        AssetType.ETF -> "ETFs"
-        AssetType.CRYPTO -> "Crypto"
-        AssetType.DEPOSIT -> "Deposits"
-        AssetType.PPR -> "PPR"
-        AssetType.CT -> "CTs"
-        AssetType.COMMODITY -> "Commodities"
-        AssetType.CASH -> "Cash"
-    }
+fun AssetType.label(): String = when (this) {
+    AssetType.STOCK -> "Stocks"
+    AssetType.ETF -> "ETFs"
+    AssetType.CRYPTO -> "Crypto"
+    AssetType.DEPOSIT -> "Deposits"
+    AssetType.PPR -> "PPR"
+    AssetType.CT -> "CTs"
+    AssetType.COMMODITY -> "Commodities"
+    AssetType.CASH -> "Cash"
+}
 
 @Composable
-fun FinsiloTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
+fun FinsiloTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
         content = content,

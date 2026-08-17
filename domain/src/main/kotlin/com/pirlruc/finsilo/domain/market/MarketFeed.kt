@@ -45,14 +45,21 @@ object AlphaVantageParser {
 
     fun dailyCloses(json: String): List<PriceBar> {
         ensureUsable(json)
-        return dailyCloseAlt.findAll(json).map { match ->
-            PriceBar(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
-        }.sortedBy { it.date }.toList()
+        return dailyCloseAlt
+            .findAll(json)
+            .map { match ->
+                PriceBar(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
+            }.sortedBy { it.date }
+            .toList()
     }
 
     fun exchangeRate(json: String): BigDecimal? {
         ensureUsable(json)
-        return fxRate.find(json)?.groupValues?.get(1)?.let { BigDecimal(it) }
+        return fxRate
+            .find(json)
+            ?.groupValues
+            ?.get(1)
+            ?.let { BigDecimal(it) }
     }
 
     fun commoditySeries(json: String): List<PriceBar> {
@@ -60,9 +67,12 @@ object AlphaVantageParser {
         val fromItems = commodityItem.findAll(json).mapNotNull { match -> toBar(match.groupValues[1], match.groupValues[2]) }.toList()
         if (fromItems.isNotEmpty()) return fromItems.sortedBy { it.date }
         val dataBlock = json.substringAfter("\"data\"", missingDelimiterValue = json)
-        return commodityMapRow.findAll(dataBlock).mapNotNull { match ->
-            toBar(match.groupValues[1], match.groupValues[2])
-        }.sortedBy { it.date }.toList()
+        return commodityMapRow
+            .findAll(dataBlock)
+            .mapNotNull { match ->
+                toBar(match.groupValues[1], match.groupValues[2])
+            }.sortedBy { it.date }
+            .toList()
     }
 
     private fun toBar(date: String, value: String): PriceBar? {
@@ -72,8 +82,12 @@ object AlphaVantageParser {
 
     fun analystRating(json: String): AnalystRating {
         ensureUsable(json)
-        fun count(label: String): Int =
-            Regex("\"$label\"\\s*:\\s*\"?(\\d+)\"?").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+        fun count(label: String): Int = Regex("\"$label\"\\s*:\\s*\"?(\\d+)\"?")
+            .find(json)
+            ?.groupValues
+            ?.get(1)
+            ?.toIntOrNull() ?: 0
         val strongBuy = count("AnalystRatingStrongBuy")
         val buy = count("AnalystRatingBuy")
         val hold = count("AnalystRatingHold")
@@ -93,31 +107,35 @@ object AlphaVantageParser {
 }
 
 object StooqParser {
-    fun dailyCloses(csv: String): List<PriceBar> =
-        csv.lineSequence()
-            .drop(1)
-            .mapNotNull { line ->
-                val cols = line.split(',')
-                if (cols.size < 5) return@mapNotNull null
-                val date = runCatching { LocalDate.parse(cols[0]) }.getOrNull() ?: return@mapNotNull null
-                val close = runCatching { BigDecimal(cols[4]) }.getOrNull() ?: return@mapNotNull null
-                PriceBar(date, close)
-            }
-            .sortedBy { it.date }
-            .toList()
+    fun dailyCloses(csv: String): List<PriceBar> = csv
+        .lineSequence()
+        .drop(1)
+        .mapNotNull { line ->
+            val cols = line.split(',')
+            if (cols.size < 5) return@mapNotNull null
+            val date = runCatching { LocalDate.parse(cols[0]) }.getOrNull() ?: return@mapNotNull null
+            val close = runCatching { BigDecimal(cols[4]) }.getOrNull() ?: return@mapNotNull null
+            PriceBar(date, close)
+        }.sortedBy { it.date }
+        .toList()
 }
 
 object FrankfurterParser {
     private val eur = Regex("\"EUR\"\\s*:\\s*([0-9.]+)")
     private val datedEur = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{\\s*\"EUR\"\\s*:\\s*([0-9.]+)")
 
-    fun eurPerUsd(json: String): BigDecimal? =
-        eur.find(json)?.groupValues?.get(1)?.let { BigDecimal(it) }
+    fun eurPerUsd(json: String): BigDecimal? = eur
+        .find(json)
+        ?.groupValues
+        ?.get(1)
+        ?.let { BigDecimal(it) }
 
-    fun eurPerUsdSeries(json: String): List<CurrencyRate> =
-        datedEur.findAll(json).map { match ->
+    fun eurPerUsdSeries(json: String): List<CurrencyRate> = datedEur
+        .findAll(json)
+        .map { match ->
             CurrencyRate(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
-        }.sortedBy { it.date }.toList()
+        }.sortedBy { it.date }
+        .toList()
 }
 
 object CoinGeckoParser {
@@ -128,12 +146,16 @@ object CoinGeckoParser {
 
     fun dailyCloses(json: String): List<PriceBar> {
         val block = json.substringAfter("\"prices\"", missingDelimiterValue = json)
-        return pair.findAll(block).map { match ->
-            val epochDay = java.time.Instant.ofEpochMilli(match.groupValues[1].toLong())
-                .atZone(java.time.ZoneOffset.UTC)
-                .toLocalDate()
-            PriceBar(epochDay, BigDecimal(match.groupValues[2]))
-        }.groupBy { it.date }
+        return pair
+            .findAll(block)
+            .map { match ->
+                val epochDay =
+                    java.time.Instant
+                        .ofEpochMilli(match.groupValues[1].toLong())
+                        .atZone(java.time.ZoneOffset.UTC)
+                        .toLocalDate()
+                PriceBar(epochDay, BigDecimal(match.groupValues[2]))
+            }.groupBy { it.date }
             .map { (date, bars) -> bars.last().copy(date = date) }
             .sortedBy { it.date }
     }

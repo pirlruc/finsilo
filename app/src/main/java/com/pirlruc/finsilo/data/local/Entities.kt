@@ -30,16 +30,15 @@ data class AssetEntity(
     fun toDomain(): Asset = Asset(assetId, symbol, name, assetType, baseCurrency, isin, quoteSymbol)
 
     companion object {
-        fun from(asset: Asset) =
-            AssetEntity(
-                asset.id,
-                asset.symbol,
-                asset.name,
-                asset.assetType,
-                asset.baseCurrency,
-                asset.isin,
-                asset.quoteSymbol,
-            )
+        fun from(asset: Asset) = AssetEntity(
+            asset.id,
+            asset.symbol,
+            asset.name,
+            asset.assetType,
+            asset.baseCurrency,
+            asset.isin,
+            asset.quoteSymbol,
+        )
     }
 }
 
@@ -66,32 +65,30 @@ data class TransactionEntity(
     @ColumnInfo(name = "unit_price_eur") val unitPriceEur: BigDecimal,
     @ColumnInfo(name = "fees_eur") val feesEur: BigDecimal,
 ) {
-    fun toDomain(): Transaction =
-        Transaction(
-            id = transactionId,
-            assetId = assetId,
-            date = date,
-            type = type,
-            quantity = quantity,
-            unitPriceNative = unitPriceNative,
-            exchangeRateAtExecution = exchangeRateAtExecution,
-            unitPriceEur = unitPriceEur,
-            feesEur = feesEur,
-        )
+    fun toDomain(): Transaction = Transaction(
+        id = transactionId,
+        assetId = assetId,
+        date = date,
+        type = type,
+        quantity = quantity,
+        unitPriceNative = unitPriceNative,
+        exchangeRateAtExecution = exchangeRateAtExecution,
+        unitPriceEur = unitPriceEur,
+        feesEur = feesEur,
+    )
 
     companion object {
-        fun from(tx: Transaction) =
-            TransactionEntity(
-                transactionId = tx.id,
-                assetId = tx.assetId,
-                date = tx.date,
-                type = tx.type,
-                quantity = tx.quantity,
-                unitPriceNative = tx.unitPriceNative,
-                exchangeRateAtExecution = tx.exchangeRateAtExecution,
-                unitPriceEur = tx.unitPriceEur,
-                feesEur = tx.feesEur,
-            )
+        fun from(tx: Transaction) = TransactionEntity(
+            transactionId = tx.id,
+            assetId = tx.assetId,
+            date = tx.date,
+            type = tx.type,
+            quantity = tx.quantity,
+            unitPriceNative = tx.unitPriceNative,
+            exchangeRateAtExecution = tx.exchangeRateAtExecution,
+            unitPriceEur = tx.unitPriceEur,
+            feesEur = tx.feesEur,
+        )
     }
 }
 
@@ -116,27 +113,22 @@ data class DailyMarketDataEntity(
     @ColumnInfo(name = "sma_50") val sma50: BigDecimal?,
     @ColumnInfo(name = "sma_200") val sma200: BigDecimal?,
 ) {
-    fun toDomain(): DailyMarketData =
-        DailyMarketData(assetId, date, closingPriceNative, analystRating, sma50, sma200)
+    fun toDomain(): DailyMarketData = DailyMarketData(assetId, date, closingPriceNative, analystRating, sma50, sma200)
 
     companion object {
-        fun from(row: DailyMarketData) =
-            DailyMarketDataEntity(
-                assetId = row.assetId,
-                date = row.date,
-                closingPriceNative = row.closingPriceNative,
-                analystRating = row.analystRating,
-                sma50 = row.sma50,
-                sma200 = row.sma200,
-            )
+        fun from(row: DailyMarketData) = DailyMarketDataEntity(
+            assetId = row.assetId,
+            date = row.date,
+            closingPriceNative = row.closingPriceNative,
+            analystRating = row.analystRating,
+            sma50 = row.sma50,
+            sma200 = row.sma200,
+        )
     }
 }
 
 @Entity(tableName = "currency_history")
-data class CurrencyRateEntity(
-    @PrimaryKey val date: LocalDate,
-    @ColumnInfo(name = "eur_usd_rate") val eurPerUsd: BigDecimal,
-) {
+data class CurrencyRateEntity(@PrimaryKey val date: LocalDate, @ColumnInfo(name = "eur_usd_rate") val eurPerUsd: BigDecimal) {
     fun toDomain(): CurrencyRate = CurrencyRate(date, eurPerUsd)
 
     companion object {

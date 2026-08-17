@@ -7,7 +7,7 @@ import java.math.RoundingMode
 
 object MoneyMath {
     val CONTEXT: MathContext = MathContext(16, RoundingMode.HALF_EVEN)
-    val SCALE: Int = 8
+    const val SCALE: Int = 8
     val HUNDRED: BigDecimal = BigDecimal("100")
     val ZERO: BigDecimal = BigDecimal.ZERO.setScale(SCALE)
 
@@ -41,9 +41,8 @@ object MoneyMath {
      * [eurPerUsd] is EUR per 1 USD (e.g. 0.92 means 1 USD = 0.92 EUR).
      * USD amounts become `native * eurPerUsd`. EUR amounts are unchanged.
      */
-    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUsd: BigDecimal): BigDecimal =
-        when (currency) {
-            Currency.EUR -> amountNative
-            Currency.USD -> times(amountNative, eurPerUsd)
-        }
+    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUsd: BigDecimal): BigDecimal = when (currency) {
+        Currency.EUR -> amountNative
+        Currency.USD -> times(amountNative, eurPerUsd)
+    }
 }

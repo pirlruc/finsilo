@@ -166,8 +166,11 @@ class LedgerEntryViewModel(
             } else {
                 val asOf = parseDate(current.date)
                 val prior =
-                    if (asOf == null) snapshot.transactions
-                    else ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
+                    if (asOf == null) {
+                        snapshot.transactions
+                    } else {
+                        ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
+                    }
                 ledger.position(prior.filter { it.assetId == asset.id }).quantity
                     .stripTrailingZeros()
                     .toPlainString()
@@ -177,55 +180,56 @@ class LedgerEntryViewModel(
 
     private fun buildRequest(state: LedgerUiState): LedgerEntryRequest? {
         val date = parseDate(state.date) ?: return null
-        val quantity = when (state.type) {
-            TransactionType.INTEREST -> BigDecimal.ONE
-            else -> parseDecimal(state.quantity) ?: return null
-        }
-        val price = when (state.type) {
-            TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL -> BigDecimal.ONE
-            else -> parseDecimal(state.unitPriceNative) ?: return null
-        }
-        val fees = parseDecimal(state.feesEur) ?: BigDecimal.ZERO
-        val fx = parseDecimal(state.eurPerUsd)
-        val newAsset =
-            if (state.type == TransactionType.BUY && state.newInstrument) {
-                NewAssetDraft(
-                    symbol = state.symbol,
-                    name = state.name,
-                    assetType = state.assetType,
-                    baseCurrency = state.currency,
-                    isin = state.isin.ifBlank { null },
-                    quoteSymbol = state.quoteSymbol.ifBlank { null },
-                )
-            } else {
-                null
-            }
+        val quantity = quantityFor(state) ?: return null
+        val price = priceFor(state) ?: return null
         return LedgerEntryRequest(
             type = state.type,
             date = date,
             quantity = quantity,
             unitPriceNative = price,
-            feesEur = if (state.type == TransactionType.DEPOSIT_CASH ||
-                state.type == TransactionType.WITHDRAWAL ||
-                state.type == TransactionType.INTEREST
-            ) {
-                BigDecimal.ZERO
-            } else {
-                fees
-            },
-            existingAssetId = if (state.newInstrument && state.type == TransactionType.BUY) null else state.existingAssetId,
-            newAsset = newAsset,
-            eurPerUsd = fx,
+            feesEur = feesFor(state),
+            existingAssetId = existingAssetIdFor(state),
+            newAsset = newAssetFor(state),
+            eurPerUsd = parseDecimal(state.eurPerUsd),
+        )
+    }
+
+    private fun quantityFor(state: LedgerUiState): BigDecimal? =
+        if (state.type == TransactionType.INTEREST) BigDecimal.ONE else parseDecimal(state.quantity)
+
+    private fun priceFor(state: LedgerUiState): BigDecimal? =
+        if (state.type == TransactionType.DEPOSIT_CASH || state.type == TransactionType.WITHDRAWAL) {
+            BigDecimal.ONE
+        } else {
+            parseDecimal(state.unitPriceNative)
+        }
+
+    private fun feesFor(state: LedgerUiState): BigDecimal {
+        val cashLike = state.type == TransactionType.DEPOSIT_CASH ||
+            state.type == TransactionType.WITHDRAWAL ||
+            state.type == TransactionType.INTEREST
+        return if (cashLike) BigDecimal.ZERO else parseDecimal(state.feesEur) ?: BigDecimal.ZERO
+    }
+
+    private fun existingAssetIdFor(state: LedgerUiState): String? =
+        if (state.newInstrument && state.type == TransactionType.BUY) null else state.existingAssetId
+
+    private fun newAssetFor(state: LedgerUiState): NewAssetDraft? {
+        if (state.type != TransactionType.BUY || !state.newInstrument) return null
+        return NewAssetDraft(
+            symbol = state.symbol,
+            name = state.name,
+            assetType = state.assetType,
+            baseCurrency = state.currency,
+            isin = state.isin.ifBlank { null },
+            quoteSymbol = state.quoteSymbol.ifBlank { null },
         )
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return LedgerEntryViewModel(container.repository) as T
-                }
-            }
+        fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = LedgerEntryViewModel(container.repository) as T
+        }
     }
 }

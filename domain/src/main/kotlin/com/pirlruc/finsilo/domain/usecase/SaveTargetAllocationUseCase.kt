@@ -10,6 +10,7 @@ import java.math.RoundingMode
 
 sealed interface TargetAllocationResult {
     data class Accepted(val targets: List<TargetAllocation>) : TargetAllocationResult
+
     data class Rejected(val reason: String) : TargetAllocationResult
 }
 
@@ -27,9 +28,10 @@ class SaveTargetAllocationUseCase {
                 "Target weights must sum to 100 (currently ${sum.stripTrailingZeros().toPlainString()}).",
             )
         }
-        val targets = complete
-            .filter { it.value.signum() > 0 }
-            .map { (type, weight) -> TargetAllocation(type, weight) }
+        val targets =
+            complete
+                .filter { it.value.signum() > 0 }
+                .map { (type, weight) -> TargetAllocation(type, weight) }
         return TargetAllocationResult.Accepted(targets)
     }
 }

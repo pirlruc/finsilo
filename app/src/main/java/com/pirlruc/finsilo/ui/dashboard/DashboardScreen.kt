@@ -72,9 +72,9 @@ import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.MarketSignal
 import com.pirlruc.finsilo.domain.model.NavPoint
-import com.pirlruc.finsilo.domain.model.YocReport
 import com.pirlruc.finsilo.domain.model.RelativeToAverage
 import com.pirlruc.finsilo.domain.model.TechnicalCross
+import com.pirlruc.finsilo.domain.model.YocReport
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -86,11 +86,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardRoute(
-    viewModel: DashboardViewModel,
-    onAddTransaction: () -> Unit,
-    onOpenSettings: () -> Unit,
-) {
+fun DashboardRoute(viewModel: DashboardViewModel, onAddTransaction: () -> Unit, onOpenSettings: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     DashboardScreen(
         state = state,
@@ -212,6 +208,9 @@ private fun DashboardContent(
         if (statusMessage != null) {
             Text(statusMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
+        report.warnings.forEach { warning ->
+            Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
         SummaryRow(report)
         AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
         HistoryCard(report.history.points, range, onRangeSelected)
@@ -311,12 +310,12 @@ private fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = Mo
         }
     PieChartHost(
         chart =
-            rememberPieChart(
-                sliceProvider = PieChart.SliceProvider.series(sliceStyles),
-                innerSize = PieSize.Inner.fixed(72.dp),
-                spacing = 4.dp,
-                valueFormatter = PieValueFormatter { _, value, _ -> "${"%.0f".format(value)}%" },
-            ),
+        rememberPieChart(
+            sliceProvider = PieChart.SliceProvider.series(sliceStyles),
+            innerSize = PieSize.Inner.fixed(72.dp),
+            spacing = 4.dp,
+            valueFormatter = PieValueFormatter { _, value, _ -> "${"%.0f".format(value)}%" },
+        ),
         modelProducer = modelProducer,
         modifier = modifier,
     )
@@ -349,11 +348,7 @@ private fun AllocationLegendRow(slice: AllocationSlice) {
 }
 
 @Composable
-private fun HistoryCard(
-    points: List<NavPoint>,
-    range: HistoryRange,
-    onRangeSelected: (HistoryRange) -> Unit,
-) {
+private fun HistoryCard(points: List<NavPoint>, range: HistoryRange, onRangeSelected: (HistoryRange) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text("Portfolio history", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -401,19 +396,19 @@ private fun HistoryLineChart(points: List<NavPoint>, modifier: Modifier = Modifi
     }
     CartesianChartHost(
         chart =
-            rememberCartesianChart(
-                rememberLineCartesianLayer(),
-                startAxis =
-                    VerticalAxis.rememberStart(
-                        valueFormatter = { _, value, _ -> formatEur(value) },
-                    ),
-                bottomAxis =
-                    HorizontalAxis.rememberBottom(
-                        valueFormatter = { _, value, _ ->
-                            LocalDate.ofEpochDay(value.toLong()).format(dateFormatter)
-                        },
-                    ),
+        rememberCartesianChart(
+            rememberLineCartesianLayer(),
+            startAxis =
+            VerticalAxis.rememberStart(
+                valueFormatter = { _, value, _ -> formatEur(value) },
             ),
+            bottomAxis =
+            HorizontalAxis.rememberBottom(
+                valueFormatter = { _, value, _ ->
+                    LocalDate.ofEpochDay(value.toLong()).format(dateFormatter)
+                },
+            ),
+        ),
         modelProducer = modelProducer,
         modifier = modifier,
     )
@@ -459,25 +454,22 @@ private fun SignalRow(signal: MarketSignal) {
     }
 }
 
-private fun HistoryRange.chipLabel(): String =
-    when (this) {
-        HistoryRange.ONE_MONTH -> "1M"
-        HistoryRange.THREE_MONTHS -> "3M"
-        HistoryRange.YTD -> "YTD"
-        HistoryRange.ALL -> "All"
-    }
+private fun HistoryRange.chipLabel(): String = when (this) {
+    HistoryRange.ONE_MONTH -> "1M"
+    HistoryRange.THREE_MONTHS -> "3M"
+    HistoryRange.YTD -> "YTD"
+    HistoryRange.ALL -> "All"
+}
 
-private fun RelativeToAverage.label(): String =
-    when (this) {
-        RelativeToAverage.ABOVE -> "above"
-        RelativeToAverage.BELOW -> "below"
-    }
+private fun RelativeToAverage.label(): String = when (this) {
+    RelativeToAverage.ABOVE -> "above"
+    RelativeToAverage.BELOW -> "below"
+}
 
-private fun TechnicalCross.label(): String =
-    when (this) {
-        TechnicalCross.GOLDEN -> "Golden cross"
-        TechnicalCross.DEATH -> "Death cross"
-    }
+private fun TechnicalCross.label(): String = when (this) {
+    TechnicalCross.GOLDEN -> "Golden cross"
+    TechnicalCross.DEATH -> "Death cross"
+}
 
 @Composable
 private fun YocCard(yoc: List<YocReport>) {
@@ -503,11 +495,7 @@ private fun YocCard(yoc: List<YocReport>) {
 }
 
 @Composable
-private fun AlphaVantageKeyDialog(
-    hasKey: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
-) {
+private fun AlphaVantageKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var value by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,

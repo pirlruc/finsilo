@@ -1,0 +1,51 @@
+build:
+  maxIssues: 0
+
+complexity:
+  # KT-CPLX-001. Fail above 10 (threshold is exclusive of the allowed max).
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 11
+    ignoreAnnotated:
+      - Composable
+  LongMethod:
+    active: true
+    threshold: 80
+    ignoreAnnotated:
+      - Composable
+  LongParameterList:
+    active: true
+    constructorThreshold: 12
+    functionThreshold: 8
+    ignoreAnnotated:
+      - Composable
+  TooManyFunctions:
+    active: false
+  ComplexCondition:
+    active: false
+
+style:
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: true
+  ReturnCount:
+    active: true
+    max: 4
+  ThrowsCount:
+    max: 3
+  MaxLineLength:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: true
+    maxJumpCount: 1
+  UseCheckOrError:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']

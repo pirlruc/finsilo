@@ -58,11 +58,7 @@ interface PortfolioDao {
     suspend fun countFxOn(date: LocalDate): Int
 
     @Transaction
-    suspend fun insertLedgerEntry(
-        asset: AssetEntity?,
-        transaction: TransactionEntity,
-        fx: CurrencyRateEntity?,
-    ) {
+    suspend fun insertLedgerEntry(asset: AssetEntity?, transaction: TransactionEntity, fx: CurrencyRateEntity?) {
         if (asset != null) insertAssets(listOf(asset))
         insertTransactions(listOf(transaction))
         if (fx != null && countFxOn(fx.date) == 0) {

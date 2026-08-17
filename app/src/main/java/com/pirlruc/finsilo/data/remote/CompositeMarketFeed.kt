@@ -24,10 +24,7 @@ import java.time.LocalDate
  * - Commodities: Stooq (XAU) then Alpha Vantage commodity series / XAU FX
  * - US stocks / ratings: Alpha Vantage (key, ~25 calls/day on the free tier)
  */
-class CompositeMarketFeed(
-    private val http: HttpGetClient = HttpGetClient(),
-    private val keys: DatabaseKeyStore,
-) : MarketFeed {
+class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), private val keys: DatabaseKeyStore) : MarketFeed {
 
     override suspend fun eurPerUsd(): BigDecimal {
         runCatching {
@@ -55,27 +52,43 @@ class CompositeMarketFeed(
 
     override suspend fun dailyHistory(asset: Asset): List<PriceBar> {
         val errors = ArrayList<String>()
-        val ticker = asset.feedSymbol
-        when (asset.assetType) {
-            AssetType.CRYPTO ->
-                runCatching { coinGecko(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-            AssetType.COMMODITY -> {
-                runCatching { stooqCommodity(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-                runCatching { alphaVantageCommodity(asset) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-                throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for $ticker" })
-            }
-            else -> Unit
-        }
-        if (looksEuropean(ticker)) {
-            runCatching { stooq(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-        }
-        runCatching { alphaVantageDaily(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-        runCatching { stooq(ticker) }.onSuccess { if (it.isNotEmpty()) return it }.onFailure { errors += it.message.orEmpty() }
-        throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for $ticker" })
+        typedHistory(asset, errors)?.let { return it }
+        listedHistory(asset.feedSymbol, errors)?.let { return it }
+        throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" })
     }
 
+    private suspend fun typedHistory(asset: Asset, errors: MutableList<String>): List<PriceBar>? = when (asset.assetType) {
+        AssetType.CRYPTO -> firstNonEmpty(errors) { coinGecko(asset) }
+        AssetType.COMMODITY ->
+            firstNonEmpty(errors) { stooqCommodity(asset) }
+                ?: firstNonEmpty(errors) { alphaVantageCommodity(asset) }
+                ?: throw IllegalStateException(
+                    errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" },
+                )
+        else -> null
+    }
+
+    private suspend fun listedHistory(ticker: String, errors: MutableList<String>): List<PriceBar>? {
+        if (looksEuropean(ticker)) {
+            firstNonEmpty(errors) { stooq(ticker) }?.let { return it }
+        }
+        firstNonEmpty(errors) { alphaVantageDaily(ticker) }?.let { return it }
+        return firstNonEmpty(errors) { stooq(ticker) }
+    }
+
+    private suspend fun firstNonEmpty(errors: MutableList<String>, block: suspend () -> List<PriceBar>): List<PriceBar>? =
+        runCatching { block() }
+            .onFailure { errors += it.message.orEmpty() }
+            .getOrNull()
+            ?.takeIf { it.isNotEmpty() }
+
     override suspend fun analystRating(asset: Asset): AnalystRating {
-        if (asset.assetType != AssetType.STOCK && asset.assetType != AssetType.ETF) return AnalystRating.NONE
+        if (asset.assetType != AssetType.STOCK &&
+            asset.assetType != AssetType.ETF &&
+            asset.assetType != AssetType.PPR
+        ) {
+            return AnalystRating.NONE
+        }
         val key = keys.alphaVantageKey() ?: return AnalystRating.NONE
         val json = http.get(
             "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.feedSymbol))}&apikey=${enc(key)}",
@@ -98,7 +111,9 @@ class CompositeMarketFeed(
     private suspend fun alphaVantageDaily(symbol: String): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
         val json = http.get(
-            "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${enc(avSymbol(symbol))}&outputsize=full&apikey=${enc(key)}",
+            "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${enc(
+                avSymbol(symbol),
+            )}&outputsize=full&apikey=${enc(key)}",
         )
         val bars = AlphaVantageParser.dailyCloses(json)
         if (bars.isEmpty()) throw IllegalStateException("Alpha Vantage daily empty for $symbol")
@@ -130,8 +145,12 @@ class CompositeMarketFeed(
 
     private fun looksEuropean(symbol: String): Boolean {
         val upper = symbol.uppercase()
-        return upper.endsWith(".DE") || upper.endsWith(".PA") || upper.endsWith(".AS") ||
-            upper.endsWith(".MI") || upper.endsWith(".MC") || upper.startsWith("PTY")
+        return upper.endsWith(".DE") ||
+            upper.endsWith(".PA") ||
+            upper.endsWith(".AS") ||
+            upper.endsWith(".MI") ||
+            upper.endsWith(".MC") ||
+            upper.startsWith("PTY")
     }
 
     private fun stooqTicker(symbol: String): String {

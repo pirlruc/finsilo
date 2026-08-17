@@ -138,12 +138,10 @@ class DashboardViewModel(
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return DashboardViewModel(container.repository, container.getDashboard, container) as T
-                }
-            }
+        fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                DashboardViewModel(container.repository, container.getDashboard, container) as T
+        }
     }
 }

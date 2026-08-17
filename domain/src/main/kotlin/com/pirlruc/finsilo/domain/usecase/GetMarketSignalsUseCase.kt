@@ -12,35 +12,34 @@ import java.time.LocalDate
  * Surfaces analyst ratings and moving-average context for currently held marketable assets.
  * Golden/Death cross uses the RFC rule on consecutive SMA 50/200 observations.
  */
-class GetMarketSignalsUseCase(
-    private val ledger: PositionLedger = PositionLedger(),
-) {
+class GetMarketSignalsUseCase(private val ledger: PositionLedger = PositionLedger()) {
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): List<MarketSignal> {
         val marketByAsset = ledger.indexMarket(snapshot.marketData)
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
 
-        return snapshot.assets.mapNotNull { asset ->
-            if (asset.locallyValued || asset.assetType == AssetType.CASH) return@mapNotNull null
-            val txs = txsByAsset[asset.id].orEmpty()
-            if (txs.isEmpty()) return@mapNotNull null
-            if (ledger.position(txs).quantity.signum() == 0) return@mapNotNull null
+        return snapshot.assets
+            .mapNotNull { asset ->
+                if (asset.locallyValued || asset.assetType == AssetType.CASH) return@mapNotNull null
+                val txs = txsByAsset[asset.id].orEmpty()
+                if (txs.isEmpty()) return@mapNotNull null
+                if (ledger.position(txs).quantity.signum() == 0) return@mapNotNull null
 
-            val series = marketByAsset[asset.id].orEmpty().filter { !it.date.isAfter(asOf) }
-            val today = series.lastOrNull() ?: return@mapNotNull null
-            val yesterday = series.getOrNull(series.lastIndex - 1)
-            MarketSignal(
-                asset = asset,
-                asOf = today.date,
-                rating = today.analystRating,
-                previousRating = yesterday?.analystRating,
-                priceNative = today.closingPriceNative,
-                sma50 = today.sma50,
-                sma200 = today.sma200,
-                vsSma50 = relative(today.closingPriceNative, today.sma50),
-                vsSma200 = relative(today.closingPriceNative, today.sma200),
-                cross = detectCross(yesterday?.sma50, yesterday?.sma200, today.sma50, today.sma200),
-            )
-        }.sortedBy { it.asset.symbol }
+                val series = marketByAsset[asset.id].orEmpty().filter { !it.date.isAfter(asOf) }
+                val today = series.lastOrNull() ?: return@mapNotNull null
+                val yesterday = series.getOrNull(series.lastIndex - 1)
+                MarketSignal(
+                    asset = asset,
+                    asOf = today.date,
+                    rating = today.analystRating,
+                    previousRating = yesterday?.analystRating,
+                    priceNative = today.closingPriceNative,
+                    sma50 = today.sma50,
+                    sma200 = today.sma200,
+                    vsSma50 = relative(today.closingPriceNative, today.sma50),
+                    vsSma200 = relative(today.closingPriceNative, today.sma200),
+                    cross = detectCross(yesterday?.sma50, yesterday?.sma200, today.sma50, today.sma200),
+                )
+            }.sortedBy { it.asset.symbol }
     }
 
     private fun relative(price: java.math.BigDecimal, average: java.math.BigDecimal?): RelativeToAverage? {
@@ -59,9 +58,21 @@ class GetMarketSignalsUseCase(
             todaySma50: java.math.BigDecimal?,
             todaySma200: java.math.BigDecimal?,
         ): TechnicalCross? {
-            if (yesterdaySma50 == null || yesterdaySma200 == null || todaySma50 == null || todaySma200 == null) {
-                return null
-            }
+            val values = complete(yesterdaySma50, yesterdaySma200, todaySma50, todaySma200) ?: return null
+            return crossOf(values[0], values[1], values[2], values[3])
+        }
+
+        private fun complete(vararg values: java.math.BigDecimal?): List<java.math.BigDecimal>? {
+            if (values.any { it == null }) return null
+            return values.map { requireNotNull(it) }
+        }
+
+        private fun crossOf(
+            yesterdaySma50: java.math.BigDecimal,
+            yesterdaySma200: java.math.BigDecimal,
+            todaySma50: java.math.BigDecimal,
+            todaySma200: java.math.BigDecimal,
+        ): TechnicalCross? {
             val golden = todaySma50 > todaySma200 && yesterdaySma50 <= yesterdaySma200
             val death = todaySma50 < todaySma200 && yesterdaySma50 >= yesterdaySma200
             return when {

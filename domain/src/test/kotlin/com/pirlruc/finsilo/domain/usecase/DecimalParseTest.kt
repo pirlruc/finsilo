@@ -1,12 +1,11 @@
 package com.pirlruc.finsilo.domain.usecase
 
+import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import java.math.BigDecimal
 
 class DecimalParseTest {
-
     @Test
     fun europeanCommaIsDecimalSeparator() {
         assertMoney("12.50", parseDecimal("12,50"))

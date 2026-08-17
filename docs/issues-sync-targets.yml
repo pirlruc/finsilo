@@ -19,7 +19,7 @@ labels:
 
 milestones:
   - name: Phase 1 — Foundation
-    description: Encrypted Room/SQLCipher, schema migrations, Kotlin quality gates
+    description: Encrypted Room/SQLCipher, schema migrations
   - name: Phase 2 — Data entry
     description: Ledger forms, targets, FIFO/cash guards, PPR identity
   - name: Phase 3 — Market APIs
@@ -30,5 +30,7 @@ milestones:
     description: Rating, cross, and allocation-drift notifications
   - name: Phase 6 — Dashboard
     description: Charts, sample honesty, live signals
+  - name: Phase 7 — Guardrails
+    description: Kotlin/Android quality, coverage, security, Android lint
   - name: Tooling — Analog & methodology
     description: Guardrails, github-scaffold, github-issue-adr

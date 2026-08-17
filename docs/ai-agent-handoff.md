@@ -12,24 +12,26 @@
 
 ## Current slice
 
-Phase 2 data entry + bug pass + analog pins + `docs/issues.yml` as the only backlog. Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
+Product phases **1–6** are implemented. Guardrails compliance is **Phase 7** (last). Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
 
 | Module | Path | Notes |
 | --- | --- | --- |
-| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard, ledger form, target settings, Vico charts, encrypted Room v3, OkHttp GET-only feed, WorkManager 23:00 sync, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
+| app | `app/` | Compose dashboard, ledger form, target settings, Vico charts, encrypted Room v3 (schema exported), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
 
 ## How to run checks
 
 ```bash
 ./gradlew :domain:test
+./gradlew :domain:ktlintCheck :domain:detekt
+./gradlew :app:ktlintCheck :app:detekt
 ./gradlew :app:assembleDebug
 bash scripts/issues-sync.sh --validate-only
 ```
 
-CI: `.github/workflows/domain-tests.yml` (`:domain:test`, SHA-pinned actions, [GATE-001-T1](issues.yml)).
+CI: `.github/workflows/domain-tests.yml` (`:domain:ktlintCheck`, `:domain:detekt`, `:domain:test`, SHA-pinned actions).
 
-Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Room **2.8.1 via kapt** (KSP 2.3 failed), compileSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. Vico 3.2.2 pie API is `pieSeries { series(...) }`.
+Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Room **2.8.1 via kapt** (KSP 2.3 failed), compileSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. Vico 3.2.2 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
 
 ## Analog pins (TOOL-001 / O14)
 
@@ -67,16 +69,19 @@ bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
 
 Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns.
 
-## Intentionally not in this tree
+## What is still open after phases 1–6
 
-- Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled ([FS-013](issues.yml)).
-- Phase 3 hardening [FS-005](issues.yml) / [FS-007](issues.yml) / [FS-009](issues.yml) (listed PPR quote routing is [FS-006-T3](issues.yml)).
-- Full Room schema export / ending remaining destructive fallback from v1 ([FS-012-T2](issues.yml)).
-- ktlint/detekt/Kover/gitleaks/semgrep/Dokka ([GATE-001-T2](issues.yml)…T5).
-- Android lint, `:app:assembleDebug` in CI, instrumented tests ([GATE-AND-001](issues.yml)).
-- Do not record a fake lowered-gate deviation.
+Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
-Open work: [`docs/issues.yml`](issues.yml). [`docs/improvements.md`](improvements.md) is an index only.
+- [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
+- [FS-010-T2](issues.yml) — persist `nav_history`. In-memory NAV cache per dashboard call is done ([FS-010-T1](issues.yml)).
+
+Phase 7 guardrails still open:
+
+- [GATE-001-T3](issues.yml)…T5 — Kover 95/95, gitleaks/semgrep, Dokka.
+- [GATE-AND-001](issues.yml) — Android lint, `:app:assembleDebug` in CI, instrumented tests.
+
+Do not record a fake lowered-gate deviation.
 
 ## Market feed (GET only)
 
@@ -85,21 +90,22 @@ Open work: [`docs/issues.yml`](issues.yml). [`docs/improvements.md`](improvement
 | FX EUR/USD | Frankfurter latest + `from..to` history, then Alpha Vantage `CURRENCY_EXCHANGE_RATE` | AV optional |
 | Crypto | CoinGecko `market_chart` | none |
 | EU listings (`.DE`, …) | Stooq daily CSV, then AV | AV optional |
-| Commodities | Stooq `xauusd` for gold; AV `WTI`/`BRENT`/… or XAU FX | AV for non-XAU |
-| US stocks / ratings | AV `TIME_SERIES_DAILY` (full) + `OVERVIEW` | AV |
+| Commodities | Stooq `xauusd` for gold; AV `WTI`/`BRENT`/… or XAU FX (spot-only does not replace a stored series) | AV for non-XAU |
+| US stocks / ratings | AV `TIME_SERIES_DAILY` (full) + `OVERVIEW` (skipped if rating is newer than 7 days) | AV |
 | Unlisted PPR | Local NAV (buy + interest); skipped on sync | — |
-| Listed PPR | `quoteSymbol` / exchange suffix; route like ETF ([FS-006-T3](issues.yml) still open) | — |
+| Listed PPR | `quoteSymbol` / exchange suffix; routed like an ETF | — |
 
-The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)).
+The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
 
 ## Security
 
 - SQLCipher passphrase and optional Alpha Vantage key in EncryptedSharedPreferences / Android Keystore.
 - `android:allowBackup="false"` and backup exclusion rules.
 - INTERNET permission for GET-only sync; cleartext disabled.
+- `POST_NOTIFICATIONS` for Phase 5 alerts; skipped at runtime if denied (API 33+).
 
 ## Sample data
 
-`SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes.
+`SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
 *Last updated: 2026-08-17*

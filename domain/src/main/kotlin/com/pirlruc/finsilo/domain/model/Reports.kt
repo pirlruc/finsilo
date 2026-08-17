@@ -32,17 +32,9 @@ data class AllocationReport(
     val holdings: List<HoldingValuation>,
 )
 
-data class NavPoint(
-    val date: LocalDate,
-    val valueEur: BigDecimal,
-)
+data class NavPoint(val date: LocalDate, val valueEur: BigDecimal)
 
-data class HistoryReport(
-    val range: HistoryRange,
-    val from: LocalDate,
-    val to: LocalDate,
-    val points: List<NavPoint>,
-)
+data class HistoryReport(val range: HistoryRange, val from: LocalDate, val to: LocalDate, val points: List<NavPoint>)
 
 data class MarketSignal(
     val asset: Asset,
@@ -67,20 +59,12 @@ data class DashboardReport(
     val signals: List<MarketSignal>,
     val twr: TwrReport,
     val yoc: List<YocReport>,
+    val warnings: List<String> = emptyList(),
 )
 
-data class TwrReport(
-    val asOf: LocalDate,
-    val twrPercent: BigDecimal,
-    val subPeriods: List<TwrSubPeriod>,
-)
+data class TwrReport(val asOf: LocalDate, val twrPercent: BigDecimal, val subPeriods: List<TwrSubPeriod>)
 
-data class TwrSubPeriod(
-    val from: LocalDate,
-    val to: LocalDate,
-    val returnPercent: BigDecimal,
-    val split: TwrSplit?,
-)
+data class TwrSubPeriod(val from: LocalDate, val to: LocalDate, val returnPercent: BigDecimal, val split: TwrSplit?)
 
 enum class TwrSplit {
     EXTERNAL_BUY,
@@ -95,7 +79,4 @@ data class YocReport(
     val paymentsPerYear: Int?,
 )
 
-data class PriceBar(
-    val date: LocalDate,
-    val closeNative: BigDecimal,
-)
+data class PriceBar(val date: LocalDate, val closeNative: BigDecimal)

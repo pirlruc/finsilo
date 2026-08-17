@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 java {
@@ -21,4 +23,18 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+ktlint {
+    filter {
+        exclude("**/generated/**")
+        exclude("**/build/**")
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    source.setFrom("src/main/kotlin")
 }

@@ -2,7 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
     kotlin("kapt")
+}
+
+kapt {
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }
 
 android {
@@ -76,4 +84,19 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.work.runtime)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+ktlint {
+    android.set(true)
+    filter {
+        exclude("**/generated/**")
+        exclude("**/build/**")
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    source.setFrom("src/main/java")
 }

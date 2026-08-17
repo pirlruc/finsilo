@@ -9,22 +9,12 @@ import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-class GetAllocationUseCase(
-    private val valuator: PortfolioValuator = PortfolioValuator(),
-) {
-    operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport =
-        valuator.allocation(snapshot, asOf)
+class GetAllocationUseCase(private val valuator: PortfolioValuator = PortfolioValuator()) {
+    operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport = valuator.allocation(snapshot, asOf)
 }
 
-class GetPortfolioHistoryUseCase(
-    private val valuator: PortfolioValuator = PortfolioValuator(),
-    private val maxPoints: Int = 180,
-) {
-    operator fun invoke(
-        snapshot: PortfolioSnapshot,
-        range: HistoryRange,
-        asOf: LocalDate,
-    ): HistoryReport {
+class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = PortfolioValuator(), private val maxPoints: Int = 180) {
+    operator fun invoke(snapshot: PortfolioSnapshot, range: HistoryRange, asOf: LocalDate): HistoryReport {
         val firstTx = snapshot.transactions.minOfOrNull { it.date }
         if (firstTx == null) {
             return HistoryReport(range = range, from = asOf, to = asOf, points = emptyList())

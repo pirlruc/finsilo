@@ -28,8 +28,7 @@ class AppContainer(application: Application) {
     val database: FinsiloDatabase =
         Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
             .openHelperFactory(SupportOpenHelperFactory(keyStore.passphrase()))
-            .addMigrations(FinsiloDatabase.MIGRATION_2_3)
-            .fallbackToDestructiveMigrationFrom(true, 1)
+            .addMigrations(FinsiloDatabase.MIGRATION_1_2, FinsiloDatabase.MIGRATION_2_3)
             .build()
 
     val repository: RoomPortfolioRepository = RoomPortfolioRepository(database)

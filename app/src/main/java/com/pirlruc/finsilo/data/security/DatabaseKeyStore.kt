@@ -53,8 +53,7 @@ class DatabaseKeyStore(context: Context) {
 
     private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
 
-    private fun String.hexToBytes(): ByteArray =
-        chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
     companion object {
         private const val PREFS_FILE = "finsilo_secure"

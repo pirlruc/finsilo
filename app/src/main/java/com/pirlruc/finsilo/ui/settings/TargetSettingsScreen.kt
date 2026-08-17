@@ -41,12 +41,7 @@ fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, onClose: () -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TargetSettingsScreen(
-    state: TargetSettingsUiState,
-    onClose: () -> Unit,
-    onWeight: (AssetType, String) -> Unit,
-    onSave: () -> Unit,
-) {
+fun TargetSettingsScreen(state: TargetSettingsUiState, onClose: () -> Unit, onWeight: (AssetType, String) -> Unit, onSave: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
