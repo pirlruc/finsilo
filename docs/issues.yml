@@ -754,8 +754,8 @@ milestones:
             Org Kotlin gates (ktlint, detekt, Kover 95/95, gitleaks, semgrep)
             were not wired. ktlint + detekt run locally and in CI (GATE-001-T1/T2).
             gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). Kover
-            reads profile.thresholds.yml fail-closed (T3) but domain coverage is
-            still below 95/95 — see docs/limitations.md LIM-COV.
+            reads thresholds fail-closed (T3): line coverage is above 95%;
+            branch coverage is still ~73% — see docs/limitations.md LIM-COV.
           goal: >-
             CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
             KT-TEST-002, KT-DOC-001, KT-SEC-002/003, and CI-001…CI-012 without

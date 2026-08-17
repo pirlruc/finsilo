@@ -8,7 +8,7 @@ Do not keep a second issue list here.
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
 | Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers) |
-| Phase 7 still open | [GATE-001-T3](issues.yml) — Kover 95/95 (wired, not green; [limitations.md](limitations.md) LIM-COV) |
+| Phase 7 still open | [GATE-001-T3](issues.yml) — Kover branch 95% (line already green; [limitations.md](limitations.md) LIM-COV) |
 | Known limits not in the backlog | [docs/limitations.md](limitations.md) (status + “stops when” per row) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |
 

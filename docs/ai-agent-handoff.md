@@ -75,7 +75,7 @@ Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 Phase 7 still open:
 
-- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; coverage is below the profile. See [limitations.md](limitations.md) LIM-COV.
+- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; **line is green, branch is ~73%**. See [limitations.md](limitations.md) LIM-COV.
 
 Untracked limits (Kover 95/95, private analog clone, Semgrep registry, Kotlin MI metric, SBOM/signing, pre-commit gitleaks, emulator/SQLCipher, release minify, AV quota, EU suffixes, incremental NAV, GitHub Issues write): [limitations.md](limitations.md).
 
