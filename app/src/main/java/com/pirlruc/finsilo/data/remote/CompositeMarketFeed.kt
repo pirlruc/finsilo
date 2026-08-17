@@ -93,7 +93,8 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val json = http.get(
             "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.feedSymbol))}&apikey=${enc(key)}",
         )
-        return runCatching { AlphaVantageParser.analystRating(json) }.getOrDefault(AnalystRating.NONE)
+        AlphaVantageParser.ensureUsable(json)
+        return AlphaVantageParser.analystRating(json)
     }
 
     private suspend fun coinGecko(asset: Asset): List<PriceBar> {
@@ -130,7 +131,8 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
             val rate = AlphaVantageParser.exchangeRate(json) ?: throw IllegalStateException("No XAU spot")
             return listOf(PriceBar(java.time.LocalDate.now(), rate))
         }
-        val function = COMMODITY_FUNCTIONS[symbol] ?: "WTI"
+        val function = COMMODITY_FUNCTIONS[symbol]
+            ?: throw IllegalStateException("Unknown commodity $symbol")
         val json = http.get(
             "https://www.alphavantage.co/query?function=$function&interval=daily&apikey=${enc(key)}",
         )

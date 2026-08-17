@@ -11,6 +11,7 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
@@ -147,3 +148,20 @@ data class TargetAllocationEntity(
         fun from(row: TargetAllocation) = TargetAllocationEntity(row.assetType, row.weightPercent)
     }
 }
+
+@Entity(tableName = "nav_history")
+data class NavHistoryEntity(@PrimaryKey val date: LocalDate, @ColumnInfo(name = "value_eur") val valueEur: BigDecimal) {
+    fun toDomain() = NavPoint(date, valueEur)
+
+    companion object {
+        fun from(point: NavPoint) = NavHistoryEntity(point.date, point.valueEur)
+    }
+}
+
+@Entity(tableName = "nav_rebuild_state")
+data class NavRebuildStateEntity(
+    @PrimaryKey val id: Int = 1,
+    val fingerprint: String,
+    @ColumnInfo(name = "as_of") val asOf: LocalDate,
+    @ColumnInfo(name = "rebuilt_at_ms") val rebuiltAtMs: Long,
+)

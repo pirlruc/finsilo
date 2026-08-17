@@ -17,7 +17,8 @@ import java.math.BigDecimal
 import java.time.LocalDate
 
 class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
-    private val navCache = HashMap<String, BigDecimal>()
+    private var boundSnapshot: PortfolioSnapshot? = null
+    private val navCache = HashMap<LocalDate, BigDecimal>()
 
     fun valueHoldings(snapshot: PortfolioSnapshot, asOf: LocalDate): List<HoldingValuation> {
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
@@ -71,17 +72,15 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     }
 
     fun totalNavEur(snapshot: PortfolioSnapshot, asOf: LocalDate): BigDecimal {
-        val key = navKey(snapshot, asOf)
-        return navCache.getOrPut(key) {
+        if (boundSnapshot !== snapshot) {
+            navCache.clear()
+            boundSnapshot = snapshot
+        }
+        return navCache.getOrPut(asOf) {
             val holdings = valueHoldings(snapshot, asOf)
             val cash = cashEur(snapshot, asOf)
             holdings.fold(cash) { acc, holding -> plus(acc, holding.valueEur) }
         }
-    }
-
-    private fun navKey(snapshot: PortfolioSnapshot, asOf: LocalDate): String {
-        val lastTx = snapshot.transactions.lastOrNull()?.id ?: "-"
-        return "$asOf|${snapshot.transactions.size}|$lastTx|${snapshot.fxRates.size}|${snapshot.marketData.size}"
     }
 
     fun allocation(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport {

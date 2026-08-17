@@ -7,7 +7,7 @@ Do not keep a second issue list here.
 | What | Where |
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
-| Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers), [FS-010-T2](issues.yml) (`nav_history`) |
+| Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers) |
 | Kotlin quality/coverage/security CI | [GATE-001](issues.yml) — ktlint + detekt done; Kover/gitleaks/Dokka open |
 | Android lint, assemble, instrumented tests | [GATE-AND-001](issues.yml) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |

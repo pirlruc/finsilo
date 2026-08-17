@@ -13,8 +13,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyMarketDataEntity::class,
         CurrencyRateEntity::class,
         TargetAllocationEntity::class,
+        NavHistoryEntity::class,
+        NavRebuildStateEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(FinsiloTypeConverters::class)
@@ -34,6 +36,20 @@ abstract class FinsiloDatabase : RoomDatabase() {
                 override fun migrate(db: SupportSQLiteDatabase) {
                     db.execSQL("ALTER TABLE assets ADD COLUMN isin TEXT")
                     db.execSQL("ALTER TABLE assets ADD COLUMN quote_symbol TEXT")
+                }
+            }
+
+        val MIGRATION_3_4: Migration =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS nav_history (date TEXT NOT NULL, value_eur TEXT NOT NULL, PRIMARY KEY(date))",
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS nav_rebuild_state (" +
+                            "id INTEGER NOT NULL, fingerprint TEXT NOT NULL, as_of TEXT NOT NULL, " +
+                            "rebuilt_at_ms INTEGER NOT NULL, PRIMARY KEY(id))",
+                    )
                 }
             }
     }

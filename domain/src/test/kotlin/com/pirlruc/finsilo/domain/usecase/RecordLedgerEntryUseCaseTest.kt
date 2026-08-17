@@ -81,6 +81,60 @@ class RecordLedgerEntryUseCaseTest {
     }
 
     @Test
+    fun buyAboveCashIsRejected() {
+        val snapshot = cashOnly(bd("50"))
+        val result =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("10"),
+                    unitPriceNative = bd("100"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+            )
+        assertTrue(result is LedgerEntryResult.Rejected)
+        assertTrue((result as LedgerEntryResult.Rejected).reason.contains("exceeds uninvested cash"))
+    }
+
+    @Test
+    fun sameDayBuyIgnoresLaterRankedWithdrawalWhenCheckingCash() {
+        val snapshot =
+            cashOnly(bd("10000")).copy(
+                transactions =
+                listOf(
+                    cashIn(bd("10000")).copy(date = asOf),
+                    Transaction(
+                        id = "w-later",
+                        assetId = cash.id,
+                        date = asOf,
+                        type = TransactionType.WITHDRAWAL,
+                        quantity = bd("10000"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                ),
+            )
+        val result =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("10"),
+                    unitPriceNative = bd("100"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+            )
+        assertTrue(result is LedgerEntryResult.Accepted)
+    }
+
+    @Test
     fun withdrawalOfRemainingCashIsAccepted() {
         val snapshot = cashOnly(bd("250"))
         val result =

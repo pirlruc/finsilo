@@ -15,9 +15,11 @@ class PortfolioAlertNotifier(private val context: Context) {
     fun publish(alerts: List<PortfolioAlert>) {
         if (alerts.isEmpty()) return
         if (!canNotify()) return
+        val unseen = alerts.filterNot { alreadyPublished(it) }
+        if (unseen.isEmpty()) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         ensureChannels(manager)
-        alerts.forEachIndexed { index, alert ->
+        unseen.forEach { alert ->
             val notification =
                 Notification.Builder(context, channelId(alert.channel))
                     .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -25,7 +27,8 @@ class PortfolioAlertNotifier(private val context: Context) {
                     .setContentText(alert.body)
                     .setAutoCancel(true)
                     .build()
-            manager.notify(NOTIFICATION_BASE + index, notification)
+            manager.notify(notificationId(alert), notification)
+            remember(alert)
         }
     }
 
@@ -52,10 +55,28 @@ class PortfolioAlertNotifier(private val context: Context) {
         AlertChannel.DRIFT -> CHANNEL_DRIFT
     }
 
+    private fun alreadyPublished(alert: PortfolioAlert): Boolean =
+        prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty().contains(alertKey(alert))
+
+    private fun remember(alert: PortfolioAlert) {
+        val next = prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty().toMutableSet()
+        next += alertKey(alert)
+        prefs().edit().putStringSet(KEY_PUBLISHED, next).apply()
+    }
+
+    private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun alertKey(alert: PortfolioAlert): String = "${alert.channel}|${alert.title}|${alert.body}"
+
+    private fun notificationId(alert: PortfolioAlert): Int = NOTIFICATION_BASE + (alertKey(alert).hashCode() and 0x7fffffff) % ID_SPAN
+
     companion object {
         private const val CHANNEL_RATING = "finsilo-rating"
         private const val CHANNEL_CROSS = "finsilo-cross"
         private const val CHANNEL_DRIFT = "finsilo-drift"
         private const val NOTIFICATION_BASE = 4100
+        private const val ID_SPAN = 100_000
+        private const val PREFS = "finsilo-alerts"
+        private const val KEY_PUBLISHED = "published"
     }
 }

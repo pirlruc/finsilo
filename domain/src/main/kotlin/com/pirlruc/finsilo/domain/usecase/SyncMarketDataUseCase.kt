@@ -54,6 +54,7 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         }
         val storedFrom = (relevant.size - MAX_BARS).coerceAtLeast(0)
         val rating = ratingFor(asset, stored, asOf, failures)
+        val storedByDate = stored.associateBy { it.date }
         return (storedFrom until relevant.size).map { index ->
             val bar = relevant[index]
             val closes = relevant.subList(0, index + 1).map { it.closeNative }
@@ -61,11 +62,17 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
                 assetId = asset.id,
                 date = bar.date,
                 closingPriceNative = bar.closeNative,
-                analystRating = if (index == relevant.lastIndex) rating else AnalystRating.NONE,
+                analystRating = ratingOnBar(index == relevant.lastIndex, rating, storedByDate[bar.date]),
                 sma50 = MovingAverages.sma(closes, 50),
                 sma200 = MovingAverages.sma(closes, 200),
             )
         }
+    }
+
+    private fun ratingOnBar(isLatest: Boolean, latest: AnalystRating, stored: DailyMarketData?): AnalystRating {
+        if (isLatest) return latest
+        val previous = stored?.analystRating
+        return if (previous != null && previous != AnalystRating.NONE) previous else AnalystRating.NONE
     }
 
     private fun overlaySpotOnStoredSma(asset: Asset, bar: PriceBar, stored: List<DailyMarketData>): List<DailyMarketData> {

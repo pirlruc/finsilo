@@ -55,11 +55,12 @@ class DashboardViewModel(
                     )
                 } else {
                     val asOf = resolveAsOf(snapshot.marketData.maxOfOrNull { it.date }, snapshot.transactions.maxOfOrNull { it.date })
+                    repository.rebuildNavHistoryIfNeeded(snapshot, asOf)
                     DashboardUiState(
                         loading = false,
                         empty = false,
                         range = _state.value.range,
-                        report = getDashboard(snapshot, _state.value.range, asOf),
+                        report = getDashboard(snapshot, _state.value.range, asOf, repository.loadNavHistory()),
                         statusMessage = _state.value.statusMessage,
                         hasAlphaVantageKey = container.keys.alphaVantageKey() != null,
                     )

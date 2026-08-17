@@ -12,7 +12,7 @@ interface PortfolioDao {
     @Query("SELECT * FROM assets")
     suspend fun getAssets(): List<AssetEntity>
 
-    @Query("SELECT * FROM transactions")
+    @Query("SELECT * FROM transactions ORDER BY date ASC, transaction_id ASC")
     suspend fun getTransactions(): List<TransactionEntity>
 
     @Query("SELECT * FROM daily_market_data")
@@ -57,6 +57,38 @@ interface PortfolioDao {
     @Query("SELECT COUNT(*) FROM currency_history WHERE date = :date")
     suspend fun countFxOn(date: LocalDate): Int
 
+    @Query("SELECT * FROM nav_history ORDER BY date ASC")
+    suspend fun getNavHistory(): List<NavHistoryEntity>
+
+    @Query("SELECT * FROM nav_rebuild_state WHERE id = 1")
+    suspend fun getNavRebuildState(): NavRebuildStateEntity?
+
+    @Query("DELETE FROM nav_history")
+    suspend fun deleteNavHistory()
+
+    @Query("DELETE FROM nav_rebuild_state")
+    suspend fun deleteNavRebuildState()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNavHistory(items: List<NavHistoryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNavRebuildState(state: NavRebuildStateEntity)
+
+    @Transaction
+    suspend fun replaceNavHistory(items: List<NavHistoryEntity>, state: NavRebuildStateEntity) {
+        deleteNavHistory()
+        deleteNavRebuildState()
+        if (items.isNotEmpty()) insertNavHistory(items)
+        insertNavRebuildState(state)
+    }
+
+    @Transaction
+    suspend fun upsertQuotes(market: List<DailyMarketDataEntity>, fx: List<CurrencyRateEntity>) {
+        if (market.isNotEmpty()) insertMarketData(market)
+        if (fx.isNotEmpty()) insertFxRates(fx)
+    }
+
     @Transaction
     suspend fun insertLedgerEntry(asset: AssetEntity?, transaction: TransactionEntity, fx: CurrencyRateEntity?) {
         if (asset != null) insertAssets(listOf(asset))
@@ -85,6 +117,8 @@ interface PortfolioDao {
         deleteFxRates()
         deleteTargets()
         deleteAssets()
+        deleteNavHistory()
+        deleteNavRebuildState()
         insertAssets(assets)
         insertTransactions(transactions)
         insertMarketData(market)

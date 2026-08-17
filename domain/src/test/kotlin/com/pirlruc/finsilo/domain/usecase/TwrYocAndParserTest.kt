@@ -9,11 +9,13 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.TwrSplit
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
+import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.math.BigDecimal
 import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -44,6 +46,46 @@ class TwrYocAndParserTest {
         assertTrue(report.subPeriods.none { it.split == TwrSplit.EXTERNAL_BUY })
         // 9000 cash + 1100 holdings = 10100 vs 10000 start → 1%
         assertEquals(0, bd("1").compareTo(report.twrPercent.setScale(0, java.math.RoundingMode.HALF_EVEN)))
+    }
+
+    @Test
+    fun sameDayDepositFundsBuyEvenWhenBuyIdSortsFirst() {
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(etf, cash),
+                transactions =
+                listOf(
+                    buy("aaa", etf.id, LocalDate.of(2026, 1, 1), bd("10"), bd("100")),
+                    cashTx("zzz", LocalDate.of(2026, 1, 1), bd("10000")),
+                ),
+                marketData = listOf(DailyMarketData(etf.id, asOf, bd("100"))),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val report = GetTimeWeightedReturnUseCase()(snapshot, asOf)
+        assertTrue(report.subPeriods.none { it.split == TwrSplit.EXTERNAL_BUY })
+    }
+
+    @Test
+    fun historyWalkOnSharedValuatorDoesNotPoisonTwr() {
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(etf, cash),
+                transactions =
+                listOf(
+                    cashTx("c", LocalDate.of(2026, 1, 1), bd("10000")),
+                    buy("b", etf.id, LocalDate.of(2026, 1, 2), bd("10"), bd("100")),
+                ),
+                marketData = listOf(DailyMarketData(etf.id, asOf, bd("110"))),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val valuator = PortfolioValuator()
+        GetPortfolioHistoryUseCase(valuator)(snapshot, HistoryRange.ALL, asOf)
+        val poisoned = GetTimeWeightedReturnUseCase(valuator)(snapshot, asOf)
+        val fresh = GetTimeWeightedReturnUseCase()(snapshot, asOf)
+        assertEquals(0, fresh.twrPercent.compareTo(poisoned.twrPercent))
+        assertEquals(fresh.subPeriods.size, poisoned.subPeriods.size)
     }
 
     @Test

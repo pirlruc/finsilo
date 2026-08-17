@@ -48,7 +48,7 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
                     .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
         }

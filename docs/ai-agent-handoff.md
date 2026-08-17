@@ -16,8 +16,8 @@ Product phases **1–6** are implemented. Guardrails compliance is **Phase 7** (
 
 | Module | Path | Notes |
 | --- | --- | --- |
-| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard, ledger form, target settings, Vico charts, encrypted Room v3 (schema exported), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
+| app | `app/` | Compose dashboard, ledger form, target settings, Vico charts, encrypted Room v4 (schema exported, including `nav_history`), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
 
 ## How to run checks
 
@@ -74,7 +74,6 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- [FS-010-T2](issues.yml) — persist `nav_history`. In-memory NAV cache per dashboard call is done ([FS-010-T1](issues.yml)).
 
 Phase 7 guardrails still open:
 

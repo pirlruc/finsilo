@@ -34,6 +34,22 @@ enum class TransactionType {
     WITHDRAWAL,
     DIVIDEND,
     INTEREST,
+    ;
+
+    /**
+     * Same-day replay order so a deposit funds a buy regardless of UUID ordering.
+     * Deposits and income first, then sells, then buys, then withdrawals.
+     */
+    val ledgerRank: Int
+        get() =
+            when (this) {
+                DEPOSIT_CASH -> 0
+                DIVIDEND -> 1
+                INTEREST -> 2
+                SELL -> 3
+                BUY -> 4
+                WITHDRAWAL -> 5
+            }
 }
 
 enum class AnalystRating(val code: Int) {

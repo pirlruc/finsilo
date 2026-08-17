@@ -143,7 +143,10 @@ class LedgerEntryViewModel(
 
     private suspend fun reload() {
         snapshot = repository.load()
-        val cash = ledger.cashEur(snapshot.transactions, snapshot.assets.associateBy { it.id })
+        val cash = ledger.cashEur(
+            ledger.transactionsOnOrBefore(snapshot.transactions, LocalDate.MAX),
+            snapshot.assets.associateBy { it.id },
+        )
         _state.update {
             it.copy(
                 loading = false,

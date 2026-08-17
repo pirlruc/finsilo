@@ -28,13 +28,12 @@ class GetTimeWeightedReturnUseCase(
     private val ledger: PositionLedger = PositionLedger(),
 ) {
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): TwrReport {
-        val ordered = snapshot.transactions.sortedWith(compareBy({ it.date }, { it.id }))
+        val ordered = ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
         if (ordered.isEmpty()) {
             return TwrReport(asOf = asOf, twrPercent = ZERO, subPeriods = emptyList())
         }
         val walk = TwrWalk(snapshot, asOf)
         for (tx in ordered) {
-            if (tx.date.isAfter(asOf)) break
             walk.apply(tx)
         }
         return walk.finish()

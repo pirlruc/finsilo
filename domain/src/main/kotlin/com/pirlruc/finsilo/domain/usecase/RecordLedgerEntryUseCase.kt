@@ -203,7 +203,7 @@ class RecordLedgerEntryUseCase(
     }
 
     private fun validateAgainstLedger(snapshot: PortfolioSnapshot, asset: Asset, transaction: Transaction): LedgerEntryResult.Rejected? {
-        val prior = ledger.transactionsOnOrBefore(snapshot.transactions, transaction.date)
+        val prior = ledger.preceding(snapshot.transactions, transaction)
         return when (transaction.type) {
             TransactionType.SELL -> {
                 val remaining = ledger.position(prior.filter { it.assetId == asset.id }).quantity
@@ -223,6 +223,19 @@ class RecordLedgerEntryUseCase(
                 if (amount > cash) {
                     LedgerEntryResult.Rejected(
                         "Withdrawal ${amount.stripTrailingZeros().toPlainString()} EUR exceeds " +
+                            "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
+                    )
+                } else {
+                    null
+                }
+            }
+            TransactionType.BUY -> {
+                val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
+                val cash = ledger.cashEur(prior, assetsById)
+                val cost = ledger.buyCostEur(transaction)
+                if (cost > cash) {
+                    LedgerEntryResult.Rejected(
+                        "Buy ${cost.stripTrailingZeros().toPlainString()} EUR exceeds " +
                             "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
                     )
                 } else {

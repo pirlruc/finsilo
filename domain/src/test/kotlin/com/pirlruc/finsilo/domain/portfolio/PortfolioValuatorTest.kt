@@ -398,6 +398,26 @@ class PortfolioValuatorTest {
         assertMoney("0", leftover, "cash")
     }
 
+    @Test
+    fun localInstrumentBuyFeesStayInNav() {
+        val snapshot =
+            snapshot(
+                assets = listOf(ct, cash),
+                transactions =
+                listOf(
+                    cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                    buy("b1", ct.id, LocalDate.of(2026, 1, 2), bd("3000"), bd("1"), Currency.EUR, BigDecimal.ONE, fees = bd("1.50")),
+                ),
+                market = emptyList(),
+                fx = emptyList(),
+            )
+        val report = valuator.allocation(snapshot, asOf)
+        assertMoney("3001.50", report.holdings.single { it.asset.id == ct.id }.valueEur, "ct")
+        assertMoney("1998.50", report.cashEur, "cash")
+        assertMoney("5000", report.totalValueEur, "nav conserved")
+        assertMoney("0", report.holdings.single { it.asset.id == ct.id }.unrealizedPnlEur, "pnl")
+    }
+
     private fun snapshot(
         assets: List<Asset>,
         transactions: List<Transaction>,

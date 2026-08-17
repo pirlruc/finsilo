@@ -29,12 +29,26 @@ data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecima
  * reporting more closely than a moving average.
  */
 class PositionLedger {
+    fun ordered(transactions: List<Transaction>): List<Transaction> =
+        transactions.sortedWith(compareBy({ it.date }, { it.type.ledgerRank }, { it.id }))
+
     fun transactionsOnOrBefore(transactions: List<Transaction>, date: LocalDate): List<Transaction> =
-        transactions.filter { !it.date.isAfter(date) }.sortedWith(compareBy({ it.date }, { it.id }))
+        ordered(transactions.filter { !it.date.isAfter(date) })
+
+    /** Ledger rows that replay strictly before [candidate] (date, type rank, then id). */
+    fun preceding(transactions: List<Transaction>, candidate: Transaction): List<Transaction> =
+        ordered(transactions.filter { comesBefore(it, candidate) })
+
+    private fun comesBefore(left: Transaction, right: Transaction): Boolean {
+        if (left.date != right.date) return left.date.isBefore(right.date)
+        val rank = left.type.ledgerRank.compareTo(right.type.ledgerRank)
+        if (rank != 0) return rank < 0
+        return left.id < right.id
+    }
 
     fun position(transactions: List<Transaction>): LotPosition {
         val lots = ArrayDeque<FifoLot>()
-        for (tx in transactions) {
+        for (tx in ordered(transactions)) {
             when (tx.type) {
                 TransactionType.BUY -> lots.addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur)))
                 TransactionType.SELL -> {
@@ -81,10 +95,10 @@ class PositionLedger {
      */
     fun locallyValuedEur(transactions: List<Transaction>): BigDecimal {
         var value = ZERO
-        for (tx in transactions) {
+        for (tx in ordered(transactions)) {
             value =
                 when (tx.type) {
-                    TransactionType.BUY -> plus(value, minus(tx.notionalEur, tx.feesEur))
+                    TransactionType.BUY -> plus(value, plus(tx.notionalEur, tx.feesEur))
                     TransactionType.INTEREST -> plus(value, tx.notionalEur)
                     TransactionType.SELL -> minus(value, tx.notionalEur)
                     TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL, TransactionType.DIVIDEND -> value
@@ -100,7 +114,7 @@ class PositionLedger {
     fun cashEur(transactions: List<Transaction>, assetsById: Map<String, Asset>): BigDecimal {
         var cash = ZERO
         val lotsByAsset = HashMap<String, ArrayDeque<FifoLot>>()
-        for (tx in transactions) {
+        for (tx in ordered(transactions)) {
             cash = applyCash(tx, cash, assetsById[tx.assetId]?.locallyValued == true, lotsByAsset)
         }
         return cash

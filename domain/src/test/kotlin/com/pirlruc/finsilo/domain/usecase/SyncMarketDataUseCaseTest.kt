@@ -83,6 +83,29 @@ class SyncMarketDataUseCaseTest {
         assertTrue(feed.ratingSymbols.isEmpty())
     }
 
+    @Test
+    fun historicalAnalystRatingsAreKeptOnResync() {
+        val yesterday = asOf.minusDays(1)
+        val feed =
+            RecordingFeed(
+                history = mapOf(
+                    apple.id to listOf(PriceBar(yesterday, BigDecimal("190")), PriceBar(asOf, BigDecimal("200"))),
+                ),
+            )
+        val stored =
+            listOf(
+                DailyMarketData(apple.id, yesterday, BigDecimal("190"), AnalystRating.HOLD),
+                DailyMarketData(apple.id, asOf, BigDecimal("195"), AnalystRating.BUY),
+            )
+        val result =
+            kotlinx.coroutines.runBlocking {
+                SyncMarketDataUseCase(feed)(snap(apple, market = stored), asOf)
+            }
+        assertEquals(AnalystRating.HOLD, result.marketData.single { it.date == yesterday }.analystRating)
+        assertEquals(AnalystRating.BUY, result.marketData.single { it.date == asOf }.analystRating)
+        assertTrue(feed.ratingSymbols.isEmpty())
+    }
+
     private fun snap(asset: Asset, market: List<DailyMarketData> = emptyList()) = PortfolioSnapshot(
         assets = listOf(asset),
         transactions = emptyList(),

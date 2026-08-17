@@ -6,7 +6,7 @@ This repository currently delivers product phases **1–6** (foundation, data en
 
 ## What works now
 
-- Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation).
+- Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation, persisted `nav_history`).
 - Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest, including optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused. Unlisted PPR interest stays in NAV.
 - Settings for `target_allocation` weights (must sum to 100).
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.

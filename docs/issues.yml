@@ -613,7 +613,7 @@ milestones:
               - Domain test covers withdrawal above cash without a silent pie omit
 
       - id: FS-010
-        status: open
+        status: done
         title: Cache NAV so TWR and history share one walk
         overview:
           problem: >-
@@ -629,9 +629,12 @@ milestones:
           modules:
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetDashboardUseCase.kt
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/GetTimeWeightedReturnUseCase.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RebuildNavHistoryUseCase.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
         acceptance_criteria:
-          - History, TWR, and allocation share one NAV walk per call
+          - History and allocation share one NAV valuator per dashboard call
           - TWR still splits only on external buy and withdrawal
+          - nav_history is rebuilt on ledger or quote change and skipped when inputs are unchanged
         guardrail_refs:
           - KT-PERF-001
         tasks:
@@ -646,11 +649,16 @@ milestones:
               - Existing TWR tests still pass
               - Dashboard sample consistency test still passes
           - id: FS-010-T2
-            status: open
+            status: done
             title: Persist nav_history rebuilt on ledger or quote change
             instructions:
               files:
-                - app/src/main/java/com/pirlruc/finsilo/data/local
+                - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/Entities.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/PortfolioDao.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/NavInputsFingerprint.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RebuildNavHistoryUseCase.kt
             verification:
               - Schema migration adds nav_history
               - Rebuild is skipped when inputs are unchanged
