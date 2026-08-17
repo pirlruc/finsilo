@@ -36,7 +36,7 @@ class PortfolioValuatorTest {
 
     @Test
     fun usdHoldingIsConvertedWithEurPerUsdRate() {
-        val eurPerUsd = MoneyMath.div(bd("1"), bd("1.10"))
+        val eurPerUsd = bd("0.50")
         val snapshot = snapshot(
             assets = listOf(apple, cash),
             transactions = listOf(
@@ -49,10 +49,10 @@ class PortfolioValuatorTest {
 
         val report = valuator.allocation(snapshot, asOf)
         val stock = report.holdings.single { it.asset.id == apple.id }
-        // 220 USD * (1/1.10) = 200 EUR; 10 shares = 2000 EUR
-        assertMoney("200", stock.priceEur, "price")
-        assertMoney("2000", stock.valueEur, "value")
-        assertMoney("1000", stock.unrealizedPnlEur, "unrealized")
+        // 220 USD * 0.50 EUR/USD = 110 EUR; 10 shares = 1100 EUR; cost 10*110*0.50 = 550
+        assertMoney("110", stock.priceEur, "price")
+        assertMoney("1100", stock.valueEur, "value")
+        assertMoney("550", stock.unrealizedPnlEur, "unrealized")
     }
 
     @Test

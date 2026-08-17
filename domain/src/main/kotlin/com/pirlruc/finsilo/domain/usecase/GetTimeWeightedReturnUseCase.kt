@@ -21,6 +21,7 @@ import java.time.LocalDate
  * Time-weighted return. Sub-periods open only on buys funded with external cash
  * (cost exceeds uninvested cash) and on withdrawals. Internal buys, sells,
  * deposits that only fund cash, dividends, and interest do not split.
+ * [TwrSubPeriod.split] is the event that opened that sub-period.
  */
 class GetTimeWeightedReturnUseCase(
     private val valuator: PortfolioValuator = PortfolioValuator(),
@@ -37,6 +38,7 @@ class GetTimeWeightedReturnUseCase(
         var cash = ZERO
         var periodStart: LocalDate? = null
         var startNav: BigDecimal? = null
+        var openedBy: TwrSplit? = null
         val periods = ArrayList<TwrSubPeriod>()
 
         fun navWith(txs: List<Transaction>, date: LocalDate): BigDecimal =
@@ -52,7 +54,7 @@ class GetTimeWeightedReturnUseCase(
                     from = periodStart,
                     to = tx.date,
                     returnPercent = times(ret, HUNDRED),
-                    split = split,
+                    split = openedBy,
                 )
             }
             seen += tx
@@ -60,6 +62,7 @@ class GetTimeWeightedReturnUseCase(
             if (split != null || startNav == null) {
                 startNav = navWith(seen, tx.date)
                 periodStart = tx.date
+                openedBy = split
             }
         }
 
@@ -70,7 +73,7 @@ class GetTimeWeightedReturnUseCase(
                 from = periodStart,
                 to = asOf,
                 returnPercent = times(ret, HUNDRED),
-                split = null,
+                split = openedBy,
             )
         }
 
