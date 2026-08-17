@@ -10,7 +10,7 @@ import java.time.LocalDate
 internal object ImportFingerprints {
     fun of(line: BrokerCsvLine): String {
         val id = line.isin?.ifBlank { null } ?: line.symbol
-        return key(line.date, line.type, id, line.quantity, line.unitPriceNative)
+        return key(requireNotNull(line.date), requireNotNull(line.type), id, line.quantity, line.unitPriceNative)
     }
 
     fun counts(snapshot: PortfolioSnapshot): Map<String, Int> {
@@ -28,9 +28,9 @@ internal object ImportFingerprints {
         return key(tx.date, tx.type, id, tx.quantity, tx.unitPriceNative)
     }
 
-    private fun key(date: LocalDate?, type: TransactionType?, id: String, qty: BigDecimal, price: BigDecimal): String = listOf(
-        date?.toString().orEmpty(),
-        type?.name.orEmpty(),
+    private fun key(date: LocalDate, type: TransactionType, id: String, qty: BigDecimal, price: BigDecimal): String = listOf(
+        date.toString(),
+        type.name,
         id.uppercase(),
         qty.stripTrailingZeros().toPlainString(),
         price.stripTrailingZeros().toPlainString(),

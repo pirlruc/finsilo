@@ -52,10 +52,12 @@ class RebuildNavHistoryUseCase {
         first: LocalDate,
         asOf: LocalDate,
     ): Boolean {
-        if (storedFingerprint != fingerprint || storedPoints.isEmpty()) return false
+        if (storedFingerprint != fingerprint) return false
+        if (storedPoints.isEmpty()) return false
         val storedFirst = storedPoints.minOf { it.date }
         val storedLast = storedPoints.maxOf { it.date }
-        return !storedFirst.isAfter(first) && !storedLast.isBefore(asOf)
+        if (storedFirst.isAfter(first)) return false
+        return !storedLast.isBefore(asOf)
     }
 
     private fun appendOrRebuild(
@@ -67,14 +69,15 @@ class RebuildNavHistoryUseCase {
         storedPoints: List<NavPoint>,
         changedFrom: LocalDate?,
     ): List<NavPoint> {
-        if (fingerprintMatches && storedPoints.isNotEmpty()) {
-            val storedFirst = storedPoints.minOf { it.date }
-            val storedLast = storedPoints.maxOf { it.date }
-            if (!storedFirst.isAfter(first) && storedLast.isBefore(asOf)) {
-                return storedPoints + walk(valuator, snapshot, storedLast.plusDays(1), asOf)
-            }
+        if (!fingerprintMatches || storedPoints.isEmpty()) {
+            return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
         }
-        return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
+        val storedFirst = storedPoints.minOf { it.date }
+        val storedLast = storedPoints.maxOf { it.date }
+        if (storedFirst.isAfter(first) || !storedLast.isBefore(asOf)) {
+            return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
+        }
+        return storedPoints + walk(valuator, snapshot, storedLast.plusDays(1), asOf)
     }
 
     private fun incrementalOrFull(

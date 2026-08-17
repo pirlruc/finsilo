@@ -39,6 +39,14 @@ class ImportBrokerCsvUseCase internal constructor(private val applyLedger: (Port
     }
 }
 
+private val IMPORT_RANK =
+    mapOf(
+        TransactionType.DEPOSIT_CASH to 0,
+        TransactionType.BUY to 1,
+        TransactionType.SELL to 3,
+        TransactionType.WITHDRAWAL to 4,
+    )
+
 private class ImportWalk(
     initial: PortfolioSnapshot,
     private val applyLedger: (PortfolioSnapshot, LedgerEntryRequest) -> LedgerEntryResult,
@@ -173,13 +181,9 @@ private class ImportWalk(
     private fun ordered(lines: List<BrokerCsvLine>): List<BrokerCsvLine> =
         lines.sortedWith(compareBy({ it.date ?: java.time.LocalDate.MAX }, { importRank(it.type) }, { it.sourceLine }))
 
-    private fun importRank(type: TransactionType?): Int = when (type) {
-        TransactionType.DEPOSIT_CASH -> 0
-        TransactionType.BUY -> 1
-        TransactionType.DIVIDEND, TransactionType.INTEREST -> 2
-        TransactionType.SELL -> 3
-        TransactionType.WITHDRAWAL -> 4
-        null -> 9
+    private fun importRank(type: TransactionType?): Int {
+        if (type == null) return 9
+        return IMPORT_RANK.getOrDefault(type, 2)
     }
 
     private fun draft(line: BrokerCsvLine) =

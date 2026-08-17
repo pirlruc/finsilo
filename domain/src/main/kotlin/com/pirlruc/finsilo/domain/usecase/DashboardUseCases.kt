@@ -40,17 +40,14 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
     }
 
     private fun covers(stored: List<NavPoint>, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): Boolean {
-        if (stored.isEmpty()) return false
-        val first = stored.minOf { it.date }
-        val last = stored.maxOf { it.date }
+        if (stored.isEmpty() || stored.minOf { it.date }.isAfter(from) || stored.maxOf { it.date }.isBefore(to)) {
+            return false
+        }
         val atFrom = stored.find { it.date == from }
         val atTo = stored.find { it.date == to }
-        return atFrom != null &&
-            atTo != null &&
-            !first.isAfter(from) &&
-            !last.isBefore(to) &&
-            atFrom.valueEur.compareTo(valuator.totalNavEur(snapshot, from)) == 0 &&
-            atTo.valueEur.compareTo(valuator.totalNavEur(snapshot, to)) == 0
+        if (atFrom == null || atTo == null) return false
+        if (atFrom.valueEur.compareTo(valuator.totalNavEur(snapshot, from)) != 0) return false
+        return atTo.valueEur.compareTo(valuator.totalNavEur(snapshot, to)) == 0
     }
 
     private fun walk(snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> {
@@ -67,8 +64,9 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
         if (dense.size <= maxPoints) return dense
         val step = (dense.size + maxPoints - 1) / maxPoints
         val points = dense.filterIndexed { index, _ -> index % step == 0 }.toMutableList()
-        if (points.lastOrNull()?.date != to) {
-            dense.lastOrNull()?.let { points += it }
+        val last = dense.last()
+        if (points.last().date != to) {
+            points += last
         }
         return points
     }

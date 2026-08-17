@@ -165,12 +165,11 @@ class PositionLedger {
         assetTransactions: List<Transaction>,
     ): BigDecimal? {
         marketOnOrBefore(assetId, date, byAsset)?.closingPriceNative?.let { return it }
-        return assetTransactions
-            .filter {
-                !it.date.isAfter(date) &&
-                    (it.type == TransactionType.BUY || it.type == TransactionType.SELL)
-            }.maxByOrNull { it.date }
-            ?.unitPriceNative
+        val trades =
+            assetTransactions.filter { tx ->
+                !tx.date.isAfter(date) && (tx.type == TransactionType.BUY || tx.type == TransactionType.SELL)
+            }
+        return trades.maxByOrNull { it.date }?.unitPriceNative
     }
 
     fun indexMarket(marketData: List<DailyMarketData>): Map<String, List<DailyMarketData>> =
