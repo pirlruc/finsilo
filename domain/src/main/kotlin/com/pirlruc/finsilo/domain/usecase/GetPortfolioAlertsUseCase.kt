@@ -5,12 +5,14 @@ import com.pirlruc.finsilo.domain.model.TechnicalCross
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
 
+/** Notification channel for rating changes, SMA crosses, and allocation drift. */
 enum class AlertChannel {
     RATING,
     CROSS,
     DRIFT,
 }
 
+/** One notification payload built from stored SMAs or allocation drift. */
 data class PortfolioAlert(val channel: AlertChannel, val title: String, val body: String)
 
 /**

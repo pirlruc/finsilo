@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.model
 
+/** Investment type stored on an asset row and used for pie slices. */
 enum class AssetType {
     STOCK,
     ETF,
@@ -22,11 +23,13 @@ enum class AssetType {
         get() = this == STOCK || this == ETF || this == PPR
 }
 
+/** Quote currency. Valuation stores FX as EUR per 1 USD. */
 enum class Currency {
     EUR,
     USD,
 }
 
+/** Ledger row kind. Same-day replay uses [ledgerRank]. */
 enum class TransactionType {
     BUY,
     SELL,
@@ -52,6 +55,7 @@ enum class TransactionType {
             }
 }
 
+/** Alpha Vantage OVERVIEW consensus mapped to a five-level scale. */
 enum class AnalystRating(val code: Int) {
     NONE(0),
     STRONG_SELL(1),
@@ -77,6 +81,7 @@ enum class AnalystRating(val code: Int) {
     }
 }
 
+/** Dashboard NAV chart window. */
 enum class HistoryRange {
     ONE_MONTH,
     THREE_MONTHS,
@@ -84,11 +89,13 @@ enum class HistoryRange {
     ALL,
 }
 
+/** SMA 50/200 cross on consecutive stored bars. */
 enum class TechnicalCross {
     GOLDEN,
     DEATH,
 }
 
+/** Price versus a stored moving average. */
 enum class RelativeToAverage {
     ABOVE,
     BELOW,

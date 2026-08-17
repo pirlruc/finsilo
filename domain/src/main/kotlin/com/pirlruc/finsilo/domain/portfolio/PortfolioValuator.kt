@@ -16,6 +16,7 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import java.math.BigDecimal
 import java.time.LocalDate
 
+/** Marks holdings to market and builds allocation slices. */
 class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     private var boundSnapshot: PortfolioSnapshot? = null
     private val navCache = HashMap<LocalDate, BigDecimal>()

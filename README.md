@@ -2,7 +2,7 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers product phases **1–6** (foundation, data entry, market APIs, calc engine, notifications, dashboard). Guardrails compliance (ktlint/detekt done; Kover, Android lint, SAST still open) is **Phase 7**.
+This repository currently delivers product phases **1–6**. Phase **7** guardrails that can run in CI are wired (quality, Android lint/assemble/Robolectric, gitleaks, semgrep, dependency-review, Dokka/KDoc). Kover 95/95 is enforced but not yet green — see [`docs/limitations.md`](docs/limitations.md).
 
 ## What works now
 
@@ -45,9 +45,9 @@ No Hilt. Constructor injection from `AppContainer` keeps the first slice small a
 Requirements: JDK 17+, Android SDK 35/36.
 
 ```bash
-./gradlew :domain:test
-./gradlew :domain:ktlintCheck :domain:detekt
-./gradlew :app:assembleDebug
+bash scripts/ci-local.sh
+./gradlew :domain:koverVerify   # expected red until LIM-COV / GATE-001-T3
+bash scripts/issues-sync.sh --validate-only
 ```
 
 `local.properties` is gitignored. Point `sdk.dir` or `ANDROID_HOME` at your SDK.

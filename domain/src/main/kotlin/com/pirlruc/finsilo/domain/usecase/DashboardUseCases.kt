@@ -8,10 +8,12 @@ import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
 
+/** Current allocation by investment type. */
 class GetAllocationUseCase(private val valuator: PortfolioValuator = PortfolioValuator()) {
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport = valuator.allocation(snapshot, asOf)
 }
 
+/** Dense daily NAV walk, optionally fed from persisted [storedNav], then downsampled. */
 class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = PortfolioValuator(), private val maxPoints: Int = 180) {
     operator fun invoke(
         snapshot: PortfolioSnapshot,

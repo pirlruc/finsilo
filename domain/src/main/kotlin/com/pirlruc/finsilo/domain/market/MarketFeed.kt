@@ -9,6 +9,7 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import java.math.BigDecimal
 import java.time.LocalDate
 
+/** GET-only quote source used by [com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase]. */
 interface MarketFeed {
     suspend fun eurPerUsd(): BigDecimal
 
@@ -19,6 +20,7 @@ interface MarketFeed {
     suspend fun analystRating(asset: Asset): AnalystRating
 }
 
+/** Simple moving averages computed from stored closes (no extra API calls). */
 object MovingAverages {
     fun sma(closes: List<BigDecimal>, window: Int): BigDecimal? {
         if (closes.size < window || window <= 0) return null
@@ -28,6 +30,7 @@ object MovingAverages {
     }
 }
 
+/** Regex parser for Alpha Vantage JSON (daily, FX, OVERVIEW, commodities). */
 object AlphaVantageParser {
     private val dailyCloseAlt = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{[^}]*?\"4\\. close\"\\s*:\\s*\"([0-9.]+)\"")
     private val fxRate = Regex("\"5\\. Exchange Rate\"\\s*:\\s*\"([0-9.]+)\"")
@@ -106,6 +109,7 @@ object AlphaVantageParser {
     }
 }
 
+/** Parser for Stooq daily CSV. */
 object StooqParser {
     fun dailyCloses(csv: String): List<PriceBar> = csv
         .lineSequence()
@@ -120,6 +124,7 @@ object StooqParser {
         .toList()
 }
 
+/** Parser for Frankfurter EUR-per-USD JSON. */
 object FrankfurterParser {
     private val eur = Regex("\"EUR\"\\s*:\\s*([0-9.]+)")
     private val datedEur = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{\\s*\"EUR\"\\s*:\\s*([0-9.]+)")
@@ -138,6 +143,7 @@ object FrankfurterParser {
         .toList()
 }
 
+/** Parser for CoinGecko `market_chart` prices. */
 object CoinGeckoParser {
     /**
      * Parses `market_chart` prices: `{"prices":[[epochMs, price], ...]}`.

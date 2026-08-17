@@ -5,6 +5,7 @@ import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 
+/** EUR arithmetic with a shared [MathContext]. */
 object MoneyMath {
     val CONTEXT: MathContext = MathContext(16, RoundingMode.HALF_EVEN)
     const val SCALE: Int = 8

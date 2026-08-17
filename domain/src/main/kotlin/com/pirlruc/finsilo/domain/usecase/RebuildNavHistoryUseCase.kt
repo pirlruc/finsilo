@@ -6,6 +6,7 @@ import com.pirlruc.finsilo.domain.portfolio.NavInputsFingerprint
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
 
+/** Outcome of a NAV history rebuild, including whether persistence can skip. */
 data class NavRebuildDecision(val skip: Boolean, val fingerprint: String, val points: List<NavPoint>)
 
 /**

@@ -13,6 +13,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
 
+/** User-entered fields for a brand-new instrument on a BUY. */
 data class NewAssetDraft(
     val symbol: String,
     val name: String,
@@ -22,6 +23,7 @@ data class NewAssetDraft(
     val quoteSymbol: String? = null,
 )
 
+/** Form payload for [RecordLedgerEntryUseCase]. */
 data class LedgerEntryRequest(
     val type: TransactionType,
     val date: LocalDate,
@@ -33,10 +35,13 @@ data class LedgerEntryRequest(
     val eurPerUsd: BigDecimal? = null,
 )
 
+/** Validation result for a ledger write. Persistence is the caller's job. */
 sealed interface LedgerEntryResult {
+    /** Accepted ledger row ready to persist. */
     data class Accepted(val asset: Asset, val createdAsset: Boolean, val transaction: Transaction, val fxRate: CurrencyRate?) :
         LedgerEntryResult
 
+    /** Why the row was refused. */
     data class Rejected(val reason: String) : LedgerEntryResult
 }
 
@@ -259,4 +264,5 @@ class RecordLedgerEntryUseCase(
     }
 }
 
+/** Parse an ISO-8601 calendar date, or null if the text is not a date. */
 fun parseDate(raw: String): LocalDate? = runCatching { LocalDate.parse(raw.trim()) }.getOrNull()

@@ -8,12 +8,16 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+/** Result of saving target pie weights. */
 sealed interface TargetAllocationResult {
+    /** Weights accepted and ready to persist. */
     data class Accepted(val targets: List<TargetAllocation>) : TargetAllocationResult
 
+    /** Why the weights were refused. */
     data class Rejected(val reason: String) : TargetAllocationResult
 }
 
+/** Persists validated target weights when they sum to 100. */
 class SaveTargetAllocationUseCase {
     operator fun invoke(weights: Map<AssetType, BigDecimal>): TargetAllocationResult {
         for ((type, weight) in weights) {

@@ -7,12 +7,12 @@
 | **App** | FinSilo |
 | **Package** | `com.pirlruc.finsilo` |
 | **Type** | Native Android (Kotlin, Compose), offline-first portfolio tracker |
-| **Docs** | `docs/ai-agent-handoff.md`, `docs/improvements.md`, `docs/issues.yml` |
+| **Docs** | `docs/ai-agent-handoff.md`, `docs/improvements.md`, `docs/issues.yml`, `docs/limitations.md` |
 | **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr) (Epic = decision record, no ADR markdown files) |
 
 ## Current slice
 
-Product phases **1–6** are implemented. Guardrails compliance is **Phase 7** (last). Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
+Product phases **1–6** are implemented. Guardrails (Phase 7): quality, Android lint/assemble/Robolectric, gitleaks, semgrep, PR dependency-review, and Dokka/KDoc are wired. [GATE-001-T3](issues.yml) Kover 95/95 is wired but not green. Untracked limits: [docs/limitations.md](limitations.md). Product decisions: [FS-DEC-001](issues.yml). Kotlin/Android gate map: [GATE-002](issues.yml).
 
 | Module | Path | Notes |
 | --- | --- | --- |
@@ -22,14 +22,12 @@ Product phases **1–6** are implemented. Guardrails compliance is **Phase 7** (
 ## How to run checks
 
 ```bash
-./gradlew :domain:test
-./gradlew :domain:ktlintCheck :domain:detekt
-./gradlew :app:ktlintCheck :app:detekt
-./gradlew :app:assembleDebug
+bash scripts/ci-local.sh
+./gradlew :domain:koverVerify   # expected red until LIM-COV
 bash scripts/issues-sync.sh --validate-only
 ```
 
-CI: `.github/workflows/domain-tests.yml` (`:domain:ktlintCheck`, `:domain:detekt`, `:domain:test`, SHA-pinned actions).
+CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read `config/kotlin.profile.thresholds.yml` (consumer copy of the analog pin; LIM-SUB).
 
 Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Room **2.8.1 via kapt** (KSP 2.3 failed), compileSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. Vico 3.2.2 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
 
@@ -75,10 +73,11 @@ Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
 
-Phase 7 guardrails still open:
+Phase 7 still open:
 
-- [GATE-001-T3](issues.yml)…T5 — Kover 95/95, gitleaks/semgrep, Dokka.
-- [GATE-AND-001](issues.yml) — Android lint, `:app:assembleDebug` in CI, instrumented tests.
+- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; coverage is below the profile. See [limitations.md](limitations.md) LIM-COV.
+
+Untracked limits (Kover 95/95, private analog clone, Semgrep registry, Kotlin MI metric, SBOM/signing, pre-commit gitleaks, emulator/SQLCipher, release minify, AV quota, EU suffixes, incremental NAV, GitHub Issues write): [limitations.md](limitations.md).
 
 Do not record a fake lowered-gate deviation.
 

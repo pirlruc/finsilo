@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.model
 import java.math.BigDecimal
 import java.time.LocalDate
 
+/** Mark-to-market holding used by allocation and unrealized PnL. */
 data class HoldingValuation(
     val asset: Asset,
     val quantity: BigDecimal,
@@ -12,6 +13,7 @@ data class HoldingValuation(
     val unrealizedPnlEur: BigDecimal,
 )
 
+/** One investment-type slice of current NAV, including optional target drift. */
 data class AllocationSlice(
     val assetType: AssetType,
     val valueEur: BigDecimal,
@@ -23,6 +25,7 @@ data class AllocationSlice(
         get() = driftPercent != null && driftPercent.abs() > BigDecimal("5")
 }
 
+/** Portfolio allocation at an as-of date. */
 data class AllocationReport(
     val asOf: LocalDate,
     val totalValueEur: BigDecimal,
@@ -32,10 +35,13 @@ data class AllocationReport(
     val holdings: List<HoldingValuation>,
 )
 
+/** One dense NAV observation. */
 data class NavPoint(val date: LocalDate, val valueEur: BigDecimal)
 
+/** Downsampled NAV series for a dashboard range. */
 data class HistoryReport(val range: HistoryRange, val from: LocalDate, val to: LocalDate, val points: List<NavPoint>)
 
+/** Rating and SMA context for a held marketable instrument. */
 data class MarketSignal(
     val asset: Asset,
     val asOf: LocalDate,
@@ -52,6 +58,7 @@ data class MarketSignal(
         get() = previousRating != null && previousRating != rating && rating != AnalystRating.NONE
 }
 
+/** Combined dashboard payload. */
 data class DashboardReport(
     val asOf: LocalDate,
     val allocation: AllocationReport,
@@ -62,15 +69,19 @@ data class DashboardReport(
     val warnings: List<String> = emptyList(),
 )
 
+/** Time-weighted return and the sub-periods that produced it. */
 data class TwrReport(val asOf: LocalDate, val twrPercent: BigDecimal, val subPeriods: List<TwrSubPeriod>)
 
+/** One TWR sub-period. [split] is the event that opened it. */
 data class TwrSubPeriod(val from: LocalDate, val to: LocalDate, val returnPercent: BigDecimal, val split: TwrSplit?)
 
+/** Cash-flow events that open a TWR sub-period. */
 enum class TwrSplit {
     EXTERNAL_BUY,
     WITHDRAWAL,
 }
 
+/** Yield on cost for a dividend-paying holding. */
 data class YocReport(
     val asset: Asset,
     val remainingCostEur: BigDecimal,
@@ -79,4 +90,5 @@ data class YocReport(
     val paymentsPerYear: Int?,
 )
 
+/** One native-currency close used by parsers and SMA math. */
 data class PriceBar(val date: LocalDate, val closeNative: BigDecimal)

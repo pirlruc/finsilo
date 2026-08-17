@@ -11,6 +11,7 @@ import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceBar
 import java.time.LocalDate
 
+/** Quotes and FX produced by one sync, plus per-symbol failures. */
 data class MarketSyncResult(
     val marketData: List<DailyMarketData>,
     val fxRates: List<CurrencyRate> = emptyList(),

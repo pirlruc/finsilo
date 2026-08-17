@@ -752,26 +752,33 @@ milestones:
         overview:
           problem: >-
             Org Kotlin gates (ktlint, detekt, Kover 95/95, gitleaks, semgrep)
-            were not wired. ktlint + detekt now run locally and in CI on
-            :domain (GATE-001-T2). Remaining: Kover 95/95, gitleaks/semgrep,
-            Dokka. Inventing a lowered-gate deviation without Engineering
-            Lead approval is forbidden.
+            were not wired. ktlint + detekt run locally and in CI (GATE-001-T1/T2).
+            gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). Kover
+            reads profile.thresholds.yml fail-closed (T3) but domain coverage is
+            still below 95/95 — see docs/limitations.md LIM-COV.
           goal: >-
             CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
             KT-TEST-002, KT-DOC-001, KT-SEC-002/003, and CI-001…CI-012 without
-            copying cppdevops job bodies.
+            copying cppdevops job bodies. Kover 95/95 remains blocking once
+            coverage catches up; do not record a fake lowered-gate deviation.
         architecture:
           target: Gradle modules plus GitHub Actions
           modules:
             - .github/workflows/domain-tests.yml
+            - .github/workflows/quality.yml
+            - .github/workflows/docs.yml
+            - .github/workflows/security.yml
             - domain/build.gradle.kts
             - app/build.gradle.kts
+            - config/kotlin.profile.thresholds.yml
+            - scripts/ci-local.sh
             - docs/guardrails/kotlin/profile.thresholds.yml
         acceptance_criteria:
           - Domain unit tests run in CI with SHA-pinned actions
           - ktlint and detekt run locally and in CI on :domain (GATE-001-T2)
-          - Coverage, secret scan, SAST, and Dokka remain follow-up tasks
-          - Thresholds are read from docs/guardrails/kotlin/profile.thresholds.yml
+          - Kover reads statement_coverage and branch_coverage fail-closed
+          - gitleaks and semgrep run on PRs; High/Critical (ERROR) fails the job
+          - Dokka HTML + KDoc coverage read doc_coverage fail-closed
           - No fake deviation entry in docs/guardrail-deviations.yml
         guardrail_refs:
           - KT-BUILD-002
@@ -810,9 +817,11 @@ milestones:
                 - build.gradle.kts
                 - domain/build.gradle.kts
                 - app/build.gradle.kts
-                - .github/workflows
+                - config/detekt/detekt.yml
+                - scripts/check-detekt-complexity.py
+                - .github/workflows/quality.yml
             verification:
-              - detekt ComplexMethod max is 10 from profile.thresholds.yml
+              - python3 scripts/check-detekt-complexity.py
               - Formatter/linter run locally and in CI
             guardrail_refs:
               - KT-BUILD-002
@@ -825,37 +834,43 @@ milestones:
             instructions:
               files:
                 - domain/build.gradle.kts
+                - .github/workflows/domain-tests.yml
+                - config/kotlin.profile.thresholds.yml
                 - docs/guardrails/kotlin/profile.thresholds.yml
+                - docs/limitations.md
             verification:
-              - Coverage job reads statement_coverage and branch_coverage from the profile
+              - Coverage job reads statement_coverage and branch_coverage fail-closed
               - Missing thresholds file fails closed
             guardrail_refs:
               - KT-TEST-002
               - CI-010
               - CI-022
           - id: GATE-001-T4
-            status: open
+            status: done
             title: Add secret scan and SAST in CI
             instructions:
               files:
-                - .github/workflows
+                - .github/workflows/security.yml
+                - scripts/run-gitleaks.sh
             verification:
               - gitleaks (or equivalent) and semgrep (or equivalent) run on PRs
-              - High/Critical findings fail the job
+              - High/Critical findings fail the job; dependency-review fails on high+
             guardrail_refs:
               - KT-SEC-002
               - KT-SEC-003
               - CI-005
               - CI-012
           - id: GATE-001-T5
-            status: open
+            status: done
             title: Enforce Kotlin API/doc coverage in CI
             instructions:
               files:
                 - domain/build.gradle.kts
-                - .github/workflows
+                - .github/workflows/docs.yml
+                - scripts/check-kdoc-coverage.py
+                - scripts/read_kotlin_threshold.py
             verification:
-              - Doc coverage job reads doc_coverage from kotlin/profile.thresholds.yml
+              - Doc coverage job reads doc_coverage fail-closed (consumer copy; analog pin when present)
               - Missing thresholds file fails closed
             guardrail_refs:
               - KT-DOC-001
@@ -863,7 +878,7 @@ milestones:
               - CI-022
 
       - id: GATE-AND-001
-        status: open
+        status: done
         title: Wire Android-module gates (lint, assemble, instrumented tests)
         overview:
           problem: >-
@@ -881,10 +896,8 @@ milestones:
           target: :app Android application module
           modules:
             - app/build.gradle.kts
-            - app/src/main/AndroidManifest.xml
-            - app/src/androidTest
-            - .github/workflows
-            - docs/guardrails/kotlin/profile.md
+            - app/src/test/java/com/pirlruc/finsilo/data/RoomPortfolioRepositoryTest.kt
+            - .github/workflows/android.yml
         acceptance_criteria:
           - ./gradlew :app:lintDebug is blocking in CI (KT-BUILD-002)
           - ./gradlew :app:assembleDebug is in CI (KT-BUILD-001)
@@ -899,12 +912,12 @@ milestones:
           - CI-014
         tasks:
           - id: GATE-AND-001-T1
-            status: open
+            status: done
             title: Run Android lint in CI with local parity
             instructions:
               files:
                 - app/build.gradle.kts
-                - .github/workflows
+                - .github/workflows/android.yml
             verification:
               - ./gradlew :app:lintDebug
               - Lint job is a separate workflow or job from domain-tests (CI-006)
@@ -913,11 +926,11 @@ milestones:
               - CI-008
               - CI-009
           - id: GATE-AND-001-T2
-            status: open
+            status: done
             title: Assemble the debug APK in CI
             instructions:
               files:
-                - .github/workflows
+                - .github/workflows/android.yml
                 - app/build.gradle.kts
             verification:
               - ./gradlew :app:assembleDebug
@@ -927,12 +940,13 @@ milestones:
               - CI-001
               - CI-010
           - id: GATE-AND-001-T3
-            status: open
+            status: done
             title: Add instrumented or Robolectric tests for Compose and Room
             instructions:
               files:
-                - app/src/androidTest
+                - app/src/test/java/com/pirlruc/finsilo/data/RoomPortfolioRepositoryTest.kt
                 - app/build.gradle.kts
+                - .github/workflows/android.yml
             verification:
               - testInstrumentationRunner remains AndroidJUnitRunner
               - A failing Room/Compose test fails CI
@@ -952,8 +966,9 @@ milestones:
             categories, not C++ DYN/NDK or Python ruff/mypy.
           goal: >-
             One decision record: which pack applies, which tools map per
-            category, what FinSilo actually runs today, and which CI phases
-            are missing. Follow-up work stays in GATE-001 and GATE-AND-001.
+            category, what FinSilo actually runs, and which CI phases remain
+            open. Follow-up work stays in GATE-001, GATE-AND-001, and
+            docs/limitations.md.
         architecture:
           target: Guardrail pack selection for this repo
           modules:
@@ -962,16 +977,22 @@ milestones:
             - docs/guardrails/cpp/profile.md
             - docs/guardrails/python/profile.md
             - docs/guardrails/ci/guardrails.md
+            - .github/workflows/quality.yml
             - .github/workflows/domain-tests.yml
+            - .github/workflows/android.yml
+            - .github/workflows/docs.yml
+            - .github/workflows/security.yml
+            - docs/limitations.md
         acceptance_criteria:
           - Governing pack is Kotlin; Android lint is the only Android-specific org tool
           - Java pack is not the primary gate (no Java sources); do not run SpotBugs/Checkstyle
           - Do not vendor cppdevops, clang-tidy, ASan, lizard, ruff, mypy, or bandit
-          - CI-009 quality is partial (domain ktlint + detekt; no Kover)
-          - CI-011 docs and CI-012 security workflows are absent today
-          - CI-010 is partial (domain JUnit only; no Kover; no :app tests)
+          - CI-009 quality.yml runs ktlint + detekt on :domain and :app; complexity is fail-closed against max_cyclomatic_complexity
+          - CI-010 domain-tests.yml runs :domain:test and :domain:koverVerify (T3 still open until 95/95); android.yml runs :app Robolectric
+          - CI-011 docs.yml runs Dokka + KDoc coverage against doc_coverage
+          - CI-012 security.yml runs gitleaks, community semgrep ERROR, and PR dependency-review; SBOM/signing wait for a published artifact (docs/limitations.md)
           - Kotlin has no DYN category; C++ ASan/UBSan/valgrind is not an Android requirement
-          - No docs/guardrail-deviations.yml entries (gaps are open epics, not lowered gates)
+          - No docs/guardrail-deviations.yml entries (gaps are open tasks or limitations.md, not lowered gates)
         guardrail_refs:
           - KT-BUILD-002
           - CI-006

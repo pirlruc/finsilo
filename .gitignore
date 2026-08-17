@@ -20,3 +20,5 @@ keystore.properties
 *.jks
 *.keystore
 !debug.keystore
+__pycache__/
+*.py[cod]

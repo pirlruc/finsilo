@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.model
 import java.math.BigDecimal
 import java.time.LocalDate
 
+/** Instrument row: identity, listing, and valuation currency. */
 data class Asset(
     val id: String,
     val symbol: String,
@@ -35,6 +36,7 @@ data class Asset(
                 '.' !in feedSymbol
 }
 
+/** One FIFO ledger row. Amounts are always stored with an EUR unit price. */
 data class Transaction(
     val id: String,
     val assetId: String,
@@ -53,6 +55,7 @@ data class Transaction(
     val notionalEur: BigDecimal get() = quantity.multiply(unitPriceEur)
 }
 
+/** Stored daily quote, rating, and locally computed SMAs. */
 data class DailyMarketData(
     val assetId: String,
     val date: LocalDate,
@@ -62,10 +65,13 @@ data class DailyMarketData(
     val sma200: BigDecimal? = null,
 )
 
+/** EUR per 1 USD used for mark-to-market (not trade execution). */
 data class CurrencyRate(val date: LocalDate, val eurPerUsd: BigDecimal)
 
+/** Target pie weight for one [AssetType], in percent. */
 data class TargetAllocation(val assetType: AssetType, val weightPercent: BigDecimal)
 
+/** In-memory portfolio used by use cases. */
 data class PortfolioSnapshot(
     val assets: List<Asset>,
     val transactions: List<Transaction>,

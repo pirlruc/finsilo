@@ -8,8 +8,8 @@ Do not keep a second issue list here.
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
 | Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers) |
-| Kotlin quality/coverage/security CI | [GATE-001](issues.yml) — ktlint + detekt done; Kover/gitleaks/Dokka open |
-| Android lint, assemble, instrumented tests | [GATE-AND-001](issues.yml) |
+| Phase 7 still open | [GATE-001-T3](issues.yml) — Kover 95/95 (wired, not green; [limitations.md](limitations.md) LIM-COV) |
+| Known limits not in the backlog | [docs/limitations.md](limitations.md) (status + “stops when” per row) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |
 
 RFC phases in milestone names: **1** foundation · **2** data entry · **3** market APIs · **4** calc engine · **5** notifications · **6** dashboard · **7** guardrails (last).

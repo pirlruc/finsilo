@@ -1,4 +1,4 @@
-name: domain-tests
+name: quality
 
 on:
   pull_request:
@@ -6,14 +6,26 @@ on:
     branches: [main]
 
 concurrency:
-  group: domain-tests-${{ github.workflow }}-${{ github.ref }}
+  group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  domain-test:
+  wrapper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Gradle wrapper validation
+        uses: gradle/actions/wrapper-validation@18f1c6724d5bcb313b5c5ef536430a31e5c5b455 # v4.4.0
+
+  quality:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -29,29 +41,8 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Domain unit tests
-        run: ./gradlew :domain:test :domain:koverLog --stacktrace
+      - name: Complexity gate matches profile (fail closed)
+        run: python3 scripts/check-detekt-complexity.py
 
-  kover:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Check out
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Read coverage gates (fail closed)
-        run: |
-          python3 scripts/read_kotlin_threshold.py statement_coverage
-          python3 scripts/read_kotlin_threshold.py branch_coverage
-
-      - name: Kover verify
-        run: ./gradlew :domain:koverVerify --stacktrace
+      - name: Kotlin format and detekt
+        run: ./gradlew :domain:ktlintCheck :domain:detekt :app:ktlintCheck :app:detekt --stacktrace

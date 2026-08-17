@@ -15,19 +15,16 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.ArrayDeque
 
+/** Open FIFO lot (quantity still held and remaining EUR cost). */
 data class FifoLot(val quantity: BigDecimal, val remainingCostEur: BigDecimal)
 
+/** Aggregated open lots for one instrument. */
 data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecimal, val lots: List<FifoLot> = emptyList()) {
     val averageCostEur: BigDecimal
         get() = if (quantity.signum() == 0) ZERO else div(remainingCostEur, quantity)
 }
 
-/**
- * Reconstructs holdings, cash, and locally valued instruments from the transaction ledger.
- *
- * Open lots use FIFO (oldest buy consumed first), which matches Portuguese capital-gains
- * reporting more closely than a moving average.
- */
+/** Reconstructs holdings, cash, and locally valued instruments from the transaction ledger. */
 class PositionLedger {
     fun ordered(transactions: List<Transaction>): List<Transaction> =
         transactions.sortedWith(compareBy({ it.date }, { it.type.ledgerRank }, { it.id }))

@@ -167,7 +167,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
 
     private fun avSymbol(symbol: String): String = symbol.substringBefore('.')
 
-    private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     companion object {
         private val CRYPTO_IDS = mapOf(
