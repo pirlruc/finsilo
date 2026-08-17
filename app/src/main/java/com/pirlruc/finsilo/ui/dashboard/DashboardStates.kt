@@ -14,9 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportCard
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 
 @Composable
-internal fun EmptyState(onLoadSample: () -> Unit, onAddTransaction: () -> Unit) {
+internal fun EmptyState(
+    onLoadSample: () -> Unit,
+    onAddTransaction: () -> Unit,
+    importState: BrokerImportUiState,
+    onImportCsvs: (List<String>) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -25,12 +32,14 @@ internal fun EmptyState(onLoadSample: () -> Unit, onAddTransaction: () -> Unit) 
         Text("No holdings yet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "This dashboard reads the on-device encrypted ledger. Add a buy or sell for any investment type, or load a synthetic sample.",
+            "This dashboard reads the on-device encrypted ledger. Add a buy or sell, import a broker CSV, or load a synthetic sample.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(20.dp))
         Button(onClick = onAddTransaction) { Text("Add transaction") }
+        Spacer(Modifier.height(12.dp))
+        BrokerImportCard(state = importState, onImportCsvs = onImportCsvs)
         Spacer(Modifier.height(12.dp))
         Button(onClick = onLoadSample) { Text("Load sample portfolio") }
     }

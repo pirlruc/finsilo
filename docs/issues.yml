@@ -1301,3 +1301,99 @@ milestones:
             verification:
               - ./gradlew :app:lintDebug
 
+      - id: FS-025
+        status: done
+        title: Import Trading 212, DEGIRO, and Revolut CSVs
+        overview:
+          problem: >-
+            Holdings live in Revolut, Trading 212, and DEGIRO. Typing every
+            buy/sell by hand is the only path into FinSilo.
+          goal: >-
+            Parse the official CSV/Excel-as-CSV exports from those three brokers
+            into FIFO ledger rows on-device. Do not scrape, do not store broker
+            passwords, and do not reopen FS-DEC-001. Live Trading 212 API sync
+            is FS-026.
+        architecture:
+          target: Domain CSV parsers plus RecordLedgerEntryUseCase
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv
+            - app/src/main/java/com/pirlruc/finsilo/ui/importcsv
+        acceptance_criteria:
+          - Detects Trading 212 History, DEGIRO Transactions/Account, and Revolut Stocks account statement
+          - Buys that need cash insert a same-day DEPOSIT_CASH rather than failing the cash guard
+          - Re-import of the same rows is skipped as duplicates
+          - Files are read on-device via the system picker; no broker credentials
+        guardrail_refs:
+          - KT-API-001
+          - KT-TEST-001
+        tasks:
+          - id: FS-025-T1
+            status: done
+            title: Domain parsers and import use case for the three CSV formats
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv
+            verification:
+              - ./gradlew :domain:test
+          - id: FS-025-T2
+            status: done
+            title: Settings and empty-dashboard CSV file picker
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/importcsv
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+            verification:
+              - ./gradlew :app:lintDebug
+
+      - id: FS-026
+        status: open
+        title: Optional Trading 212 official API sync
+        overview:
+          problem: >-
+            CSV import is manual. Trading 212 publishes a personal REST API
+            (positions, orders, dividends, CSV export jobs) that could refresh
+            the ledger without a file picker.
+          goal: >-
+            Optional, read-only sync using a user-generated Trading 212 API key
+            stored on-device (same pattern as the Alpha Vantage key). Do not
+            request order-placement scopes. Do not scrape. Do not reopen
+            FS-DEC-001 — this is authenticated personal data, not a public
+            GET-only market feed.
+            The Trading 212 public API is not a paid product: Invest and Stocks
+            & Shares ISA holders can generate a key in Settings → API (Beta) at
+            no extra fee. It is beta, rate-limited, unavailable for SIPP, and
+            can place orders if those permissions are granted — FinSilo must
+            use read-only keys only.
+        architecture:
+          target: Authenticated Trading 212 REST client, reuse ImportBrokerCsvUseCase mapping
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/remote
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv
+        acceptance_criteria:
+          - Key stored on-device like the Alpha Vantage key; never logged
+          - Read-only: positions and history, no order placement
+          - Failures stay local (quota/401) without unofficial fallbacks
+        guardrail_refs:
+          - KT-API-001
+          - KT-SEC-001
+        tasks:
+          - id: FS-026-T1
+            status: open
+            title: Read-only Trading 212 client and key store
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Order-placement endpoints are not called
+          - id: FS-026-T2
+            status: open
+            title: Settings toggle to sync T212 into the ledger
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui
+            verification:
+              - ./gradlew :app:lintDebug
+              - Sync is reachable only after unlock
+

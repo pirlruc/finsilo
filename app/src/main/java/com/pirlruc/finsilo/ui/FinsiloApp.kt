@@ -17,6 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.ui.dashboard.DashboardRoute
 import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryRoute
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryViewModel
 import com.pirlruc.finsilo.ui.lock.AppLockGate
@@ -43,10 +44,12 @@ fun FinsiloApp(container: AppContainer) {
 private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.DASHBOARD) }
     val dashboard: DashboardViewModel = viewModel(factory = DashboardViewModel.factory(container))
+    val importer: BrokerImportViewModel = viewModel(factory = BrokerImportViewModel.factory(container))
     when (screen) {
         AppScreen.DASHBOARD ->
             DashboardRoute(
                 viewModel = dashboard,
+                importer = importer,
                 onAddTransaction = { screen = AppScreen.LEDGER },
                 onOpenSettings = { screen = AppScreen.SETTINGS },
             )
@@ -65,6 +68,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
             TargetSettingsRoute(
                 viewModel = settings,
                 lock = lock,
+                importer = importer,
                 onClose = {
                     screen = AppScreen.DASHBOARD
                     dashboard.refresh()

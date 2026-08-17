@@ -26,21 +26,27 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportCard
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.lock.LockUiState
 import com.pirlruc.finsilo.ui.lock.LockViewModel
 import com.pirlruc.finsilo.ui.lock.SecuritySettingsCard
 import com.pirlruc.finsilo.ui.theme.label
 
 @Composable
-fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel, onClose: () -> Unit) {
+fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel, importer: BrokerImportViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lockState by lock.state.collectAsStateWithLifecycle()
+    val importState by importer.state.collectAsStateWithLifecycle()
     TargetSettingsScreen(
         state = state,
         lock = lockState,
+        importState = importState,
         onClose = onClose,
         onWeight = viewModel::setWeight,
         onSave = { viewModel.save(onClose) },
+        onImportCsvs = { texts -> importer.importCsvs(texts) { } },
         onToggleBiometric = lock::persistBiometric,
         onRotateRecovery = lock::rotateRecovery,
         onDismissRecovery = lock::clearNewRecovery,
@@ -52,9 +58,11 @@ fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel,
 fun TargetSettingsScreen(
     state: TargetSettingsUiState,
     lock: LockUiState,
+    importState: BrokerImportUiState,
     onClose: () -> Unit,
     onWeight: (AssetType, String) -> Unit,
     onSave: () -> Unit,
+    onImportCsvs: (List<String>) -> Unit,
     onToggleBiometric: (Boolean) -> Unit,
     onRotateRecovery: () -> Unit,
     onDismissRecovery: () -> Unit,
@@ -79,6 +87,7 @@ fun TargetSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            BrokerImportCard(state = importState, onImportCsvs = onImportCsvs)
             Text(
                 "Weights are percent of total NAV and must sum to 100. Drift beyond ±5% is highlighted on the dashboard.",
                 style = MaterialTheme.typography.bodySmall,

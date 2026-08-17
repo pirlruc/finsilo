@@ -9,6 +9,7 @@ This repository currently delivers product phases **1–6**. Phase **7** wires t
 - Encrypted Room/SQLCipher ledger (assets, transactions, daily market history, FX, target allocation, persisted `nav_history`).
 - First-launch **PIN** (optional biometrics) and a one-time **recovery code** that resets the PIN.
 - Compose **ledger entry** for Buy / Sell / Deposit / Withdrawal / Dividend / Interest on every investment type (cash uses deposit/withdrawal). Optional ISIN and quote symbol (PPR). Sells above remaining FIFO quantity and withdrawals above uninvested cash are refused. Unlisted PPR interest stays in NAV. Sell on CT/deposit/unlisted PPR is a redemption.
+- **Broker CSV import** (Trading 212 History, DEGIRO Transactions + Account statement, Revolut Stocks account statement) from the empty dashboard or Settings. Live Trading 212 API sync is not built ([FS-026](docs/issues.yml)).
 - Settings for `target_allocation` weights (must sum to 100) and lock/recovery rotation.
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.
 - Jetpack Compose dashboard:

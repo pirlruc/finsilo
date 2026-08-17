@@ -26,13 +26,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.domain.model.HistoryRange
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardRoute(viewModel: DashboardViewModel, onAddTransaction: () -> Unit, onOpenSettings: () -> Unit) {
+fun DashboardRoute(
+    viewModel: DashboardViewModel,
+    importer: BrokerImportViewModel,
+    onAddTransaction: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val importState by importer.state.collectAsStateWithLifecycle()
     DashboardScreen(
         state = state,
+        importState = importState,
         onRangeSelected = viewModel::setRange,
         onLoadSample = viewModel::loadSample,
         onClear = viewModel::clearPortfolio,
@@ -40,6 +49,7 @@ fun DashboardRoute(viewModel: DashboardViewModel, onAddTransaction: () -> Unit, 
         onSaveKey = viewModel::saveAlphaVantageKey,
         onAddTransaction = onAddTransaction,
         onOpenSettings = onOpenSettings,
+        onImportCsvs = { texts -> importer.importCsvs(texts) { viewModel.refresh() } },
     )
 }
 
@@ -47,6 +57,7 @@ fun DashboardRoute(viewModel: DashboardViewModel, onAddTransaction: () -> Unit, 
 @Composable
 fun DashboardScreen(
     state: DashboardUiState,
+    importState: BrokerImportUiState,
     onRangeSelected: (HistoryRange) -> Unit,
     onLoadSample: () -> Unit,
     onClear: () -> Unit,
@@ -54,6 +65,7 @@ fun DashboardScreen(
     onSaveKey: (String) -> Unit,
     onAddTransaction: () -> Unit,
     onOpenSettings: () -> Unit,
+    onImportCsvs: (List<String>) -> Unit,
 ) {
     var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
@@ -78,7 +90,7 @@ fun DashboardScreen(
             when {
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.error != null -> ErrorState(state.error)
-                state.empty -> EmptyState(onLoadSample, onAddTransaction)
+                state.empty -> EmptyState(onLoadSample, onAddTransaction, importState, onImportCsvs)
                 state.report != null -> DashboardContent(state.report, state.range, state.statusMessage, onRangeSelected)
             }
         }
