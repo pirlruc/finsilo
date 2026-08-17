@@ -26,7 +26,9 @@ internal object RevolutStocksParser {
     private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
         val amount = BrokerMoney.absAmount(row.get("Total Amount", "Total"))
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash row missing amount", date)
-        return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, amount, row.get("ID"))
+        val eur = BrokerMoney.toEurCash(amount, row.get("Currency"), row.get("FX Rate", "FX"))
+            ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash currency cannot be booked in EUR", date)
+        return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, eur, row.get("ID"))
     }
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {

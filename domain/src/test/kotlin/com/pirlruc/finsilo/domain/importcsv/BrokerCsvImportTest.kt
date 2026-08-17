@@ -333,4 +333,27 @@ class CsvReaderAndDatesTest {
         assertEquals(AssetType.STOCK, BrokerAssetType.infer("CRH", "CRH PLC", "IE0001827041"))
         assertEquals(AssetType.ETF, BrokerAssetType.infer("VWCE", "Vanguard FTSE All-World", "IE00BK5BQT80"))
     }
+
+    @Test
+    fun usdCashTopUpConvertsWithFx() {
+        val csv =
+            """
+            Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate
+            2024-02-10T09:00:00.000Z,,CASH TOP-UP,,,500,USD,0.92
+            """.trimIndent()
+        val line = BrokerCsv.parse(csv).lines.first { it.type == TransactionType.DEPOSIT_CASH }
+        assertEquals(0, bd("460").compareTo(line.quantity))
+        assertEquals(Currency.EUR, line.currency)
+    }
+
+    @Test
+    fun gbpCashDepositIsSkipped() {
+        val csv =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Deposit,2024-01-10 09:00:00,,,,,,,1000.00,GBP,DEP1
+            """.trimIndent()
+        val parsed = BrokerCsv.parse(csv)
+        assertTrue(parsed.lines.single().skipReason!!.contains("Cash currency"))
+    }
 }

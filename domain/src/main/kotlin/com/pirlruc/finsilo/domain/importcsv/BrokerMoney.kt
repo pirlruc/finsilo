@@ -98,6 +98,12 @@ internal object BrokerMoney {
         return if (invert) div(BigDecimal.ONE, rate) else rate
     }
 
+    fun toEurCash(amount: BigDecimal, currency: String, exchangeRate: String): BigDecimal? = when (currencyCode(currency, "")) {
+        "EUR", "" -> amount
+        "USD" -> eurPerUsdRate(exchangeRate)?.let { times(amount, it) }
+        else -> null
+    }
+
     private fun feesEur(parts: MoneyParts, eurPerUsd: BigDecimal?): BigDecimal {
         val fee = absAmount(parts.fees) ?: return BigDecimal.ZERO
         return when (currencyCode(parts.feesCurrency, parts.totalCurrency)) {

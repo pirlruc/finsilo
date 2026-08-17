@@ -28,7 +28,9 @@ internal object Trading212CsvParser {
         if (amount == null || amount.signum() <= 0) {
             return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Cash row missing Total", date)
         }
-        return BrokerLines.cash(BrokerCsvFormat.TRADING_212, sourceLine, date, type, amount, row.get("ID"))
+        val eur = BrokerMoney.toEurCash(amount, row.get("Currency (Total)"), row.get("Exchange rate"))
+            ?: return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Cash currency cannot be booked in EUR", date)
+        return BrokerLines.cash(BrokerCsvFormat.TRADING_212, sourceLine, date, type, eur, row.get("ID"))
     }
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
