@@ -12,7 +12,7 @@ This repository currently delivers **Phase 6 (dashboard)** plus the **encrypted 
   - Donut chart of current allocation by investment type (Vico).
   - Line chart of portfolio NAV in EUR with 1M / 3M / YTD / All ranges (Vico).
   - TWR, yield on cost (TTM and last payment × frequency), ratings, and SMA 50/200.
-- Optional **Sync** using free APIs. An Alpha Vantage key is stored on-device when you have one; Frankfurter, Stooq, and CoinGecko work without a key.
+- Optional **Sync** using free APIs. An Alpha Vantage key is stored on-device when you have one; Frankfurter (including FX history), Stooq, and CoinGecko work without a key.
 - Empty state with a **synthetic** sample portfolio so the charts can be reviewed without network access.
 
 ## Design decisions (not silent RFC copies)

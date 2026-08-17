@@ -170,6 +170,49 @@ class PortfolioValuatorTest {
         assertEquals(0, bd("200").compareTo(stock.valueEur))
     }
 
+    @Test
+    fun latestFxIsCarriedBackwardWhenEarlierDaysHaveNoRow() {
+        val eurPerUsd = bd("0.92")
+        val snapshot = snapshot(
+            assets = listOf(apple, cash),
+            transactions = listOf(
+                cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                buy("t1", apple.id, LocalDate.of(2026, 1, 2), bd("2"), bd("100"), Currency.USD, eurPerUsd, fees = BigDecimal.ZERO),
+            ),
+            market = listOf(DailyMarketData(apple.id, LocalDate.of(2026, 1, 2), bd("100"))),
+            fx = listOf(CurrencyRate(asOf, eurPerUsd)),
+        )
+        val stock = valuator.valueHoldings(snapshot, LocalDate.of(2026, 1, 2)).single { it.asset.id == apple.id }
+        assertMoney("184", stock.valueEur, "value")
+    }
+
+    @Test
+    fun portfolioWithdrawalDoesNotReduceLocalInstrument() {
+        val snapshot = snapshot(
+            assets = listOf(ct, cash),
+            transactions = listOf(
+                cashIn("c0", LocalDate.of(2026, 1, 1), bd("5000")),
+                buy("b1", ct.id, LocalDate.of(2026, 1, 2), bd("3000"), bd("1"), Currency.EUR, BigDecimal.ONE, fees = BigDecimal.ZERO),
+                Transaction(
+                    id = "w1",
+                    assetId = cash.id,
+                    date = LocalDate.of(2026, 6, 1),
+                    type = TransactionType.WITHDRAWAL,
+                    quantity = bd("100"),
+                    unitPriceNative = BigDecimal.ONE,
+                    exchangeRateAtExecution = BigDecimal.ONE,
+                    unitPriceEur = BigDecimal.ONE,
+                    feesEur = BigDecimal.ZERO,
+                ),
+            ),
+            market = emptyList(),
+            fx = emptyList(),
+        )
+        val report = valuator.allocation(snapshot, asOf)
+        assertMoney("3000", report.holdings.single { it.asset.id == ct.id }.valueEur, "ct")
+        assertMoney("1900", report.cashEur, "cash")
+    }
+
     private fun snapshot(
         assets: List<Asset>,
         transactions: List<Transaction>,

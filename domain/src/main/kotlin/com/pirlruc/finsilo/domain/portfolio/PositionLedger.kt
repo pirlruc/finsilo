@@ -75,7 +75,8 @@ class PositionLedger {
 
     /**
      * Deposits and CTs have no market price. Value = total deposits + total interest
-     * (withdrawals via SELL reduce the balance).
+     * (redemptions via SELL reduce the balance). Portfolio-level WITHDRAWAL
+     * only affects uninvested cash.
      */
     fun locallyValuedEur(transactions: List<Transaction>): BigDecimal {
         var value = ZERO
@@ -83,8 +84,8 @@ class PositionLedger {
             value = when (tx.type) {
                 TransactionType.BUY -> plus(value, minus(tx.notionalEur, tx.feesEur))
                 TransactionType.INTEREST -> plus(value, tx.notionalEur)
-                TransactionType.SELL, TransactionType.WITHDRAWAL -> minus(value, tx.notionalEur)
-                TransactionType.DEPOSIT_CASH, TransactionType.DIVIDEND -> value
+                TransactionType.SELL -> minus(value, tx.notionalEur)
+                TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL, TransactionType.DIVIDEND -> value
             }
         }
         return value
@@ -117,8 +118,10 @@ class PositionLedger {
     fun buyCostEur(tx: Transaction): BigDecimal = plus(tx.notionalEur, tx.feesEur)
 
     fun eurPerUsdOn(date: LocalDate, rates: List<CurrencyRate>): BigDecimal {
-        val rate = rates.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }
-        return rate?.eurPerUsd ?: BigDecimal.ONE
+        if (rates.isEmpty()) return BigDecimal.ONE
+        rates.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.eurPerUsd?.let { return it }
+        // A single latest quote must still value earlier NAV points; do not silently use 1.0.
+        return rates.minBy { it.date }.eurPerUsd
     }
 
     fun marketOnOrBefore(

@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.usecase
 
+import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.MarketSignal
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.RelativeToAverage
@@ -19,7 +20,7 @@ class GetMarketSignalsUseCase(
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
 
         return snapshot.assets.mapNotNull { asset ->
-            if (asset.assetType.isLocallyValued) return@mapNotNull null
+            if (asset.assetType.isLocallyValued || asset.assetType == AssetType.CASH) return@mapNotNull null
             val txs = txsByAsset[asset.id].orEmpty()
             if (txs.isEmpty()) return@mapNotNull null
             if (ledger.position(txs).quantity.signum() == 0) return@mapNotNull null

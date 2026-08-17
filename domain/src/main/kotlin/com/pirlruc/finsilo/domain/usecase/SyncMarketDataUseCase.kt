@@ -4,12 +4,14 @@ import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.market.MovingAverages
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import java.time.LocalDate
 
 data class MarketSyncResult(
     val marketData: List<DailyMarketData>,
+    val fxRates: List<CurrencyRate> = emptyList(),
     val failures: List<String>,
 )
 
@@ -25,6 +27,7 @@ class SyncMarketDataUseCase(
         val rows = ArrayList<DailyMarketData>()
         for (asset in snapshot.assets) {
             if (asset.assetType.isLocallyValued || asset.assetType == AssetType.CASH) continue
+            if (asset.assetType == AssetType.PPR && '.' !in asset.symbol) continue
             val history = runCatching { feed.dailyHistory(asset) }
                 .onFailure { failures += "${asset.symbol}: ${it.message}" }
                 .getOrNull()
@@ -46,7 +49,16 @@ class SyncMarketDataUseCase(
                 )
             }
         }
-        return MarketSyncResult(marketData = rows, failures = failures)
+        val fxFrom = snapshot.transactions.minOfOrNull { it.date } ?: asOf.minusDays(MAX_BARS.toLong())
+        val fxRates = runCatching { feed.eurPerUsdHistory(fxFrom, asOf) }
+            .onFailure { failures += "FX: ${it.message}" }
+            .getOrDefault(emptyList())
+            .ifEmpty {
+                runCatching { listOf(CurrencyRate(asOf, feed.eurPerUsd())) }
+                    .onFailure { failures += "FX: ${it.message}" }
+                    .getOrDefault(emptyList())
+            }
+        return MarketSyncResult(marketData = rows, fxRates = fxRates, failures = failures)
     }
 
     companion object {

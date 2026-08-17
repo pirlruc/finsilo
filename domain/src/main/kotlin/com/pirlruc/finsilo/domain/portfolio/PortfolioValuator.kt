@@ -81,7 +81,7 @@ class PortfolioValuator(
             val type = holding.asset.assetType
             byType[type] = plus(byType[type] ?: ZERO, holding.valueEur)
         }
-        if (cash.signum() != 0) {
+        if (cash.signum() > 0) {
             byType[AssetType.CASH] = plus(byType[AssetType.CASH] ?: ZERO, cash)
         }
 

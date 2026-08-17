@@ -40,13 +40,13 @@ class RoomPortfolioRepository(
 
     suspend fun upsertQuotes(
         market: List<com.pirlruc.finsilo.domain.model.DailyMarketData>,
-        fx: com.pirlruc.finsilo.domain.model.CurrencyRate?,
+        fx: List<com.pirlruc.finsilo.domain.model.CurrencyRate>,
     ) {
         if (market.isNotEmpty()) {
             dao.insertMarketData(market.map(DailyMarketDataEntity::from))
         }
-        if (fx != null) {
-            dao.insertFxRates(listOf(CurrencyRateEntity.from(fx)))
+        if (fx.isNotEmpty()) {
+            dao.insertFxRates(fx.map(CurrencyRateEntity::from))
         }
     }
 }

@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.domain.market
 
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PriceBar
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
@@ -10,6 +11,8 @@ import java.time.LocalDate
 
 interface MarketFeed {
     suspend fun eurPerUsd(): BigDecimal
+
+    suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate>
 
     suspend fun dailyHistory(asset: Asset): List<PriceBar>
 
@@ -30,16 +33,30 @@ object AlphaVantageParser {
     private val fxRate = Regex("\"5\\. Exchange Rate\"\\s*:\\s*\"([0-9.]+)\"")
     private val commodityItem = Regex("\"date\"\\s*:\\s*\"(\\d{4}-\\d{2}-\\d{2})\"\\s*,\\s*\"value\"\\s*:\\s*\"([0-9.]+)\"")
     private val commodityMapRow = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\"([0-9.]+)\"")
+    private val quotedField = { key: String -> Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"") }
 
-    fun dailyCloses(json: String): List<PriceBar> =
-        dailyCloseAlt.findAll(json).map { match ->
+    fun ensureUsable(json: String) {
+        extract(json, "Error Message")?.let { error("Alpha Vantage: $it") }
+        extract(json, "Note")?.let { error("Alpha Vantage limit: $it") }
+        extract(json, "Information")?.let { error("Alpha Vantage: $it") }
+    }
+
+    private fun extract(json: String, key: String): String? = quotedField(key).find(json)?.groupValues?.get(1)
+
+    fun dailyCloses(json: String): List<PriceBar> {
+        ensureUsable(json)
+        return dailyCloseAlt.findAll(json).map { match ->
             PriceBar(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
         }.sortedBy { it.date }.toList()
+    }
 
-    fun exchangeRate(json: String): BigDecimal? =
-        fxRate.find(json)?.groupValues?.get(1)?.let { BigDecimal(it) }
+    fun exchangeRate(json: String): BigDecimal? {
+        ensureUsable(json)
+        return fxRate.find(json)?.groupValues?.get(1)?.let { BigDecimal(it) }
+    }
 
     fun commoditySeries(json: String): List<PriceBar> {
+        ensureUsable(json)
         val fromItems = commodityItem.findAll(json).mapNotNull { match -> toBar(match.groupValues[1], match.groupValues[2]) }.toList()
         if (fromItems.isNotEmpty()) return fromItems.sortedBy { it.date }
         val dataBlock = json.substringAfter("\"data\"", missingDelimiterValue = json)
@@ -54,6 +71,7 @@ object AlphaVantageParser {
     }
 
     fun analystRating(json: String): AnalystRating {
+        ensureUsable(json)
         fun count(label: String): Int =
             Regex("\"$label\"\\s*:\\s*\"?(\\d+)\"?").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
         val strongBuy = count("AnalystRatingStrongBuy")
@@ -91,9 +109,15 @@ object StooqParser {
 
 object FrankfurterParser {
     private val eur = Regex("\"EUR\"\\s*:\\s*([0-9.]+)")
+    private val datedEur = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{\\s*\"EUR\"\\s*:\\s*([0-9.]+)")
 
     fun eurPerUsd(json: String): BigDecimal? =
         eur.find(json)?.groupValues?.get(1)?.let { BigDecimal(it) }
+
+    fun eurPerUsdSeries(json: String): List<CurrencyRate> =
+        datedEur.findAll(json).map { match ->
+            CurrencyRate(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
+        }.sortedBy { it.date }.toList()
 }
 
 object CoinGeckoParser {

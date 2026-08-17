@@ -9,6 +9,7 @@ import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
+import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -113,11 +114,8 @@ class DashboardViewModel(
             runCatching {
                 val snapshot = repository.load()
                 val asOf = today()
-                val fx = runCatching {
-                    com.pirlruc.finsilo.domain.model.CurrencyRate(asOf, container.marketFeed.eurPerUsd())
-                }.getOrNull()
-                val result = com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
-                repository.upsertQuotes(result.marketData, fx)
+                val result = SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
+                repository.upsertQuotes(result.marketData, result.fxRates)
                 result
             }.onSuccess { result ->
                 val extra = if (result.failures.isEmpty()) "" else " (${result.failures.size} skipped)"

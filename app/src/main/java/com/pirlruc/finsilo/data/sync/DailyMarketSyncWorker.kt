@@ -1,13 +1,14 @@
 package com.pirlruc.finsilo.data.sync
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.pirlruc.finsilo.FinsiloApplication
-import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
 import java.time.Duration
 import java.time.LocalDate
@@ -24,9 +25,8 @@ class DailyMarketSyncWorker(
         val snapshot = container.repository.load()
         if (snapshot.isEmpty) return Result.success()
         val asOf = LocalDate.now()
-        val fx = runCatching { CurrencyRate(asOf, container.marketFeed.eurPerUsd()) }.getOrNull()
         val synced = SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
-        container.repository.upsertQuotes(synced.marketData, fx)
+        container.repository.upsertQuotes(synced.marketData, synced.fxRates)
         return if (synced.failures.isEmpty() || synced.marketData.isNotEmpty()) Result.success() else Result.retry()
     }
 
@@ -37,10 +37,15 @@ class DailyMarketSyncWorker(
             val request =
                 PeriodicWorkRequestBuilder<DailyMarketSyncWorker>(1, TimeUnit.DAYS)
                     .setInitialDelay(millisUntil2300(), TimeUnit.MILLISECONDS)
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build(),
+                    )
                     .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
         }

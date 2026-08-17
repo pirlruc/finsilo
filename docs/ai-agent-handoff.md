@@ -31,13 +31,13 @@ Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Ro
 
 - Phase 2 Compose forms for Buy/Sell/Deposit/Withdrawal.
 - Phase 5 NotificationManager worker (signal detection **does** exist and is shown on the dashboard). Daily quote sync **is** scheduled.
-- Private `guardrails` / `methodologies` / `github-scaffold` submodules until `CURSOR_REPO_READ_TOKEN` is injected.
+- Private `guardrails` / `methodologies` / `github-scaffold` submodules until `CURSOR_REPO_READ_TOKEN` is injected into a run that actually has it (this run has no linked environment; only `GH_CACHE_TOKEN` was present).
 
 ## Market feed (GET only)
 
 | Asset | Source | Key |
 | --- | --- | --- |
-| FX EUR/USD | Frankfurter, then Alpha Vantage `CURRENCY_EXCHANGE_RATE` | AV optional |
+| FX EUR/USD | Frankfurter latest + `from..to` history, then Alpha Vantage `CURRENCY_EXCHANGE_RATE` | AV optional |
 | Crypto | CoinGecko `market_chart` | none |
 | EU listings (`.DE`, …) | Stooq daily CSV, then AV | AV optional |
 | Commodities | Stooq `xauusd` for gold; AV `WTI`/`BRENT`/… or XAU FX | AV for non-XAU |

@@ -9,10 +9,12 @@ import com.pirlruc.finsilo.domain.market.StooqParser
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PriceBar
 import java.math.BigDecimal
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.time.LocalDate
 
 /**
  * Free-tier quotes only. Routing:
@@ -37,8 +39,18 @@ class CompositeMarketFeed(
         val json = http.get(
             "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=EUR&apikey=${enc(key)}",
         )
+        AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.exchangeRate(json)
             ?: throw IllegalStateException("Alpha Vantage FX quota or unexpected payload")
+    }
+
+    override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> {
+        val start = if (from.isAfter(to)) to else from
+        runCatching {
+            val json = http.get("https://api.frankfurter.app/$start..$to?from=USD&to=EUR")
+            FrankfurterParser.eurPerUsdSeries(json)
+        }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+        return listOf(CurrencyRate(to, eurPerUsd()))
     }
 
     override suspend fun dailyHistory(asset: Asset): List<PriceBar> {
@@ -67,7 +79,7 @@ class CompositeMarketFeed(
         val json = http.get(
             "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(avSymbol(asset.symbol))}&apikey=${enc(key)}",
         )
-        return AlphaVantageParser.analystRating(json)
+        return runCatching { AlphaVantageParser.analystRating(json) }.getOrDefault(AnalystRating.NONE)
     }
 
     private suspend fun coinGecko(asset: Asset): List<PriceBar> {

@@ -15,7 +15,6 @@ import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.TwrSplit
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -122,7 +121,14 @@ class TwrYocAndParserTest {
         assertEquals(bd("51"), StooqParser.dailyCloses(stooq).last().closeNative)
 
         assertEquals(0, bd("0.91").compareTo(FrankfurterParser.eurPerUsd("""{"rates":{"EUR":0.91}}""")))
-        assertNull(AlphaVantageParser.exchangeRate("""{"Note":"Thank you for using Alpha Vantage"}"""))
+        val fxSeries = FrankfurterParser.eurPerUsdSeries(
+            """{"rates":{"2026-08-14":{"EUR":0.91},"2026-08-15":{"EUR":0.92}}}""",
+        )
+        assertEquals(2, fxSeries.size)
+        assertEquals(0, bd("0.92").compareTo(fxSeries.last().eurPerUsd))
+
+        val quota = runCatching { AlphaVantageParser.exchangeRate("""{"Note":"Thank you for using Alpha Vantage"}""") }
+        assertTrue(quota.isFailure)
 
         val gecko = """{"prices":[[1755302400000,64000.5],[1755388800000,64100]]}"""
         val geckoCloses = CoinGeckoParser.dailyCloses(gecko)

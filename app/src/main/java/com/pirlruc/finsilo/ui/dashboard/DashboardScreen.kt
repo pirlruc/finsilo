@@ -260,7 +260,10 @@ private fun AllocationCard(slices: List<AllocationSlice>, total: java.math.BigDe
             if (slices.isEmpty()) {
                 Text("Nothing to allocate.", modifier = Modifier.padding(top = 12.dp))
             } else {
-                AllocationPie(slices, Modifier.fillMaxWidth().height(260.dp).padding(top = 8.dp))
+                val pieSlices = slices.filter { it.valueEur.signum() > 0 && it.weightPercent.signum() > 0 }
+                if (pieSlices.isNotEmpty()) {
+                    AllocationPie(pieSlices, Modifier.fillMaxWidth().height(260.dp).padding(top = 8.dp))
+                }
                 Spacer(Modifier.height(8.dp))
                 slices.forEach { slice -> AllocationLegendRow(slice) }
             }
