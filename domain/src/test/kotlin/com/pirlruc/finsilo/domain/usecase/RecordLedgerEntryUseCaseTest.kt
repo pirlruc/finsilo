@@ -64,7 +64,7 @@ class RecordLedgerEntryUseCaseTest {
                 afterBoth,
                 LedgerEntryRequest(
                     type = TransactionType.SELL,
-                    date = asOf,
+                    date = asOf.plusDays(1),
                     quantity = bd("1"),
                     unitPriceNative = bd("100"),
                     feesEur = BigDecimal.ZERO,
