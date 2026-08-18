@@ -25,7 +25,7 @@ class RecordLedgerEntryUseCaseTest {
 
     @Test
     fun sameDayBuysReplayInWriteOrderNotUuidOrder() {
-        val ids = ArrayDeque(listOf("zzz-first", "aaa-second", "sell-row"))
+        val ids = ArrayDeque(listOf("asset-vwce", "zzz-first", "aaa-second", "sell-row"))
         val recorder = RecordLedgerEntryUseCase(newId = { ids.removeFirst() })
         val funded = cashOnly(bd("5000"))
         val cheap =

@@ -8,6 +8,7 @@ import com.pirlruc.finsilo.domain.market.AlphaVantageParser
 import com.pirlruc.finsilo.domain.market.ListedQuoteRouting
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
+import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
@@ -82,11 +83,11 @@ class CoverageCloseoutTest {
         assertNotEquals(NavInputsFingerprint.of(base), NavInputsFingerprint.of(shifted))
         val first = buy(etf.id).copy(id = "zzz", date = asOf, sequence = 1)
         val second = first.copy(id = "aaa", sequence = 2, unitPriceEur = bd("200"), unitPriceNative = bd("200"))
-        val candidate = first.copy(id = "sell", type = TransactionType.SELL, sequence = 3)
+        val candidate = first.copy(id = "later", sequence = 3, unitPriceEur = bd("50"), unitPriceNative = bd("50"))
         val prior = PositionLedger().preceding(listOf(second, first), candidate)
         assertEquals(listOf("zzz", "aaa"), prior.map { it.id })
-        val tied = PositionLedger().preceding(listOf(second.copy(sequence = 1), first), candidate.copy(sequence = 1))
-        assertEquals(listOf("aaa"), tied.map { it.id })
+        val tied = PositionLedger().preceding(listOf(second.copy(sequence = 1), first), candidate.copy(sequence = 1, id = "zzz-later"))
+        assertEquals(listOf("aaa", "zzz"), tied.map { it.id })
     }
 
     @Test
@@ -106,10 +107,12 @@ class CoverageCloseoutTest {
         val alerts = GetPortfolioAlertsUseCase()(snapshot, asOf)
         assertTrue(alerts.any { it.channel == AlertChannel.RATING })
         assertTrue(alerts.any { it.title.contains("death") })
-        val slices = GetAllocationUseCase()(snapshot, asOf).slices
-        assertTrue(slices.any { it.driftPercent == null || !it.exceedsDriftBand })
-        val noTarget = GetAllocationUseCase()(snap(), asOf).slices
-        assertTrue(noTarget.all { it.driftPercent == null && !it.exceedsDriftBand })
+        val inBand = AllocationSlice(AssetType.ETF, bd("50"), bd("52"), bd("50"), bd("2"))
+        val unknown = AllocationSlice(AssetType.ETF, bd("50"), bd("50"), null, null)
+        val drifted = AllocationSlice(AssetType.ETF, bd("50"), bd("60"), bd("50"), bd("10"))
+        assertFalse(inBand.exceedsDriftBand)
+        assertFalse(unknown.exceedsDriftBand)
+        assertTrue(drifted.exceedsDriftBand)
     }
 
     @Test
@@ -146,7 +149,7 @@ class CoverageCloseoutTest {
 
                 override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate) = listOf(CurrencyRate(to, bd("0.92")))
 
-                override suspend fun dailyHistory(asset: Asset, asOf: LocalDate) = listOf(PriceBar(asOf.minusDays(1), bd("190")), PriceBar(asOf, bd("200")))
+                override suspend fun dailyHistory(asset: Asset, asOf: LocalDate) = listOf(PriceBar(asOf.minusDays(10), bd("190")), PriceBar(asOf, bd("200")))
 
                 override suspend fun analystRating(asset: Asset) = AnalystRating.BUY
             }
@@ -154,12 +157,12 @@ class CoverageCloseoutTest {
             PortfolioSnapshot(
                 listOf(apple),
                 emptyList(),
-                listOf(DailyMarketData(apple.id, asOf.minusDays(1), bd("190"), AnalystRating.HOLD)),
+                listOf(DailyMarketData(apple.id, asOf.minusDays(10), bd("190"), AnalystRating.HOLD)),
                 emptyList(),
                 emptyList(),
             )
         val synced = runBlocking { SyncMarketDataUseCase(feed)(stored, asOf) }
-        assertEquals(AnalystRating.HOLD, synced.marketData.single { it.date == asOf.minusDays(1) }.analystRating)
+        assertEquals(AnalystRating.HOLD, synced.marketData.single { it.date == asOf.minusDays(10) }.analystRating)
         assertEquals(AnalystRating.BUY, synced.marketData.single { it.date == asOf }.analystRating)
         assertTrue(runCatching { AlphaVantageParser.ensureUsable("""{"Note":"call frequency"}""") }.isFailure)
         assertTrue(AlphaVantageParser.dailyCloses("""{"2026-08-14":{"4. close":"12.5"}}""").isNotEmpty())

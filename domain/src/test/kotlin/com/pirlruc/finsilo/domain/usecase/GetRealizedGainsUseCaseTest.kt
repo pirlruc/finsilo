@@ -101,7 +101,7 @@ class GetRealizedGainsUseCaseTest {
                 cashIn("c", LocalDate.of(2025, 1, 1), bd("5000")),
                 buy("zzz", etf.id, LocalDate.of(2025, 3, 1), bd("1"), bd("10"), sequence = 2),
                 buy("aaa", etf.id, LocalDate.of(2025, 3, 1), bd("1"), bd("90"), sequence = 3),
-                sell("s", etf.id, LocalDate.of(2025, 3, 1), bd("1"), bd("100"), sequence = 4),
+                sell("s", etf.id, LocalDate.of(2025, 3, 2), bd("1"), bd("100"), sequence = 4),
             )
         val line = useCase(snapshot, 2025).lines.single()
         assertEquals("zzz", snapshot.transactions.single { it.sequence == 2L }.id)

@@ -253,7 +253,7 @@ class ImportCsvBranchCoverageTest {
                 id = "gone",
                 assetId = "missing-asset",
                 date = LocalDate.of(2024, 1, 15),
-                type = TransactionType.BUY,
+                type = TransactionType.DIVIDEND,
                 quantity = bd("1"),
                 unitPriceNative = bd("1"),
                 exchangeRateAtExecution = BigDecimal.ONE,
