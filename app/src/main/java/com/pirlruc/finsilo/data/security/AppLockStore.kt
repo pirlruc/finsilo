@@ -48,7 +48,7 @@ class AppLockStore(context: Context) : AppLockRepository {
         val pinSalt = AppLockCrypto.generateSalt()
         val recoverySalt = AppLockCrypto.generateSalt()
         val recovery = AppLockCrypto.normalizeRecovery(recoveryCode)
-        prefs.edit()
+        return prefs.edit()
             .putString(KEY_PIN_SALT, AppLockCrypto.toHex(pinSalt))
             .putString(KEY_PIN_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(pin, pinSalt)))
             .putString(KEY_RECOVERY_SALT, AppLockCrypto.toHex(recoverySalt))
@@ -56,8 +56,7 @@ class AppLockStore(context: Context) : AppLockRepository {
             .putBoolean(KEY_BIOMETRIC, biometric)
             .remove(KEY_FAILED_ATTEMPTS)
             .remove(KEY_LOCKOUT_UNTIL)
-            .apply()
-        return true
+            .commit()
     }
 
     override fun verifyPin(pin: String): Boolean = verifyStored(pin, KEY_PIN_SALT, KEY_PIN_HASH)
@@ -68,24 +67,22 @@ class AppLockStore(context: Context) : AppLockRepository {
     override fun resetPin(newPin: String): Boolean {
         if (!AppLockCrypto.pinOk(newPin)) return false
         val salt = AppLockCrypto.generateSalt()
-        prefs.edit()
+        return prefs.edit()
             .putString(KEY_PIN_SALT, AppLockCrypto.toHex(salt))
             .putString(KEY_PIN_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(newPin, salt)))
             .remove(KEY_FAILED_ATTEMPTS)
             .remove(KEY_LOCKOUT_UNTIL)
-            .apply()
-        return true
+            .commit()
     }
 
     override fun rotateRecovery(newCode: String): Boolean {
         val recovery = AppLockCrypto.normalizeRecovery(newCode)
         if (recovery.length < 16) return false
         val salt = AppLockCrypto.generateSalt()
-        prefs.edit()
+        return prefs.edit()
             .putString(KEY_RECOVERY_SALT, AppLockCrypto.toHex(salt))
             .putString(KEY_RECOVERY_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(recovery, salt)))
-            .apply()
-        return true
+            .commit()
     }
 
     override fun failedUnlockAttempts(): Int = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
@@ -98,11 +95,11 @@ class AppLockStore(context: Context) : AppLockRepository {
         prefs.edit()
             .putInt(KEY_FAILED_ATTEMPTS, attempts)
             .putLong(KEY_LOCKOUT_UNTIL, until)
-            .apply()
+            .commit()
     }
 
     override fun clearUnlockFailures() {
-        prefs.edit().remove(KEY_FAILED_ATTEMPTS).remove(KEY_LOCKOUT_UNTIL).apply()
+        prefs.edit().remove(KEY_FAILED_ATTEMPTS).remove(KEY_LOCKOUT_UNTIL).commit()
     }
 
     private fun verifyStored(secret: String, saltKey: String, hashKey: String): Boolean {

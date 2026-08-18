@@ -1,25 +1,13 @@
 package com.pirlruc.finsilo.ui.lock
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
 
 @Composable
 fun LockSetupScreen(
@@ -30,52 +18,36 @@ fun LockSetupScreen(
     onBiometric: (Boolean) -> Unit,
     onContinue: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Protect this device copy", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    val enabled = !state.working
+    LockScreenColumn {
+        FinSiloBrand()
+        Text("Protect this device copy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
-            "Set a PIN before the ledger opens. Optionally unlock later with biometrics after you have entered the PIN once in this process. Save the recovery code; losing both PIN and recovery code makes this copy of the ledger unreadable.",
+            "Set a PIN before the ledger opens. Biometrics only work after a PIN unlock in this process. " +
+                "Losing both PIN and recovery code makes this copy of the ledger unreadable.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedTextField(
-            value = state.pin,
-            onValueChange = onPin,
-            label = { Text("PIN (4–8 digits)") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = state.pinConfirm,
-            onValueChange = onConfirm,
-            label = { Text("Confirm PIN") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        PinSecretField(state.pin, onPin, "PIN (4–8 digits)", enabled)
+        PinSecretField(state.pinConfirm, onConfirm, "Confirm PIN", enabled, ImeAction.Done, onContinue)
         Text("Recovery code", style = MaterialTheme.typography.titleMedium)
-        Text(state.recoveryCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
-            "Write this down offline. It is not shown again. The PIN and this code wrap the SQLCipher key. Losing both makes the ledger on this device unreadable.",
+            state.recoveryCode,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        Text(
+            "Write this down offline. It is not shown again. The PIN and this code wrap the SQLCipher key.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Checkbox(checked = state.recoveryConfirm, onCheckedChange = onSaved)
-            Text("I saved the recovery code", modifier = Modifier.padding(top = 12.dp))
-        }
+        CheckRow(state.recoveryConfirm, enabled, "I saved the recovery code", onSaved)
         if (state.biometricAvailable) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Checkbox(checked = state.biometric, onCheckedChange = onBiometric)
-                Text("Unlock with biometrics", modifier = Modifier.padding(top = 12.dp))
-            }
+            CheckRow(state.biometric, enabled, "Unlock with biometrics after PIN", onBiometric)
         }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+        LockError(state.error)
+        LockWorkingIndicator(state.working)
+        Button(onClick = onContinue, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
     }
 }

@@ -22,7 +22,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         unseen.forEach { alert ->
             val notification =
                 Notification.Builder(context, channelId(alert.channel))
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setSmallIcon(R.drawable.ic_stat_silo)
                     .setContentTitle(alert.title)
                     .setContentText(alert.body)
                     .setAutoCancel(true)

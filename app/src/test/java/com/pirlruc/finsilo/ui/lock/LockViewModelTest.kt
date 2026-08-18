@@ -184,6 +184,13 @@ class LockViewModelTest {
         assertEquals(1, opened)
     }
 
+    @Test
+    fun unlockClearsWorkingFlag() {
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L })
+        viewModel.unlockWithPinGiven("1234")
+        assertFalse(viewModel.state.value.working)
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()

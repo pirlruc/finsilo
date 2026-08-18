@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo
 
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +17,7 @@ class MainActivity : FragmentActivity() {
             WindowManager.LayoutParams.FLAG_SECURE,
         )
         window.decorView.filterTouchesWhenObscured = true
+        window.decorView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         enableEdgeToEdge()
         val container = (application as FinsiloApplication).container
         setContent {

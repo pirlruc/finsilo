@@ -1,6 +1,5 @@
 <resources>
-    <color name="finsilo_window">#FFF4F6F3</color>
-    <color name="ic_launcher_background">#FF0B1210</color>
+    <color name="finsilo_window">#FF0B1210</color>
     <color name="widget_bg">#FF111917</color>
     <color name="widget_fg">#FFE6EDE8</color>
     <color name="widget_muted">#FFBFC9C3</color>

@@ -32,7 +32,7 @@ fun SecuritySettingsCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("App lock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "PIN is required on launch and after the app leaves the foreground. " +
+                "PIN unlocks the ledger key, not only the screen. Biometrics work after a PIN in this process. " +
                     "Changing biometrics or the recovery code requires the current PIN.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -46,11 +46,11 @@ fun SecuritySettingsCard(
                 )
             } else {
                 if (state.biometricAvailable) {
-                    Button(onClick = onToggleBiometric, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onToggleBiometric, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
                         Text(if (state.biometric) "Disable biometric unlock" else "Enable biometric unlock")
                     }
                 }
-                Button(onClick = onRotateRecovery, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onRotateRecovery, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
                     Text("Generate a new recovery code")
                 }
             }
@@ -82,6 +82,6 @@ private fun ConfirmSensitivePin(state: LockUiState, onPin: (String) -> Unit, onC
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) { Text("Confirm") }
+    Button(onClick = onConfirm, enabled = !state.working, modifier = Modifier.fillMaxWidth()) { Text("Confirm") }
     TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
 }

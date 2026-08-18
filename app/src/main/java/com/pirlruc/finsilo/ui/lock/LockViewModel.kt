@@ -8,6 +8,7 @@ import com.pirlruc.finsilo.data.security.AppLockRepository
 import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ data class LockUiState(
     val wrapUpgradeRequired: Boolean = false,
     val upgradeRecovery: String = "",
     val upgradeRecoveryConfirm: Boolean = false,
+    val working: Boolean = false,
 )
 
 class LockViewModel(
@@ -61,6 +63,8 @@ class LockViewModel(
 
     @Volatile
     private var pendingUpgradePin: String? = null
+
+    private val inFlight = AtomicBoolean(false)
 
     init {
         if (!_state.value.setupComplete) {
@@ -108,11 +112,11 @@ class LockViewModel(
     }
 
     fun completeSetup() {
-        viewModelScope.launch(computation) { saveSetup() }
+        runLockAction { saveSetup() }
     }
 
     fun unlockWithPin() {
-        viewModelScope.launch(computation) { tryUnlockWithPin() }
+        runLockAction { tryUnlockWithPin() }
     }
 
     fun unlockWithBiometric() {
@@ -120,17 +124,19 @@ class LockViewModel(
             _state.update { it.copy(error = "Enter your PIN after the app restarts.") }
             return
         }
-        store.clearUnlockFailures()
-        openLedger()
-        _state.update { it.copy(unlocked = true, error = null) }
+        runLockAction {
+            store.clearUnlockFailures()
+            openLedger()
+            _state.update { it.copy(unlocked = true, error = null) }
+        }
     }
 
     fun recoverAndResetPin() {
-        viewModelScope.launch(computation) { applyRecovery() }
+        runLockAction { applyRecovery() }
     }
 
     fun completeWrapUpgrade() {
-        viewModelScope.launch(computation) { persistWrapUpgrade() }
+        runLockAction { persistWrapUpgrade() }
     }
 
     fun requestRotateRecovery() {
@@ -157,7 +163,20 @@ class LockViewModel(
     }
 
     fun confirmSensitiveAction() {
-        viewModelScope.launch(computation) { applySensitiveAction() }
+        runLockAction { applySensitiveAction() }
+    }
+
+    private fun runLockAction(block: () -> Unit) {
+        if (!inFlight.compareAndSet(false, true)) return
+        viewModelScope.launch(computation) {
+            _state.update { it.copy(working = true, error = null) }
+            try {
+                block()
+            } finally {
+                inFlight.set(false)
+                _state.update { it.copy(working = false) }
+            }
+        }
     }
 
     fun clearNewRecovery() = _state.update { it.copy(newRecoveryCode = null, status = null) }

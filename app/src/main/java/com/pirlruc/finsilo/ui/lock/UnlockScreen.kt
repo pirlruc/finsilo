@@ -1,10 +1,6 @@
 package com.pirlruc.finsilo.ui.lock
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -14,37 +10,28 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun UnlockScreen(state: LockUiState, onPin: (String) -> Unit, onUnlock: () -> Unit, onBiometric: () -> Unit, onForgot: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Unlock FinSilo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    val enabled = !state.working
+    LockScreenColumn {
+        FinSiloBrand()
+        Text("Unlock the silo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
             "Enter your PIN. Biometrics work only after a PIN unlock in this process; after the app is killed you must enter the PIN again.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedTextField(
-            value = state.pin,
-            onValueChange = onPin,
-            label = { Text("PIN") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth()) { Text("Unlock") }
+        PinSecretField(state.pin, onPin, "PIN", enabled, ImeAction.Done, onUnlock)
+        LockError(state.error)
+        LockWorkingIndicator(state.working)
+        Button(onClick = onUnlock, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Unlock") }
         if (state.biometric && state.biometricAvailable) {
-            Button(onClick = onBiometric, modifier = Modifier.fillMaxWidth()) { Text("Use biometrics") }
+            Button(onClick = onBiometric, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Use biometrics") }
         }
-        TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("Forgot PIN") }
+        TextButton(onClick = onForgot, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Forgot PIN") }
     }
 }
 
@@ -56,11 +43,10 @@ fun RecoverPinScreen(
     onSubmit: () -> Unit,
     onBack: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Recover access", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    val enabled = !state.working
+    LockScreenColumn {
+        FinSiloBrand()
+        Text("Recover access", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
             "Enter the recovery code shown when you first set the PIN, then choose a new PIN.",
             style = MaterialTheme.typography.bodyMedium,
@@ -71,19 +57,14 @@ fun RecoverPinScreen(
             onValueChange = onRecovery,
             label = { Text("Recovery code") },
             singleLine = true,
+            enabled = enabled,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
-            value = state.pinConfirm,
-            onValueChange = onNewPin,
-            label = { Text("New PIN (4–8 digits)") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth()) { Text("Reset PIN") }
-        TextButton(onClick = onBack) { Text("Back") }
+        PinSecretField(state.pinConfirm, onNewPin, "New PIN (4–8 digits)", enabled, ImeAction.Done, onSubmit)
+        LockError(state.error)
+        LockWorkingIndicator(state.working)
+        Button(onClick = onSubmit, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Reset PIN") }
+        TextButton(onClick = onBack, enabled = enabled) { Text("Back") }
     }
 }

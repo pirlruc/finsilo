@@ -7,16 +7,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,8 +37,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pirlruc.finsilo.R
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
@@ -170,7 +176,17 @@ internal fun DashboardTopBar(
     onRequestClear: () -> Unit,
 ) {
     TopAppBar(
-        title = { Text("FinSilo") },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_silo),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
+                )
+                Text("FinSilo")
+            }
+        },
         actions = {
             IconButton(onClick = onOpenWatchlist) {
                 Icon(Icons.Outlined.Star, contentDescription = "Watchlist")
@@ -178,19 +194,40 @@ internal fun DashboardTopBar(
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Outlined.Settings, contentDescription = "Settings")
             }
-            IconButton(onClick = onShowKey) {
-                Icon(Icons.Outlined.Key, contentDescription = "Alpha Vantage key")
-            }
             if (!empty) {
                 IconButton(onClick = onSync, enabled = !syncing) {
                     Icon(Icons.Outlined.Sync, contentDescription = "Sync quotes")
                 }
             }
-            IconButton(onClick = onRequestClear) {
-                Icon(Icons.Outlined.Delete, contentDescription = "Clear data")
-            }
+            DashboardOverflowMenu(onShowKey = onShowKey, onRequestClear = onRequestClear)
         },
     )
+}
+
+@Composable
+private fun DashboardOverflowMenu(onShowKey: () -> Unit, onRequestClear: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(Icons.Outlined.MoreVert, contentDescription = "More")
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text("Alpha Vantage key") },
+            onClick = {
+                expanded = false
+                onShowKey()
+            },
+            leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
+        )
+        DropdownMenuItem(
+            text = { Text("Clear data") },
+            onClick = {
+                expanded = false
+                onRequestClear()
+            },
+            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+        )
+    }
 }
 
 @Composable

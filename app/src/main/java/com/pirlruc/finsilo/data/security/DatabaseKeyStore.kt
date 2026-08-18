@@ -53,7 +53,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         if (session != null) return true
         if (hasWrappedPassphrase() || hasLegacyPassphrase()) return false
         val key = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
-        persistWraps(pin, recovery, key)
+        if (!persistWraps(pin, recovery, key)) return false
         session = key
         return true
     }
@@ -80,9 +80,8 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
         val key = session ?: return false
         if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
-        persistWraps(pin, recovery, key)
-        prefs.edit().remove(KEY_PASSPHRASE).apply()
-        return true
+        if (!persistWraps(pin, recovery, key)) return false
+        return prefs.edit().remove(KEY_PASSPHRASE).commit()
     }
 
     fun hasLegacyPassphrase(): Boolean = prefs.contains(KEY_PASSPHRASE)
@@ -100,23 +99,22 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         if (key == null) return false
         session = key
         if (hasLegacyPassphrase()) {
-            prefs.edit().remove(KEY_PASSPHRASE).apply()
+            prefs.edit().remove(KEY_PASSPHRASE).commit()
         }
         return true
     }
 
-    private fun persistWraps(pin: String, recovery: String, key: ByteArray) {
+    private fun persistWraps(pin: String, recovery: String, key: ByteArray): Boolean {
         val recoverySecret = AppLockCrypto.normalizeRecovery(recovery)
-        prefs.edit()
+        return prefs.edit()
             .putString(KEY_WRAP_PIN, AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
             .putString(KEY_WRAP_RECOVERY, AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
-            .apply()
+            .commit()
     }
 
     private fun rewrap(prefsKey: String, secret: String): Boolean {
         val key = session ?: return false
-        prefs.edit().putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key))).apply()
-        return true
+        return prefs.edit().putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key))).commit()
     }
 
     private fun storedBlob(prefsKey: String): ByteArray? {
