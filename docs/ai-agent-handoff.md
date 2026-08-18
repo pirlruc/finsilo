@@ -12,18 +12,18 @@
 
 ## Current slice
 
-Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, PR dependency-review, Dokka/KDoc, and CycloneDX SBOM are wired. [GATE-001-T3](issues.yml) Kover branch 95% is wired but not green. Untracked limits: [docs/limitations.md](limitations.md).
+Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, PR dependency-review, Dokka/KDoc, CycloneDX SBOM, and Kover 95/95 ([GATE-001](issues.yml) done). Untracked limits: [docs/limitations.md](limitations.md).
 
 | Module | Path | Notes |
 | --- | --- | --- |
 | domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, broker CSV import, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`, `QuoteCurrency` (USD feeds × FX → EUR), `AppLockCrypto`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard (split screens), ledger form (buy/sell every type), PIN/biometric lock with recovery code, target settings, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts, encrypted Room v4 (schema exported, including `nav_history`), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| app | `app/` | Compose dashboard (split screens), ledger form (buy/sell every type), PIN/biometric lock with recovery code, target settings, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts, encrypted Room v5 (schema exported, including `nav_history` and `ledger_sequence`), OkHttp GET-only feed, WorkManager 23:00 sync + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
 
 ## How to run checks
 
 ```bash
 bash scripts/ci-local.sh
-./gradlew :domain:koverVerify   # expected red until LIM-COV
+./gradlew :domain:koverVerify
 bash scripts/issues-sync.sh --validate-only
 ```
 
@@ -72,13 +72,11 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- Open value backlog (not started): [FS-017](issues.yml) encrypted backup, [FS-018](issues.yml) PT FIFO report, [FS-019](issues.yml) NAV widget, [FS-020](issues.yml) threshold alerts, [FS-021](issues.yml) dual-currency display, [FS-022](issues.yml) manual quotes, [FS-023](issues.yml) templates, [FS-024](issues.yml) watchlist, [FS-026](issues.yml) Trading 212 official API (free key, not paid), [FS-027](issues.yml) same-day FIFO order / PIN-wrapped DB. CSV import is [FS-025](issues.yml) (done). Do not reopen [FS-DEC-001](issues.yml).
+- Open value backlog: [FS-017](issues.yml) encrypted backup, [FS-018-T2](issues.yml) FIFO CSV/PDF UI ([FS-018-T1](issues.yml) domain report is done), [FS-019](issues.yml) NAV widget, [FS-020](issues.yml) threshold alerts, [FS-021](issues.yml) dual-currency display, [FS-022](issues.yml) manual quotes, [FS-023](issues.yml) templates, [FS-024](issues.yml) watchlist, [FS-026](issues.yml) Trading 212 official API (free key, not paid), [FS-027-T2](issues.yml) PIN-wrapped SQLCipher ([FS-027-T1](issues.yml) same-day sequence is done). CSV import is [FS-025](issues.yml) (done). Do not reopen [FS-DEC-001](issues.yml).
 
-Phase 7 still open:
+Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done), including Kover 95/95.
 
-- [GATE-001-T3](issues.yml) — Kover 95/95. Task and CI job exist; **line is green, branch is ~89%**. See [limitations.md](limitations.md) LIM-COV.
-
-Untracked limits (Kover branch 95, private analog clone, Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
+Untracked limits (private analog clone, Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
 Do not record a fake lowered-gate deviation.
 

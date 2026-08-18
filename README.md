@@ -2,7 +2,7 @@
 
 Privacy-first, offline-first Android tracker for multi-asset portfolios (stocks, ETFs, crypto, PPR, deposits, Portuguese Certificados de Tesouro, and commodities). Values, gains, and charts stay on-device.
 
-This repository currently delivers product phases **1–6**. Phase **7** wires the guardrail workflows that can run on this public repo (quality including domain+app maintainability index, Android lint/assemble/Robolectric, gitleaks, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, dependency-review, Dokka/KDoc, CycloneDX SBOM). Kover branch coverage is still below 95% — see [`docs/limitations.md`](docs/limitations.md).
+This repository currently delivers product phases **1–6**. Phase **7** wires the guardrail workflows that can run on this public repo (quality including domain+app maintainability index, Android lint/assemble/Robolectric, gitleaks, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, dependency-review, Dokka/KDoc, CycloneDX SBOM, Kover 95/95). Remaining limits: [`docs/limitations.md`](docs/limitations.md).
 
 ## What works now
 
@@ -48,7 +48,7 @@ Requirements: JDK 17+, Android SDK 35/36.
 
 ```bash
 bash scripts/ci-local.sh
-./gradlew :domain:koverVerify   # expected red until LIM-COV / GATE-001-T3
+./gradlew :domain:koverVerify
 bash scripts/issues-sync.sh --validate-only
 ```
 

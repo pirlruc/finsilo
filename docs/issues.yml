@@ -750,7 +750,7 @@ milestones:
   - name: Phase 7 — Guardrails
     epics:
       - id: GATE-001
-        status: open
+        status: done
         title: Wire Kotlin quality, coverage, and security gates
         overview:
           problem: >-
@@ -758,13 +758,13 @@ milestones:
             were not wired. ktlint + detekt run locally and in CI (GATE-001-T1/T2).
             gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). CodeQL,
             OSV Scanner, and MobSF mobsfscan are wired (T6). Kover reads
-            thresholds fail-closed (T3): line coverage is above 95%;
-            branch coverage is still ~89% — see docs/limitations.md LIM-COV.
+            thresholds fail-closed (T3): statement and branch coverage are both
+            ≥95% (`./gradlew :domain:koverVerify` green).
           goal: >-
             CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
             KT-TEST-002, KT-DOC-001, KT-SEC-002/003, and CI-001…CI-012 without
-            copying cppdevops job bodies. Kover 95/95 remains blocking once
-            coverage catches up; do not record a fake lowered-gate deviation.
+            copying cppdevops job bodies. Kover 95/95 is fail-closed;
+            do not record a fake lowered-gate deviation.
         architecture:
           target: Gradle modules plus GitHub Actions
           modules:
@@ -840,7 +840,7 @@ milestones:
               - KT-CPLX-002
               - CI-009
           - id: GATE-001-T3
-            status: open
+            status: done
             title: Enforce Kover statement and branch coverage
             instructions:
               files:
@@ -1023,7 +1023,7 @@ milestones:
           - Java pack is not the primary gate (no Java sources); do not run SpotBugs/Checkstyle
           - Do not vendor cppdevops, clang-tidy, ASan, lizard, ruff, mypy, or bandit
           - CI-009 quality.yml runs ktlint + detekt on :domain and :app; complexity is fail-closed against max_cyclomatic_complexity
-          - CI-010 domain-tests.yml runs :domain:test and :domain:koverVerify (T3 still open until 95/95); android.yml runs :app Robolectric
+          - CI-010 domain-tests.yml runs :domain:test and :domain:koverVerify; android.yml runs :app Robolectric
           - CI-011 docs.yml runs Dokka + KDoc coverage against doc_coverage
           - CI-012 security.yml runs gitleaks, community semgrep ERROR, CodeQL, OSV Scanner, MobSF mobsfscan, and PR dependency-review; android.yml retains a CycloneDX SBOM artifact (LIM-REL for signing/release)
           - Kotlin has no DYN category; C++ ASan/UBSan/valgrind is not an Android requirement
@@ -1116,7 +1116,7 @@ milestones:
           - KT-TEST-001
         tasks:
           - id: FS-018-T1
-            status: open
+            status: done
             title: Domain report from FIFO lots for a calendar year
             instructions:
               files:
@@ -1456,7 +1456,7 @@ milestones:
           - KT-SEC-001
         tasks:
           - id: FS-027-T1
-            status: open
+            status: done
             title: Replace UUID lexicographic same-day FIFO tie-break
             instructions:
               files:

@@ -7,8 +7,8 @@ Do not keep a second issue list here.
 | What | Where |
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
-| Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers); value backlog [FS-017](issues.yml)–[FS-024](issues.yml), [FS-026](issues.yml) (Trading 212 API), [FS-027](issues.yml) (same-day FIFO order / PIN-wrapped DB). CSV import [FS-025](issues.yml) is done. |
-| Phase 7 still open | [GATE-001-T3](issues.yml) — Kover branch 95% (line already green; [limitations.md](limitations.md) LIM-COV). CodeQL / OSV / MobSF are [GATE-001-T6](issues.yml) (done). |
+| Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers); value backlog [FS-017](issues.yml), [FS-018-T2](issues.yml) (CSV/PDF UI; domain report [FS-018-T1](issues.yml) is done), [FS-019](issues.yml)–[FS-024](issues.yml), [FS-026](issues.yml) (Trading 212 API), [FS-027-T2](issues.yml) (PIN-wrapped DB; same-day sequence [FS-027-T1](issues.yml) is done). CSV import [FS-025](issues.yml) is done. |
+| Phase 7 | [GATE-001](issues.yml) done (Kover 95/95 green; [limitations.md](limitations.md) LIM-COV closed). |
 | Known limits not in the backlog | [docs/limitations.md](limitations.md) (open + closed-this-pass tables) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |
 
