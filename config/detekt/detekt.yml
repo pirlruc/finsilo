@@ -3,22 +3,17 @@ build:
 
 complexity:
   # KT-CPLX-001. Fail above 10 (threshold is exclusive of the allowed max).
+  # Composable is not ignored: UI complexity is gated here, not only by SEI MI.
   CyclomaticComplexMethod:
     active: true
     threshold: 11
-    ignoreAnnotated:
-      - Composable
   LongMethod:
     active: true
     threshold: 80
-    ignoreAnnotated:
-      - Composable
   LongParameterList:
     active: true
     constructorThreshold: 12
     functionThreshold: 8
-    ignoreAnnotated:
-      - Composable
   TooManyFunctions:
     active: false
   ComplexCondition:

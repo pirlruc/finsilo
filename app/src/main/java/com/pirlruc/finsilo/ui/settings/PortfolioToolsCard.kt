@@ -28,100 +28,114 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 
 @Composable
-fun PortfolioToolsCard(
-    state: PortfolioToolsUiState,
-    onYear: (String) -> Unit,
-    onRecovery: (String) -> Unit,
-    onExportCsv: ((ByteArray) -> Unit) -> Unit,
-    onExportPdf: ((ByteArray) -> Unit) -> Unit,
-    onExportBackup: ((ByteArray) -> Unit) -> Unit,
-    onRestoreBackup: (ByteArray) -> Unit,
-    onConfirmRestore: () -> Unit,
-    onCancelRestore: () -> Unit,
-    onPickerBusy: (Boolean) -> Unit,
-) {
+internal fun PortfolioToolsCard(state: PortfolioToolsUiState, actions: PortfolioToolsActions) {
     val context = LocalContext.current
     var pending by remember { mutableStateOf<ByteArray?>(null) }
     val create =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-            onPickerBusy(false)
+            actions.onPickerBusy(false)
             val bytes = pending
             pending = null
             if (uri != null && bytes != null) writeUri(context, uri, bytes)
         }
     val open =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            onPickerBusy(false)
+            actions.onPickerBusy(false)
             if (uri == null) return@rememberLauncherForActivityResult
-            context.contentResolver.openInputStream(uri)?.use { input -> onRestoreBackup(input.readBytes()) }
+            context.contentResolver.openInputStream(uri)?.use { input -> actions.onRestoreBackup(input.readBytes()) }
         }
 
     fun saveAs(name: String, producer: ((ByteArray) -> Unit) -> Unit) {
         producer { bytes ->
             pending = bytes
-            onPickerBusy(true)
+            actions.onPickerBusy(true)
             create.launch(name)
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Plus-valias report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Calendar-year FIFO in stored EUR. CSV and PDF share the same figures. Redemptions are labeled Resgate. This is not a full IRS pack.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(state.year, onYear, label = { Text("Year") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Button(
-                    onClick = { saveAs("mais-valias-${state.year}.csv", onExportCsv) },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Export CSV") }
-                Button(
-                    onClick = { saveAs("mais-valias-${state.year}.pdf", onExportPdf) },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Export PDF") }
-            }
-        }
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Encrypted backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Not plaintext SQLite. Encrypt with the current recovery code so a new phone can restore after unlock. Restore asks before overwriting the live ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    state.recovery,
-                    onRecovery,
-                    label = { Text("Recovery code") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(
-                    onClick = { saveAs("finsilo-backup-${LocalDate.now()}.fsi", onExportBackup) },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Export backup") }
-                Button(
-                    onClick = {
-                        onPickerBusy(true)
-                        open.launch(arrayOf("*/*"))
-                    },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Restore backup") }
-            }
+        TaxExportCard(state, actions, ::saveAs)
+        BackupExportCard(state, actions, ::saveAs) {
+            actions.onPickerBusy(true)
+            open.launch(arrayOf("*/*"))
         }
         if (state.confirmRestore) {
-            RestoreConfirmDialog(onConfirm = onConfirmRestore, onCancel = onCancelRestore)
+            RestoreConfirmDialog(onConfirm = actions.onConfirmRestore, onCancel = actions.onCancelRestore)
         }
         state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    }
+}
+
+@Composable
+private fun TaxExportCard(
+    state: PortfolioToolsUiState,
+    actions: PortfolioToolsActions,
+    saveAs: (String, ((ByteArray) -> Unit) -> Unit) -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Plus-valias report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Calendar-year FIFO in stored EUR. CSV and PDF share the same figures. Redemptions are labeled Resgate. This is not a full IRS pack.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                state.year,
+                actions.onYear,
+                label = { Text("Year") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = { saveAs("mais-valias-${state.year}.csv", actions.onExportCsv) },
+                enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Export CSV") }
+            Button(
+                onClick = { saveAs("mais-valias-${state.year}.pdf", actions.onExportPdf) },
+                enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Export PDF") }
+        }
+    }
+}
+
+@Composable
+private fun BackupExportCard(
+    state: PortfolioToolsUiState,
+    actions: PortfolioToolsActions,
+    saveAs: (String, ((ByteArray) -> Unit) -> Unit) -> Unit,
+    onPickRestore: () -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Encrypted backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Not plaintext SQLite. Encrypt with the current recovery code so a new phone can restore after unlock. Restore asks before overwriting the live ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                state.recovery,
+                actions.onRecovery,
+                label = { Text("Recovery code") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = { saveAs("finsilo-backup-${LocalDate.now()}.fsi", actions.onExportBackup) },
+                enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Export backup") }
+            Button(
+                onClick = onPickRestore,
+                enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Restore backup") }
+        }
     }
 }
 

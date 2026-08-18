@@ -27,72 +27,53 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.pirlruc.finsilo.domain.model.AssetType
-import com.pirlruc.finsilo.domain.model.Currency
-import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 @Composable
 fun LedgerEntryRoute(viewModel: LedgerEntryViewModel, onClose: () -> Unit) {
     LaunchedEffect(Unit) { viewModel.prepare() }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LedgerEntryScreen(
-        state = state,
-        onClose = onClose,
-        onType = viewModel::setType,
-        onDate = viewModel::setDate,
-        onQuantity = viewModel::setQuantity,
-        onPrice = viewModel::setUnitPrice,
-        onFees = viewModel::setFees,
-        onFx = viewModel::setEurPerUsd,
-        onExistingAsset = viewModel::setExistingAsset,
-        onNewInstrument = viewModel::setNewInstrument,
-        onSymbol = viewModel::setSymbol,
-        onName = viewModel::setName,
-        onAssetType = viewModel::setAssetType,
-        onCurrency = viewModel::setCurrency,
-        onIsin = viewModel::setIsin,
-        onQuoteSymbol = viewModel::setQuoteSymbol,
-        onApplyTemplate = viewModel::applyTemplate,
-        onSaveTemplate = viewModel::saveTemplate,
-        onManualClose = viewModel::setManualClose,
-        onSaveManualClose = viewModel::saveManualClose,
-        onSave = { viewModel.save(onClose) },
+    val actions = LedgerFormActions(
+        nav = LedgerNavActions(
+            onClose = onClose,
+            onSave = { viewModel.save(onClose) },
+            onApplyTemplate = viewModel::applyTemplate,
+            onSaveTemplate = viewModel::saveTemplate,
+            onManualClose = viewModel::setManualClose,
+            onSaveManualClose = viewModel::saveManualClose,
+        ),
+        amounts = LedgerAmountActions(
+            onType = viewModel::setType,
+            onDate = viewModel::setDate,
+            onQuantity = viewModel::setQuantity,
+            onPrice = viewModel::setUnitPrice,
+            onFees = viewModel::setFees,
+            onFx = viewModel::setEurPerUsd,
+        ),
+        instrument = LedgerInstrumentActions(
+            onNewInstrument = viewModel::setNewInstrument,
+            onExistingAsset = viewModel::setExistingAsset,
+            onSymbol = viewModel::setSymbol,
+            onName = viewModel::setName,
+            onAssetType = viewModel::setAssetType,
+            onCurrency = viewModel::setCurrency,
+            onIsin = viewModel::setIsin,
+            onQuoteSymbol = viewModel::setQuoteSymbol,
+        ),
     )
+    LedgerEntryScreen(state = state, actions = actions)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun LedgerEntryScreen(
-    state: LedgerUiState,
-    onClose: () -> Unit,
-    onType: (TransactionType) -> Unit,
-    onDate: (String) -> Unit,
-    onQuantity: (String) -> Unit,
-    onPrice: (String) -> Unit,
-    onFees: (String) -> Unit,
-    onFx: (String) -> Unit,
-    onExistingAsset: (String?) -> Unit,
-    onNewInstrument: (Boolean) -> Unit,
-    onSymbol: (String) -> Unit,
-    onName: (String) -> Unit,
-    onAssetType: (AssetType) -> Unit,
-    onCurrency: (Currency) -> Unit,
-    onIsin: (String) -> Unit,
-    onQuoteSymbol: (String) -> Unit,
-    onApplyTemplate: (LedgerTemplate) -> Unit,
-    onSaveTemplate: (String) -> Unit,
-    onManualClose: (String) -> Unit,
-    onSaveManualClose: () -> Unit,
-    onSave: () -> Unit,
-) {
+internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions) {
     val cashLike = state.type == TransactionType.DEPOSIT_CASH || state.type == TransactionType.WITHDRAWAL
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Ledger entry") },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = actions.nav.onClose) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -107,43 +88,33 @@ fun LedgerEntryScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LedgerTypeChips(state.type, onType)
-            LedgerTemplateSection(state.templates, state.type, onApplyTemplate, onSaveTemplate)
+            LedgerTypeChips(state.type, actions.amounts.onType)
+            LedgerTemplateSection(state.templates, state.type, actions.nav.onApplyTemplate, actions.nav.onSaveTemplate)
             OutlinedTextField(
                 value = state.date,
-                onValueChange = onDate,
+                onValueChange = actions.amounts.onDate,
                 label = { Text("Date (YYYY-MM-DD)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             if (cashLike) {
-                CashMovementFields(state, onQuantity)
+                CashMovementFields(state, actions.amounts.onQuantity)
             } else {
-                LedgerInstrumentSection(
-                    state,
-                    onNewInstrument,
-                    onExistingAsset,
-                    onSymbol,
-                    onName,
-                    onAssetType,
-                    onCurrency,
-                    onIsin,
-                    onQuoteSymbol,
-                    onQuantity,
-                    onPrice,
-                    onFees,
-                    onFx,
-                )
+                LedgerInstrumentSection(state, actions.instrument, actions.amounts)
             }
             ManualCloseFields(
                 visible = !state.newInstrument && LedgerFormMapper.isLocallyValuedSelection(state),
                 value = state.manualClose,
-                onValue = onManualClose,
-                onSave = onSaveManualClose,
+                onValue = actions.nav.onManualClose,
+                onSave = actions.nav.onSaveManualClose,
             )
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-            Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = actions.nav.onSave,
+                enabled = !state.saving && !state.loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text("Save")
             }
         }

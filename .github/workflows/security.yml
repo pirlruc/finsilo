@@ -44,7 +44,7 @@ jobs:
 
       - name: Install semgrep
         run: |
-          pip install --disable-pip-version-check "setuptools>=70" "semgrep==1.128.1"
+          pip install --disable-pip-version-check "setuptools>=70,<82" "semgrep==1.128.1"
 
       - name: SAST (ERROR and above)
         run: |

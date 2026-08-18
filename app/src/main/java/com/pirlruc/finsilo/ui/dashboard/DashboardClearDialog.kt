@@ -17,9 +17,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun ClearSelectionDialog(
-    ledger: Boolean,
-    watchlist: Boolean,
-    templates: Boolean,
+    flags: ClearFlags,
     onLedger: (Boolean) -> Unit,
     onWatchlist: (Boolean) -> Unit,
     onTemplates: (Boolean) -> Unit,
@@ -37,19 +35,19 @@ internal fun ClearSelectionDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 ClearChoice(
-                    checked = ledger,
+                    checked = flags.ledger,
                     onChecked = onLedger,
                     title = "Ledger",
                     caption = "Holdings, transactions, quotes, FX, targets, NAV, and price alerts",
                 )
                 ClearChoice(
-                    checked = watchlist,
+                    checked = flags.watchlist,
                     onChecked = onWatchlist,
                     title = "Watchlist",
                     caption = "Followed symbols and their stored quotes",
                 )
                 ClearChoice(
-                    checked = templates,
+                    checked = flags.templates,
                     onChecked = onTemplates,
                     title = "Templates",
                     caption = "Saved ledger pre-fills; they never post by themselves",
@@ -57,8 +55,8 @@ internal fun ClearSelectionDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = ledger || watchlist || templates) {
-                Text(if (ledger && watchlist && templates) "Clear all" else "Clear selected")
+            TextButton(onClick = onConfirm, enabled = flags.ledger || flags.watchlist || flags.templates) {
+                Text(if (flags.ledger && flags.watchlist && flags.templates) "Clear all" else "Clear selected")
             }
         },
         dismissButton = {

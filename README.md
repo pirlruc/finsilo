@@ -68,7 +68,7 @@ Living docs follow the public [heimdallcv](https://github.com/pirlruc/heimdallcv
 
 - [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md)
 - [`docs/issues.yml`](docs/issues.yml) — authored Epic/Task backlog (source of truth)
-- [`docs/improvements.md`](docs/improvements.md) — index into `docs/issues.yml`
+- [`docs/limitations.md`](docs/limitations.md) — known limits that are not issues
 
 ```bash
 bash scripts/setup-issue-scaffold.sh

@@ -7,7 +7,7 @@
 | **App** | FinSilo |
 | **Package** | `com.pirlruc.finsilo` |
 | **Type** | Native Android (Kotlin, Compose), offline-first portfolio tracker |
-| **Docs** | `docs/ai-agent-handoff.md`, `docs/improvements.md`, `docs/issues.yml`, `docs/limitations.md` |
+| **Docs** | `docs/ai-agent-handoff.md`, `docs/issues.yml`, `docs/limitations.md` |
 | **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr) (Epic = decision record, no ADR markdown files) |
 
 ## Current slice
@@ -74,7 +74,7 @@ Product leftovers (do not block calling 1–6 “shipped” except as noted):
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
 - Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API. Closed this pass: backup [FS-017](issues.yml) (including v6 extras + confirm restore), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml).
 
-Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Leftovers that need owner input are [GATE-003](issues.yml) (CI-022 analog clone vs EL-approved deviation; detekt `@Composable` ignore).
+Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone leftover: [GATE-003](issues.yml) / [LIM-SUB](limitations.md) (CI-022). detekt `@Composable` complexity ignore is gone (GATE-003-T2).
 
 Untracked limits (private analog clone, Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 

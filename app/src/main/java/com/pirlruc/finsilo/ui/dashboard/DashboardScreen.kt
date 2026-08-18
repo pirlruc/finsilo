@@ -18,8 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.pirlruc.finsilo.domain.model.HistoryRange
-import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 
@@ -38,46 +36,36 @@ fun DashboardRoute(
     DashboardScreen(
         state = state,
         importState = importState,
-        onRangeSelected = viewModel::setRange,
-        onLoadSample = viewModel::loadSample,
-        onRequestClear = viewModel::requestClear,
-        onConfirmClear = viewModel::confirmClear,
-        onCancelClear = viewModel::cancelClear,
-        onClearLedger = viewModel::setClearLedger,
-        onClearWatchlist = viewModel::setClearWatchlist,
-        onClearTemplates = viewModel::setClearTemplates,
-        onSync = viewModel::syncMarketData,
-        onSaveKey = viewModel::saveAlphaVantageKey,
-        onSaveThreshold = viewModel::saveThreshold,
-        onAddTransaction = onAddTransaction,
-        onOpenSettings = onOpenSettings,
-        onOpenWatchlist = onOpenWatchlist,
-        onPickerBusy = onPickerBusy,
-        onImportCsvs = { texts -> importer.importCsvs(texts) { viewModel.refresh() } },
+        nav = DashboardNavActions(
+            onAddTransaction = onAddTransaction,
+            onOpenSettings = onOpenSettings,
+            onOpenWatchlist = onOpenWatchlist,
+            onPickerBusy = onPickerBusy,
+            onImportCsvs = { texts -> importer.importCsvs(texts) { viewModel.refresh() } },
+            onRangeSelected = viewModel::setRange,
+            onSaveThreshold = viewModel::saveThreshold,
+            onSync = viewModel::syncMarketData,
+            onSaveKey = viewModel::saveAlphaVantageKey,
+            onLoadSample = viewModel::loadSample,
+        ),
+        clear = DashboardClearActions(
+            onRequestClear = viewModel::requestClear,
+            onConfirmClear = viewModel::confirmClear,
+            onCancelClear = viewModel::cancelClear,
+            onClearLedger = viewModel::setClearLedger,
+            onClearWatchlist = viewModel::setClearWatchlist,
+            onClearTemplates = viewModel::setClearTemplates,
+        ),
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(
+internal fun DashboardScreen(
     state: DashboardUiState,
     importState: BrokerImportUiState,
-    onRangeSelected: (HistoryRange) -> Unit,
-    onLoadSample: () -> Unit,
-    onRequestClear: () -> Unit,
-    onConfirmClear: () -> Unit,
-    onCancelClear: () -> Unit,
-    onClearLedger: (Boolean) -> Unit,
-    onClearWatchlist: (Boolean) -> Unit,
-    onClearTemplates: (Boolean) -> Unit,
-    onSync: () -> Unit,
-    onSaveKey: (String) -> Unit,
-    onSaveThreshold: (PriceAlertThreshold) -> Unit,
-    onAddTransaction: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenWatchlist: () -> Unit,
-    onPickerBusy: (Boolean) -> Unit,
-    onImportCsvs: (List<String>) -> Unit,
+    nav: DashboardNavActions,
+    clear: DashboardClearActions,
 ) {
     var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
@@ -85,16 +73,16 @@ fun DashboardScreen(
             DashboardTopBar(
                 empty = state.empty,
                 syncing = state.syncing,
-                onOpenSettings = onOpenSettings,
-                onOpenWatchlist = onOpenWatchlist,
+                onOpenSettings = nav.onOpenSettings,
+                onOpenWatchlist = nav.onOpenWatchlist,
                 onShowKey = { showKeyDialog = true },
-                onSync = onSync,
-                onRequestClear = onRequestClear,
+                onSync = nav.onSync,
+                onRequestClear = clear.onRequestClear,
             )
         },
         floatingActionButton = {
             if (!state.empty) {
-                FloatingActionButton(onClick = onAddTransaction) {
+                FloatingActionButton(onClick = nav.onAddTransaction) {
                     Icon(Icons.Outlined.Add, contentDescription = "Add transaction")
                 }
             }
@@ -104,15 +92,16 @@ fun DashboardScreen(
             when {
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.error != null -> ErrorState(state.error)
-                state.empty -> EmptyState(onLoadSample, onAddTransaction, importState, onImportCsvs, onPickerBusy)
+                state.empty ->
+                    EmptyState(nav.onLoadSample, nav.onAddTransaction, importState, nav.onImportCsvs, nav.onPickerBusy)
                 state.report != null ->
                     DashboardContent(
                         report = state.report,
                         range = state.range,
                         statusMessage = state.statusMessage,
                         thresholds = state.thresholds,
-                        onRangeSelected = onRangeSelected,
-                        onSaveThreshold = onSaveThreshold,
+                        onRangeSelected = nav.onRangeSelected,
+                        onSaveThreshold = nav.onSaveThreshold,
                     )
             }
         }
@@ -122,21 +111,19 @@ fun DashboardScreen(
             hasKey = state.hasAlphaVantageKey,
             onDismiss = { showKeyDialog = false },
             onSave = { key ->
-                onSaveKey(key)
+                nav.onSaveKey(key)
                 showKeyDialog = false
             },
         )
     }
     if (state.confirmClear) {
         ClearSelectionDialog(
-            ledger = state.clearLedger,
-            watchlist = state.clearWatchlist,
-            templates = state.clearTemplates,
-            onLedger = onClearLedger,
-            onWatchlist = onClearWatchlist,
-            onTemplates = onClearTemplates,
-            onConfirm = onConfirmClear,
-            onCancel = onCancelClear,
+            flags = ClearFlags(state.clearLedger, state.clearWatchlist, state.clearTemplates),
+            onLedger = clear.onClearLedger,
+            onWatchlist = clear.onClearWatchlist,
+            onTemplates = clear.onClearTemplates,
+            onConfirm = clear.onConfirmClear,
+            onCancel = clear.onCancelClear,
         )
     }
 }

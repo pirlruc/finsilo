@@ -91,7 +91,7 @@ milestones:
         title: Lock RFC follow-up product decisions
         overview:
           problem: >-
-            Product constraints lived only in docs/improvements.md, so agents
+            Product constraints lived only in a markdown backlog, so agents
             could reopen FX direction, FIFO, quote routing, TWR splits, YOC,
             minSdk, or analog pins. github-issue-adr requires those decisions
             on an Epic, not a parallel markdown backlog.
@@ -1042,7 +1042,6 @@ milestones:
             instructions:
               files:
                 - docs/issues.yml
-                - docs/improvements.md
                 - docs/ai-agent-handoff.md
             verification:
               - bash scripts/issues-sync.sh --validate-only
@@ -1053,15 +1052,16 @@ milestones:
         title: Remaining Kotlin gate leftovers after first landing
         overview:
           problem: >-
-            First-landing CI cannot clone private analog (LIM-SUB / CI-022),
-            and detekt ignores @Composable complexity (KT-CPLX-001). GATE-002
-            already decided gaps are open tasks or limitations.md — not a
-            silent or invented docs/guardrail-deviations.yml row.
+            First-landing CI cannot clone private analog (LIM-SUB / CI-022).
+            Workflows do not pass a PAT or `submodules: recursive`, and
+            GITHUB_TOKEN cannot read pirlruc/guardrails. GATE-002 already
+            decided gaps are open tasks or limitations.md — not a silent or
+            invented docs/guardrail-deviations.yml row.
           goal: >-
             Keep deviations empty until Engineering Lead approval exists.
             Either check out analog in CI with a read token, or record a dated
-            CI-022 deviation with approved_by. After MI is green, drop the
-            detekt Composable ignore or record KT-CPLX-001 the same way.
+            CI-022 deviation with approved_by. detekt @Composable complexity
+            ignore is already gone (GATE-003-T2).
         architecture:
           target: GitHub Actions plus detekt config
           modules:
@@ -1070,9 +1070,9 @@ milestones:
             - docs/limitations.md
             - docs/guardrail-deviations.yml
         acceptance_criteria:
-          - No invented approved_by on a CI-022 or KT-CPLX-001 deviation
+          - No invented approved_by on a CI-022 deviation
           - LIM-SUB remains until analog is cloned in CI or a dated deviation exists
-          - detekt @Composable ignore is removed or recorded as a real deviation
+          - detekt CyclomaticComplexMethod / LongMethod / LongParameterList do not ignore @Composable
         guardrail_refs:
           - CI-022
           - KT-CPLX-001
@@ -1092,14 +1092,14 @@ milestones:
             guardrail_refs:
               - CI-022
           - id: GATE-003-T2
-            status: open
+            status: done
             title: Drop detekt Composable ignore or record KT-CPLX-001
             instructions:
               files:
                 - config/detekt/detekt.yml
-                - docs/guardrail-deviations.yml
             verification:
-              - ignoreAnnotated Composable is gone, or a dated KT-CPLX-001 deviation exists
+              - ignoreAnnotated Composable is gone from complexity rules
+              - ./gradlew :app:detekt :domain:detekt
             guardrail_refs:
               - KT-CPLX-001
 

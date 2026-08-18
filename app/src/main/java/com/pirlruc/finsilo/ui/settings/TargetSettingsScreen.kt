@@ -55,61 +55,50 @@ fun TargetSettingsRoute(
         lock = lockState,
         importState = importState,
         tools = toolsState,
-        onClose = onClose,
-        onWeight = targets::setWeight,
-        onSave = { targets.save(onClose) },
-        onImportCsvs = { texts -> importer.importCsvs(texts) { } },
-        onPickerBusy = onPickerBusy,
-        onToggleBiometric = lock::requestToggleBiometric,
-        onRotateRecovery = lock::requestRotateRecovery,
-        onDismissRecovery = lock::clearNewRecovery,
-        onConfirmSensitive = lock::confirmSensitiveAction,
-        onCancelSensitive = lock::cancelSensitiveAction,
-        onLockPin = lock::setPin,
-        onYear = tools::setYear,
-        onRecovery = tools::setRecovery,
-        onExportCsv = tools::exportTaxCsv,
-        onExportPdf = tools::exportTaxPdf,
-        onExportBackup = tools::exportBackup,
-        onRestoreBackup = tools::restoreBackup,
-        onConfirmRestore = tools::confirmRestore,
-        onCancelRestore = tools::cancelRestore,
+        actions = TargetSettingsActions(
+            onClose = onClose,
+            onWeight = targets::setWeight,
+            onSave = { targets.save(onClose) },
+            onImportCsvs = { texts -> importer.importCsvs(texts) { } },
+            onPickerBusy = onPickerBusy,
+            lock = LockSettingsActions(
+                onToggleBiometric = lock::requestToggleBiometric,
+                onRotateRecovery = lock::requestRotateRecovery,
+                onDismissRecovery = lock::clearNewRecovery,
+                onConfirmSensitive = lock::confirmSensitiveAction,
+                onCancelSensitive = lock::cancelSensitiveAction,
+                onLockPin = lock::setPin,
+            ),
+            tools = PortfolioToolsActions(
+                onYear = tools::setYear,
+                onRecovery = tools::setRecovery,
+                onExportCsv = tools::exportTaxCsv,
+                onExportPdf = tools::exportTaxPdf,
+                onExportBackup = tools::exportBackup,
+                onRestoreBackup = tools::restoreBackup,
+                onConfirmRestore = tools::confirmRestore,
+                onCancelRestore = tools::cancelRestore,
+                onPickerBusy = onPickerBusy,
+            ),
+        ),
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TargetSettingsScreen(
+internal fun TargetSettingsScreen(
     state: TargetSettingsUiState,
     lock: LockUiState,
     importState: BrokerImportUiState,
     tools: PortfolioToolsUiState,
-    onClose: () -> Unit,
-    onWeight: (AssetType, String) -> Unit,
-    onSave: () -> Unit,
-    onImportCsvs: (List<String>) -> Unit,
-    onPickerBusy: (Boolean) -> Unit,
-    onToggleBiometric: () -> Unit,
-    onRotateRecovery: () -> Unit,
-    onDismissRecovery: () -> Unit,
-    onConfirmSensitive: () -> Unit,
-    onCancelSensitive: () -> Unit,
-    onLockPin: (String) -> Unit,
-    onYear: (String) -> Unit,
-    onRecovery: (String) -> Unit,
-    onExportCsv: ((ByteArray) -> Unit) -> Unit,
-    onExportPdf: ((ByteArray) -> Unit) -> Unit,
-    onExportBackup: ((ByteArray) -> Unit) -> Unit,
-    onRestoreBackup: (ByteArray) -> Unit,
-    onConfirmRestore: () -> Unit,
-    onCancelRestore: () -> Unit,
+    actions: TargetSettingsActions,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = actions.onClose) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -125,19 +114,8 @@ fun TargetSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Data", style = MaterialTheme.typography.titleLarge)
-            BrokerImportCard(state = importState, onImportCsvs = onImportCsvs, onPickerBusy = onPickerBusy)
-            PortfolioToolsCard(
-                state = tools,
-                onYear = onYear,
-                onRecovery = onRecovery,
-                onExportCsv = onExportCsv,
-                onExportPdf = onExportPdf,
-                onExportBackup = onExportBackup,
-                onRestoreBackup = onRestoreBackup,
-                onConfirmRestore = onConfirmRestore,
-                onCancelRestore = onCancelRestore,
-                onPickerBusy = onPickerBusy,
-            )
+            BrokerImportCard(state = importState, onImportCsvs = actions.onImportCsvs, onPickerBusy = actions.onPickerBusy)
+            PortfolioToolsCard(state = tools, actions = actions.tools)
             Text("Target allocation", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Weights are percent of total NAV and must sum to 100. Drift beyond ±5% is highlighted on the dashboard.",
@@ -147,7 +125,7 @@ fun TargetSettingsScreen(
             AssetType.entries.forEach { type ->
                 OutlinedTextField(
                     value = state.weights[type].orEmpty(),
-                    onValueChange = { onWeight(type, it) },
+                    onValueChange = { actions.onWeight(type, it) },
                     label = { Text(type.label()) },
                     suffix = { Text("%") },
                     singleLine = true,
@@ -158,18 +136,18 @@ fun TargetSettingsScreen(
             Text("Sum ${state.sum} / 100", style = MaterialTheme.typography.titleMedium)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-            Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = actions.onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
                 Text("Save targets")
             }
             Text("Security", style = MaterialTheme.typography.titleLarge)
             SecuritySettingsCard(
                 state = lock,
-                onToggleBiometric = onToggleBiometric,
-                onRotateRecovery = onRotateRecovery,
-                onDismissRecovery = onDismissRecovery,
-                onConfirmSensitive = onConfirmSensitive,
-                onCancelSensitive = onCancelSensitive,
-                onPin = onLockPin,
+                onToggleBiometric = actions.lock.onToggleBiometric,
+                onRotateRecovery = actions.lock.onRotateRecovery,
+                onDismissRecovery = actions.lock.onDismissRecovery,
+                onConfirmSensitive = actions.lock.onConfirmSensitive,
+                onCancelSensitive = actions.lock.onCancelSensitive,
+                onPin = actions.lock.onLockPin,
             )
         }
     }

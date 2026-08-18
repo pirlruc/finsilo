@@ -38,36 +38,28 @@ fun WatchlistRoute(viewModel: WatchlistViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     WatchlistScreen(
         state = state,
-        onClose = onClose,
-        onSymbol = viewModel::setSymbol,
-        onName = viewModel::setName,
-        onAssetType = viewModel::setAssetType,
-        onCurrency = viewModel::setCurrency,
-        onAdd = viewModel::add,
-        onRemove = viewModel::remove,
-        onSync = viewModel::sync,
+        actions = WatchlistActions(
+            onClose = onClose,
+            onSymbol = viewModel::setSymbol,
+            onName = viewModel::setName,
+            onAssetType = viewModel::setAssetType,
+            onCurrency = viewModel::setCurrency,
+            onAdd = viewModel::add,
+            onRemove = viewModel::remove,
+            onSync = viewModel::sync,
+        ),
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WatchlistScreen(
-    state: WatchlistUiState,
-    onClose: () -> Unit,
-    onSymbol: (String) -> Unit,
-    onName: (String) -> Unit,
-    onAssetType: (AssetType) -> Unit,
-    onCurrency: (Currency) -> Unit,
-    onAdd: () -> Unit,
-    onRemove: (String) -> Unit,
-    onSync: () -> Unit,
-) {
+internal fun WatchlistScreen(state: WatchlistUiState, actions: WatchlistActions) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Watchlist") },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = actions.onClose) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -87,53 +79,76 @@ fun WatchlistScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedTextField(state.symbol, onSymbol, label = { Text("Symbol") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(state.name, onName, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Text("Type", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                WATCHLIST_TYPES.forEach { type ->
-                    FilterChip(
-                        selected = state.assetType == type,
-                        onClick = { onAssetType(type) },
-                        label = { Text(type.label()) },
-                    )
-                }
-            }
-            Text("Quote currency", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Currency.entries.forEach { currency ->
-                    FilterChip(
-                        selected = state.currency == currency,
-                        onClick = { onCurrency(currency) },
-                        label = { Text(currency.name) },
-                    )
-                }
-            }
-            Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) { Text("Add to watchlist") }
-            Button(onClick = onSync, enabled = !state.syncing, modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.syncing) "Refreshing…" else "Refresh quotes")
-            }
-            state.items.forEach { item ->
-                val quote = state.quotes[item.id]
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(Modifier.weight(1f)) {
-                        Text(item.symbol, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${item.name} · ${item.assetType.label()} · ${item.baseCurrency.name}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        if (quote != null) {
-                            Text(
-                                "${quote.closingPriceNative.stripTrailingZeros().toPlainString()} as of ${quote.date}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                    TextButton(onClick = { onRemove(item.id) }) { Text("Remove") }
-                }
-            }
+            WatchlistEditor(state, actions)
+            WatchlistItems(state, actions.onRemove)
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WatchlistEditor(state: WatchlistUiState, actions: WatchlistActions) {
+    OutlinedTextField(
+        state.symbol,
+        actions.onSymbol,
+        label = { Text("Symbol") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        state.name,
+        actions.onName,
+        label = { Text("Name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Text("Type", style = MaterialTheme.typography.labelLarge)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        WATCHLIST_TYPES.forEach { type ->
+            FilterChip(
+                selected = state.assetType == type,
+                onClick = { actions.onAssetType(type) },
+                label = { Text(type.label()) },
+            )
+        }
+    }
+    Text("Quote currency", style = MaterialTheme.typography.labelLarge)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Currency.entries.forEach { currency ->
+            FilterChip(
+                selected = state.currency == currency,
+                onClick = { actions.onCurrency(currency) },
+                label = { Text(currency.name) },
+            )
+        }
+    }
+    Button(onClick = actions.onAdd, modifier = Modifier.fillMaxWidth()) { Text("Add to watchlist") }
+    Button(onClick = actions.onSync, enabled = !state.syncing, modifier = Modifier.fillMaxWidth()) {
+        Text(if (state.syncing) "Refreshing…" else "Refresh quotes")
+    }
+}
+
+@Composable
+private fun WatchlistItems(state: WatchlistUiState, onRemove: (String) -> Unit) {
+    state.items.forEach { item ->
+        val quote = state.quotes[item.id]
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text(item.symbol, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${item.name} · ${item.assetType.label()} · ${item.baseCurrency.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (quote != null) {
+                    Text(
+                        "${quote.closingPriceNative.stripTrailingZeros().toPlainString()} as of ${quote.date}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            TextButton(onClick = { onRemove(item.id) }) { Text("Remove") }
         }
     }
 }
