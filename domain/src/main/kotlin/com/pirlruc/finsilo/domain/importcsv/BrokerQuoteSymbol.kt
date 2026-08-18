@@ -54,8 +54,13 @@ internal object BrokerQuoteSymbol {
 
     fun fromIsin(ticker: String, isin: String?): String {
         val root = ticker.substringBefore('.').ifBlank { return ticker }
-        if (ListedQuoteRouting.looksEuropean(ticker) || ticker.contains('.')) return ticker
+        if (keepListedTicker(ticker)) return ticker
         val suffix = isin?.take(2)?.uppercase()?.let { isinCountry[it] } ?: return ticker
         return "$root.$suffix"
+    }
+
+    private fun keepListedTicker(ticker: String): Boolean {
+        if (ListedQuoteRouting.looksEuropean(ticker)) return true
+        return ticker.contains('.')
     }
 }

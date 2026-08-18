@@ -53,7 +53,7 @@ class CoverageGapsTest {
         assertTrue(month.points.none { it.date.isAfter(month.to) })
         val sampled = GetPortfolioHistoryUseCase(maxPoints = 6)(snapshot, HistoryRange.ALL, asOf)
         assertEquals(asOf, sampled.points.last().date)
-        val holeFrom = rebuilt.points.filter { it.date != month.from }
+        val holeFrom = rebuilt.points.filter { it.date != month.from }.reversed()
         val walkedHole = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ONE_MONTH, asOf, holeFrom)
         assertEquals(month.to, walkedHole.to)
         val missingTo = padded.filter { it.date != asOf }
@@ -142,6 +142,9 @@ class CoverageGapsTest {
         val quoted = importer(seeded, listOf(byQuote))
         assertTrue(quoted.accepted >= 1)
         assertEquals("GBX", BrokerMoney.currencyCode("Price (GBX)", "GBP"))
+        assertEquals(0, BigDecimal.ZERO.compareTo(BrokerMoney.book(MoneyParts("1", "10", "EUR", "10", "EUR", "", "1", "GBX"))!!.feesEur))
+        assertEquals(0, bd("1").compareTo(BrokerMoney.book(MoneyParts("1", "10", "EUR", "10", "EUR", "", "1", "EUR"))!!.feesEur))
+        assertTrue(BrokerMoney.book(MoneyParts("1", "10", "USD", "9.2", "EUR", "", "1", "USD"))!!.feesEur.signum() > 0)
         val zeroEurTotal = BrokerMoney.book(MoneyParts("1", "10", "USD", "0", "EUR", "", "", "EUR"))
         assertNotNull(zeroEurTotal)
         assertNull(zeroEurTotal!!.eurPerUsd)

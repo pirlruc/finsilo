@@ -49,8 +49,14 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
     }
 
     private fun rangeCovered(stored: List<NavPoint>, from: LocalDate, to: LocalDate): Boolean {
-        val first = stored.minByOrNull { it.date }?.date ?: return false
-        val last = stored.maxByOrNull { it.date }?.date ?: return false
+        if (stored.isEmpty()) return false
+        var first = stored[0].date
+        var last = stored[0].date
+        for (index in 1 until stored.size) {
+            val date = stored[index].date
+            if (date.isBefore(first)) first = date
+            if (date.isAfter(last)) last = date
+        }
         if (first.isAfter(from)) return false
         return !last.isBefore(to)
     }
