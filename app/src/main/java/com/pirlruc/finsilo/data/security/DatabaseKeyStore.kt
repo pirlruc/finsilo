@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import java.security.SecureRandom
 
 /**
@@ -38,10 +39,11 @@ class DatabaseKeyStore(context: Context) {
     fun passphrase(): ByteArray {
         val existing = prefs.getString(KEY_PASSPHRASE, null)
         if (existing != null) {
-            return existing.hexToBytes()
+            return AppLockCrypto.fromHex(existing)
+                ?: error("Stored SQLCipher passphrase is not valid hex; the encrypted ledger cannot be opened.")
         }
         val generated = ByteArray(32).also { SecureRandom().nextBytes(it) }
-        prefs.edit().putString(KEY_PASSPHRASE, generated.toHex()).apply()
+        prefs.edit().putString(KEY_PASSPHRASE, AppLockCrypto.toHex(generated)).apply()
         return generated
     }
 
@@ -50,10 +52,6 @@ class DatabaseKeyStore(context: Context) {
     fun setAlphaVantageKey(key: String) {
         prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).apply()
     }
-
-    private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
-
-    private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
     companion object {
         private const val PREFS_FILE = "finsilo_secure"

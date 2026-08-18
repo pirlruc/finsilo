@@ -72,7 +72,7 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- Open value backlog (not started): [FS-017](issues.yml) encrypted backup, [FS-018](issues.yml) PT FIFO report, [FS-019](issues.yml) NAV widget, [FS-020](issues.yml) threshold alerts, [FS-021](issues.yml) dual-currency display, [FS-022](issues.yml) manual quotes, [FS-023](issues.yml) templates, [FS-024](issues.yml) watchlist, [FS-026](issues.yml) Trading 212 official API (free key, not paid). CSV import is [FS-025](issues.yml) (done). Do not reopen [FS-DEC-001](issues.yml).
+- Open value backlog (not started): [FS-017](issues.yml) encrypted backup, [FS-018](issues.yml) PT FIFO report, [FS-019](issues.yml) NAV widget, [FS-020](issues.yml) threshold alerts, [FS-021](issues.yml) dual-currency display, [FS-022](issues.yml) manual quotes, [FS-023](issues.yml) templates, [FS-024](issues.yml) watchlist, [FS-026](issues.yml) Trading 212 official API (free key, not paid), [FS-027](issues.yml) same-day FIFO order / PIN-wrapped DB. CSV import is [FS-025](issues.yml) (done). Do not reopen [FS-DEC-001](issues.yml).
 
 Phase 7 still open:
 
@@ -99,7 +99,9 @@ The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is comput
 ## Security
 
 - SQLCipher passphrase and optional Alpha Vantage key in EncryptedSharedPreferences / Android Keystore.
-- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations.
+- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks on `ON_STOP` (skipped while the biometric prompt is showing).
+- SQLCipher passphrase parsing uses the same hex decoder as the lock (corrupt prefs fail closed; they do not throw `NumberFormatException`).
+- Room v2→v4 additive schema changes are `AutoMigration` (no `execSQL` in `src/main`). Scanner scope filters are listed in [`docs/scanner-exceptions.md`](scanner-exceptions.md); there are no finding-level ignores.
 - `FLAG_SECURE` and `filterTouchesWhenObscured` on the main activity (no screenshots of the ledger/PIN; ignore overlay taps).
 - `android:allowBackup="false"` and backup exclusion rules.
 - INTERNET permission for GET-only sync; cleartext disabled; quote URLs built with `HttpUrl.Builder` and restricted to Frankfurter / Alpha Vantage / CoinGecko / Stooq.
@@ -124,4 +126,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-18*
+*Last updated: 2026-08-18 (scanner exceptions + lock/import hardening)*

@@ -4,49 +4,84 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun SecuritySettingsCard(
-    biometricEnabled: Boolean,
-    biometricAvailable: Boolean,
-    newRecoveryCode: String?,
-    status: String?,
-    error: String?,
-    onToggleBiometric: (Boolean) -> Unit,
+    state: LockUiState,
+    onToggleBiometric: () -> Unit,
     onRotateRecovery: () -> Unit,
     onDismissRecovery: () -> Unit,
+    onConfirmSensitive: () -> Unit,
+    onCancelSensitive: () -> Unit,
+    onPin: (String) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("App lock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "PIN is required on launch. Recovery code resets the PIN. Biometrics unlock this session only.",
+                "PIN is required on launch and after the app leaves the foreground. " +
+                    "Changing biometrics or the recovery code requires the current PIN.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (biometricAvailable) {
-                Button(onClick = { onToggleBiometric(!biometricEnabled) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (biometricEnabled) "Disable biometric unlock" else "Enable biometric unlock")
+            if (state.pendingSensitiveAction != null) {
+                ConfirmSensitivePin(
+                    state = state,
+                    onPin = onPin,
+                    onConfirm = onConfirmSensitive,
+                    onCancel = onCancelSensitive,
+                )
+            } else {
+                if (state.biometricAvailable) {
+                    Button(onClick = onToggleBiometric, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (state.biometric) "Disable biometric unlock" else "Enable biometric unlock")
+                    }
+                }
+                Button(onClick = onRotateRecovery, modifier = Modifier.fillMaxWidth()) {
+                    Text("Generate a new recovery code")
                 }
             }
-            Button(onClick = onRotateRecovery, modifier = Modifier.fillMaxWidth()) {
-                Text("Generate a new recovery code")
-            }
-            if (newRecoveryCode != null) {
-                Text(newRecoveryCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (state.newRecoveryCode != null) {
+                Text(state.newRecoveryCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 TextButton(onClick = onDismissRecovery) { Text("I saved the new code") }
             }
-            status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }
+}
+
+@Composable
+private fun ConfirmSensitivePin(state: LockUiState, onPin: (String) -> Unit, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val label =
+        when (state.pendingSensitiveAction) {
+            SensitiveLockAction.ROTATE_RECOVERY -> "Enter PIN to generate a new recovery code"
+            SensitiveLockAction.TOGGLE_BIOMETRIC -> "Enter PIN to change biometric unlock"
+            null -> "Enter PIN"
+        }
+    Text(label, style = MaterialTheme.typography.bodyMedium)
+    OutlinedTextField(
+        value = state.pin,
+        onValueChange = onPin,
+        label = { Text("PIN") },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) { Text("Confirm") }
+    TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
 }

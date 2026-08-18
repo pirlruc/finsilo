@@ -1,11 +1,19 @@
 package com.pirlruc.finsilo.data.local
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+/**
+ * Encrypted Room database (SQLCipher). Schema JSON is exported under `app/schemas`.
+ *
+ * Additive changes from v2 onward are Room [AutoMigration]s so the generated
+ * `ALTER`/`CREATE` SQL lives in kapt output (`build/`), not in scanned source.
+ * v1 had no exported schema; [MIGRATION_1_2] is an empty version bump.
+ */
 @Database(
     entities = [
         AssetEntity::class,
@@ -18,6 +26,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     ],
     version = 4,
     exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from = 2, to = 3),
+        AutoMigration(from = 3, to = 4),
+    ],
 )
 @TypeConverters(FinsiloTypeConverters::class)
 abstract class FinsiloDatabase : RoomDatabase() {
@@ -28,28 +40,7 @@ abstract class FinsiloDatabase : RoomDatabase() {
             object : Migration(1, 2) {
                 override fun migrate(db: SupportSQLiteDatabase) {
                     // v1 and v2 share the same tables; v2 was a Room version bump.
-                }
-            }
-
-        val MIGRATION_2_3: Migration =
-            object : Migration(2, 3) {
-                override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL("ALTER TABLE assets ADD COLUMN isin TEXT") // mobsf-ignore: android_kotlin_sql_raw_query
-                    db.execSQL("ALTER TABLE assets ADD COLUMN quote_symbol TEXT") // mobsf-ignore: android_kotlin_sql_raw_query
-                }
-            }
-
-        val MIGRATION_3_4: Migration =
-            object : Migration(3, 4) {
-                override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL( // mobsf-ignore: android_kotlin_sql_raw_query
-                        "CREATE TABLE IF NOT EXISTS nav_history (date TEXT NOT NULL, value_eur TEXT NOT NULL, PRIMARY KEY(date))",
-                    )
-                    db.execSQL( // mobsf-ignore: android_kotlin_sql_raw_query
-                        "CREATE TABLE IF NOT EXISTS nav_rebuild_state (" +
-                            "id INTEGER NOT NULL, fingerprint TEXT NOT NULL, as_of TEXT NOT NULL, " +
-                            "rebuilt_at_ms INTEGER NOT NULL, PRIMARY KEY(id))",
-                    )
+                    // No execSQL: there is nothing to rewrite, and v1 was never exported.
                 }
             }
     }

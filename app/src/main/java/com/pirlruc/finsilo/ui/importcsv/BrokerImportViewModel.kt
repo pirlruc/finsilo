@@ -7,6 +7,7 @@ import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.importcsv.ImportBrokerCsvResult
 import com.pirlruc.finsilo.domain.importcsv.ImportBrokerCsvUseCase
+import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,21 +28,21 @@ class BrokerImportViewModel(
     fun importCsvs(texts: List<String>, onImported: () -> Unit) {
         viewModelScope.launch {
             _state.update { it.copy(importing = true, error = null, status = null) }
-            val result =
+            val loaded =
                 runCatching {
                     withContext(Dispatchers.Default) {
                         val snapshot = repository.load()
-                        importer(snapshot, texts)
+                        snapshot to importer(snapshot, texts)
                     }
                 }.getOrElse { error ->
                     _state.update { it.copy(importing = false, error = error.message ?: "Import failed") }
                     return@launch
                 }
-            persist(result, onImported)
+            persist(loaded.first, loaded.second, onImported)
         }
     }
 
-    private suspend fun persist(result: ImportBrokerCsvResult, onImported: () -> Unit) {
+    private suspend fun persist(before: PortfolioSnapshot, result: ImportBrokerCsvResult, onImported: () -> Unit) {
         if (result.error != null) {
             _state.update { it.copy(importing = false, error = result.error) }
             return
@@ -50,7 +51,7 @@ class BrokerImportViewModel(
             _state.update { it.copy(importing = false, status = brokerImportSummary(result), error = null) }
             return
         }
-        runCatching { repository.write(result.snapshot) }
+        runCatching { repository.persistImport(before, result.snapshot) }
             .onSuccess {
                 _state.update { it.copy(importing = false, status = brokerImportSummary(result), error = null) }
                 onImported()

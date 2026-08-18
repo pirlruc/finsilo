@@ -7,6 +7,7 @@ import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
+import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.math.BigDecimal
@@ -75,5 +76,58 @@ class RoomPortfolioRepositoryTest {
         assertTrue(nav.isNotEmpty())
         assertEquals(0, BigDecimal("1000").compareTo(nav.last().valueEur))
         assertTrue(!nav.last().date.isBefore(asOf))
+    }
+
+    @Test
+    fun persistImportKeepsQuotesWrittenBySync() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val stock =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        val deposit =
+            Transaction(
+                id = "tx-deposit",
+                assetId = cash.id,
+                date = asOf,
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = BigDecimal("1000"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+            )
+        repository.saveLedgerEntry(cash, deposit, null)
+        repository.upsertAsset(stock)
+        repository.upsertQuotes(
+            listOf(
+                DailyMarketData(
+                    assetId = stock.id,
+                    date = asOf,
+                    closingPriceNative = BigDecimal("100"),
+                ),
+            ),
+            emptyList(),
+        )
+        val before = repository.load()
+        assertEquals(1, before.marketData.size)
+        val extra =
+            deposit.copy(id = "tx-deposit-2", quantity = BigDecimal("50"), date = asOf.plusDays(1))
+        repository.persistImport(before, before.copy(transactions = before.transactions + extra))
+        val loaded = repository.load()
+        assertEquals(1, loaded.marketData.size)
+        assertEquals(2, loaded.transactions.size)
     }
 }

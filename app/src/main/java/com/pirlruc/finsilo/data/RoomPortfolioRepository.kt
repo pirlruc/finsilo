@@ -47,6 +47,24 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
         rebuildNavHistoryIfNeeded(snapshot)
     }
 
+    /**
+     * Persist CSV import rows without wiping quotes that a concurrent sync may have written.
+     * [write] is a full snapshot replace and is reserved for sample load/clear.
+     */
+    suspend fun persistImport(before: PortfolioSnapshot, after: PortfolioSnapshot) {
+        val newAssets = after.assets.filter { incoming -> before.assets.none { it.id == incoming.id } }
+        val newTx = after.transactions.filter { incoming -> before.transactions.none { it.id == incoming.id } }
+        val newFx = after.fxRates.filter { incoming -> before.fxRates.none { it.date == incoming.date } }
+        if (newAssets.isEmpty() && newTx.isEmpty() && newFx.isEmpty()) return
+        dao.insertImported(
+            newAssets.map(AssetEntity::from),
+            newTx.map(TransactionEntity::from),
+            newFx.map(CurrencyRateEntity::from),
+        )
+        val changedFrom = newTx.minOfOrNull { it.date } ?: newFx.minOfOrNull { it.date }
+        rebuildNavHistoryIfNeeded(load(), changedFrom = changedFrom)
+    }
+
     override suspend fun clear() {
         dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
     }

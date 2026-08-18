@@ -99,6 +99,17 @@ interface PortfolioDao {
     }
 
     @Transaction
+    suspend fun insertImported(assets: List<AssetEntity>, transactions: List<TransactionEntity>, fx: List<CurrencyRateEntity>) {
+        if (assets.isNotEmpty()) insertAssets(assets)
+        if (transactions.isNotEmpty()) insertTransactions(transactions)
+        fx.forEach { rate ->
+            if (countFxOn(rate.date) == 0) {
+                insertFxRates(listOf(rate))
+            }
+        }
+    }
+
+    @Transaction
     suspend fun replaceTargets(items: List<TargetAllocationEntity>) {
         deleteTargets()
         if (items.isNotEmpty()) insertTargets(items)

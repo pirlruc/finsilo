@@ -47,9 +47,12 @@ fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel,
         onWeight = viewModel::setWeight,
         onSave = { viewModel.save(onClose) },
         onImportCsvs = { texts -> importer.importCsvs(texts) { } },
-        onToggleBiometric = lock::persistBiometric,
-        onRotateRecovery = lock::rotateRecovery,
+        onToggleBiometric = lock::requestToggleBiometric,
+        onRotateRecovery = lock::requestRotateRecovery,
         onDismissRecovery = lock::clearNewRecovery,
+        onConfirmSensitive = lock::confirmSensitiveAction,
+        onCancelSensitive = lock::cancelSensitiveAction,
+        onLockPin = lock::setPin,
     )
 }
 
@@ -63,9 +66,12 @@ fun TargetSettingsScreen(
     onWeight: (AssetType, String) -> Unit,
     onSave: () -> Unit,
     onImportCsvs: (List<String>) -> Unit,
-    onToggleBiometric: (Boolean) -> Unit,
+    onToggleBiometric: () -> Unit,
     onRotateRecovery: () -> Unit,
     onDismissRecovery: () -> Unit,
+    onConfirmSensitive: () -> Unit,
+    onCancelSensitive: () -> Unit,
+    onLockPin: (String) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -111,14 +117,13 @@ fun TargetSettingsScreen(
                 Text("Save targets")
             }
             SecuritySettingsCard(
-                biometricEnabled = lock.biometric,
-                biometricAvailable = lock.biometricAvailable,
-                newRecoveryCode = lock.newRecoveryCode,
-                status = lock.status,
-                error = lock.error,
+                state = lock,
                 onToggleBiometric = onToggleBiometric,
                 onRotateRecovery = onRotateRecovery,
                 onDismissRecovery = onDismissRecovery,
+                onConfirmSensitive = onConfirmSensitive,
+                onCancelSensitive = onCancelSensitive,
+                onPin = onLockPin,
             )
         }
     }

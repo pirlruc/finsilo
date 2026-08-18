@@ -18,19 +18,21 @@ internal fun biometricAvailable(activity: FragmentActivity): Boolean {
 internal fun rememberHostActivity(): FragmentActivity = LocalActivity.current as FragmentActivity
 
 @Composable
-internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) -> Unit): () -> Unit {
+internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) -> Unit, onClosed: () -> Unit): () -> Unit {
     val activity = rememberHostActivity()
     val executor = remember { ContextCompat.getMainExecutor(activity) }
-    val prompt = remember(onSuccess, onError) {
+    val prompt = remember(onSuccess, onError, onClosed) {
         BiometricPrompt(
             activity,
             executor,
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onClosed()
                     onSuccess()
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    onClosed()
                     if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
                         errorCode != BiometricPrompt.ERROR_USER_CANCELED
                     ) {

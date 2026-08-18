@@ -142,26 +142,29 @@ milestones:
           goal: >-
             Export schema, keep additive migrations from the current version,
             and drop remaining destructive fallback before a non-sample install.
+            v2→v3 and v3→v4 are Room AutoMigrations (generated SQL, not
+            hand-written execSQL in src/main).
         architecture:
           target: Encrypted Room database
           modules:
             - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
         acceptance_criteria:
-          - MIGRATION_2_3 for isin/quote_symbol remains
-          - Schema JSON is exported for version 3+
+          - AutoMigration(2, 3) adds isin/quote_symbol; AutoMigration(3, 4) adds nav tables
+          - Schema JSON is exported for version 2+ (v2 reconstructed from v3 minus those columns)
           - Destructive fallback from v1 is removed before first non-sample install
+          - MIGRATION_1_2 remains an empty bump; v1 was never exported
         guardrail_refs:
           - KT-API-002
         tasks:
           - id: FS-012-T1
             status: done
-            title: Add MIGRATION_2_3 for ISIN and quote symbol
+            title: Add AutoMigration 2→3 for ISIN and quote symbol
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
                 - app/src/main/java/com/pirlruc/finsilo/data/local/Entities.kt
             verification:
-              - grep MIGRATION_2_3 app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+              - grep AutoMigration app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
           - id: FS-012-T2
             status: done
             title: Export schema and drop remaining destructive fallback
@@ -895,6 +898,7 @@ milestones:
                 - scripts/run-mobsfscan.sh
                 - scripts/fail-on-sarif-severity.py
                 - scripts/ci-local.sh
+                - docs/scanner-exceptions.md
             verification:
               - CodeQL java-kotlin, OSV Scanner, and mobsfscan run on PRs
               - High/Critical SARIF findings fail the job (CI-005)
@@ -1423,4 +1427,51 @@ milestones:
             verification:
               - ./gradlew :app:lintDebug
               - Sync is reachable only after unlock
+
+      - id: FS-027
+        status: open
+        title: Same-day ledger tie-break and PIN-wrapped SQLCipher
+        overview:
+          problem: >-
+            Same-day FIFO still tie-breaks on UUID lexicographic order, so two
+            trades on one date can replay in an order the user did not intend.
+            The app lock is UI-only: SQLCipher is Keystore-backed, not wrapped
+            by the PIN, which the setup screen already states.
+          goal: >-
+            Persist an explicit same-day order (created_at or import source line)
+            used by PositionLedger instead of UUID text. Optionally wrap the
+            database passphrase with the PIN/recovery secret so a stolen
+            ciphertext file is not readable without that secret. Do not reopen
+            FS-DEC-001.
+        architecture:
+          target: Transaction row identity plus DatabaseKeyStore
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio
+            - app/src/main/java/com/pirlruc/finsilo/data/security
+            - app/src/main/java/com/pirlruc/finsilo/data/local
+        acceptance_criteria:
+          - Same-day replay order is stable without depending on UUID string sort
+          - PIN-wrapped DB is a separate, explicit product step (migration + recovery)
+        guardrail_refs:
+          - KT-SEC-001
+        tasks:
+          - id: FS-027-T1
+            status: open
+            title: Replace UUID lexicographic same-day FIFO tie-break
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+                - app/src/main/java/com/pirlruc/finsilo/data/local
+            verification:
+              - ./gradlew :domain:test
+              - Two same-day sells/buys replay in recorded order, not UUID order
+          - id: FS-027-T2
+            status: open
+            title: Optional PIN wrap of the SQLCipher passphrase
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Existing installs migrate or re-key without a silent wipe
 

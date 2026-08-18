@@ -84,6 +84,8 @@ internal object Trading212CsvParser {
         action.contains("deposit") -> TransactionType.DEPOSIT_CASH
         action.contains("withdraw") -> TransactionType.WITHDRAWAL
         action.contains("dividend") -> TransactionType.DIVIDEND
+        // Cash interest on the uninvested T212 balance is a cash credit, not
+        // instrument INTEREST (deposits / CTs / PPR). Book it as a deposit.
         action.contains("interest") -> TransactionType.DEPOSIT_CASH
         action.contains("buy") -> TransactionType.BUY
         action.contains("sell") -> TransactionType.SELL

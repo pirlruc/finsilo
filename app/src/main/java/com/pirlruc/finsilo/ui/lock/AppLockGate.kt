@@ -1,21 +1,44 @@
 package com.pirlruc.finsilo.ui.lock
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val activity = rememberHostActivity()
+    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(activity) {
         viewModel.setBiometricAvailable(biometricAvailable(activity))
     }
-    val prompt = rememberBiometricPrompt(
-        onSuccess = viewModel::unlockWithBiometric,
-        onError = viewModel::setError,
-    )
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) {
+                    viewModel.onAppBackgrounded()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val prompt =
+        rememberBiometricPrompt(
+            onSuccess = {
+                viewModel.setBiometricPromptActive(false)
+                viewModel.unlockWithBiometric()
+            },
+            onError = { message ->
+                viewModel.setBiometricPromptActive(false)
+                viewModel.setError(message)
+            },
+            onClosed = { viewModel.setBiometricPromptActive(false) },
+        )
     when {
         !state.setupComplete ->
             LockSetupScreen(
@@ -39,7 +62,10 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
                 state = state,
                 onPin = viewModel::setPin,
                 onUnlock = viewModel::unlockWithPin,
-                onBiometric = prompt,
+                onBiometric = {
+                    viewModel.setBiometricPromptActive(true)
+                    prompt()
+                },
                 onForgot = { viewModel.showRecover(true) },
             )
         else -> content()

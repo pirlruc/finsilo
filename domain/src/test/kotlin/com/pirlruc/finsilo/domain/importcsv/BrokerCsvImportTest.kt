@@ -272,6 +272,48 @@ class ImportBrokerCsvUseCaseTest {
             second.snapshot.transactions.count { it.type == TransactionType.BUY },
         )
     }
+
+    @Test
+    fun sameDaySellCannotUseSharesFromSameDayBuy() {
+        val buyTen =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Market buy,2024-01-10 10:30:00,IE00BK5BQT80,VWCE_GY_EQ,VWCE,10,100.00,EUR,1000.00,EUR,B0
+            """.trimIndent()
+        val start = importer(empty, listOf(buyTen))
+        val sameDay =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Market sell,2024-06-01 09:00:00,IE00BK5BQT80,VWCE_GY_EQ,VWCE,15,110.00,EUR,1650.00,EUR,S1
+            Market buy,2024-06-01 10:00:00,IE00BK5BQT80,VWCE_GY_EQ,VWCE,10,100.00,EUR,1000.00,EUR,B1
+            """.trimIndent()
+        val result = importer(start.snapshot, listOf(sameDay))
+        assertTrue(result.skipped.any { it.contains("exceeds remaining") })
+        val vwce = result.snapshot.assets.first { it.isin == "IE00BK5BQT80" }
+        val qty =
+            result.snapshot.transactions.filter { it.assetId == vwce.id }.fold(bd("0")) { acc, tx ->
+                when (tx.type) {
+                    TransactionType.BUY -> acc.add(tx.quantity)
+                    TransactionType.SELL -> acc.subtract(tx.quantity)
+                    else -> acc
+                }
+            }
+        assertEquals(0, bd("20").compareTo(qty))
+    }
+
+    @Test
+    fun sameDayDividendAfterFirstBuyStillImports() {
+        val csv =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total),ID
+            Market buy,2024-01-15 10:30:00,US0378331005,AAPL_US_EQ,Apple,10,150.00,USD,0.92,1380.00,EUR,B1
+            Dividend (Ordinary),2024-01-15 12:00:00,US0378331005,AAPL_US_EQ,Apple,10,0.25,USD,0.90,2.25,EUR,DIV1
+            """.trimIndent()
+        val result = importer(empty, listOf(csv))
+        assertTrue(result.snapshot.transactions.any { it.type == TransactionType.BUY })
+        assertTrue(result.snapshot.transactions.any { it.type == TransactionType.DIVIDEND })
+        assertTrue(result.skipped.none { it.contains("No holding") })
+    }
 }
 
 class CsvReaderAndDatesTest {
