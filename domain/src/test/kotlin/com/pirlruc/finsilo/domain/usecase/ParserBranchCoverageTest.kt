@@ -42,6 +42,7 @@ class ParserBranchCoverageTest {
         val csv =
             """
             Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            ,,,,,,,,,,
             Market buy,2024-01-15 10:30:00,IE00BK5BQT80,,VWCE,1,100.00,EUR,100.00,EUR,ISINONLY
             Market buy,2024-01-15 10:30:00,,,VWCE,,,EUR,,,EUR,B0
             Market buy,2024-01-16 10:30:00,IE00BK5BQT80,VWCE,VWCE,0,100,EUR,0,EUR,B1

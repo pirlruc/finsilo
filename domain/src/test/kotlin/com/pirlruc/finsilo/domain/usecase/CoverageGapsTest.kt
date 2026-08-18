@@ -247,6 +247,9 @@ class CoverageGapsTest {
                 ),
             )
         assertTrue(counts.isNotEmpty())
+        assertTrue(PortfolioSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()).isEmpty)
+        assertTrue(!PortfolioSnapshot(emptyList(), listOf(cashTx()), emptyList(), emptyList(), emptyList()).isEmpty)
+        assertTrue(!snap().isEmpty)
     }
 
     @Test
