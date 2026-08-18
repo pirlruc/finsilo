@@ -1,51 +1,40 @@
 package com.pirlruc.finsilo.data.security
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
+import com.pirlruc.finsilo.domain.lock.PassphraseWrap
 import java.security.SecureRandom
 
 /**
- * Stores the SQLCipher passphrase in EncryptedSharedPreferences backed by the Android Keystore.
- * The raw passphrase never leaves the app's encrypted prefs.
+ * PIN/recovery wrap of the SQLCipher passphrase, plus Keystore-backed extras
+ * such as the Alpha Vantage key.
+ *
+ * The unwrapped 32-byte database key stays in process memory after a successful
+ * PIN or recovery unlock. UI re-lock does not evict it. A cold process cannot
+ * open the ledger until the user types PIN or recovery again.
  */
-class DatabaseKeyStore(context: Context) {
-    private val masterKey =
-        MasterKey.Builder(context)
-            .setKeyGenParameterSpec(
-                KeyGenParameterSpec.Builder(
-                    MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .build(),
-            )
-            .build()
+interface LedgerKeySession {
+    fun isSessionOpen(): Boolean
 
-    private val prefs =
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+    fun needsWrapUpgrade(): Boolean
 
-    fun passphrase(): ByteArray {
-        val existing = prefs.getString(KEY_PASSPHRASE, null)
-        if (existing != null) {
-            return AppLockCrypto.fromHex(existing)
-                ?: error("Stored SQLCipher passphrase is not valid hex; the encrypted ledger cannot be opened.")
-        }
-        val generated = ByteArray(32).also { SecureRandom().nextBytes(it) }
-        prefs.edit().putString(KEY_PASSPHRASE, AppLockCrypto.toHex(generated)).apply()
-        return generated
-    }
+    fun provision(pin: String, recovery: String): Boolean
+
+    fun unlockWithPin(pin: String): Boolean
+
+    fun unlockWithRecovery(recovery: String): Boolean
+
+    fun rewrapPin(newPin: String): Boolean
+
+    fun rewrapRecovery(newRecovery: String): Boolean
+
+    fun finishLegacyMigration(pin: String, recovery: String): Boolean
+}
+
+class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
+    @Volatile
+    private var session: ByteArray? = null
 
     fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
 
@@ -53,9 +42,96 @@ class DatabaseKeyStore(context: Context) {
         prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).apply()
     }
 
+    /** Copy of the unwrapped SQLCipher key; throws when this process has not unlocked. */
+    fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
+
+    override fun isSessionOpen(): Boolean = session != null
+
+    override fun needsWrapUpgrade(): Boolean = hasLegacyPassphrase() && !hasWrappedPassphrase()
+
+    override fun provision(pin: String, recovery: String): Boolean {
+        if (session != null) return true
+        if (hasWrappedPassphrase() || hasLegacyPassphrase()) return false
+        val key = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
+        persistWraps(pin, recovery, key)
+        session = key
+        return true
+    }
+
+    override fun unlockWithPin(pin: String): Boolean {
+        if (session != null) return true
+        val wrapped = storedBlob(KEY_WRAP_PIN)
+        if (wrapped != null) return acceptWrapped(PassphraseWrap.unwrap(pin, wrapped))
+        return unlockLegacy()
+    }
+
+    override fun unlockWithRecovery(recovery: String): Boolean {
+        if (session != null) return true
+        val secret = AppLockCrypto.normalizeRecovery(recovery)
+        val wrapped = storedBlob(KEY_WRAP_RECOVERY)
+        if (wrapped != null) return acceptWrapped(PassphraseWrap.unwrap(secret, wrapped))
+        return unlockLegacy()
+    }
+
+    override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
+
+    override fun rewrapRecovery(newRecovery: String): Boolean = rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
+
+    override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
+        val key = session ?: return false
+        if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
+        persistWraps(pin, recovery, key)
+        prefs.edit().remove(KEY_PASSPHRASE).apply()
+        return true
+    }
+
+    fun hasLegacyPassphrase(): Boolean = prefs.contains(KEY_PASSPHRASE)
+
+    fun hasWrappedPassphrase(): Boolean = prefs.contains(KEY_WRAP_PIN) && prefs.contains(KEY_WRAP_RECOVERY)
+
+    private fun unlockLegacy(): Boolean {
+        val hex = prefs.getString(KEY_PASSPHRASE, null) ?: return false
+        val key = AppLockCrypto.fromHex(hex) ?: return false
+        session = key
+        return true
+    }
+
+    private fun acceptWrapped(key: ByteArray?): Boolean {
+        if (key == null) return false
+        session = key
+        if (hasLegacyPassphrase()) {
+            prefs.edit().remove(KEY_PASSPHRASE).apply()
+        }
+        return true
+    }
+
+    private fun persistWraps(pin: String, recovery: String, key: ByteArray) {
+        val recoverySecret = AppLockCrypto.normalizeRecovery(recovery)
+        prefs.edit()
+            .putString(KEY_WRAP_PIN, AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
+            .putString(KEY_WRAP_RECOVERY, AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
+            .apply()
+    }
+
+    private fun rewrap(prefsKey: String, secret: String): Boolean {
+        val key = session ?: return false
+        prefs.edit().putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key))).apply()
+        return true
+    }
+
+    private fun storedBlob(prefsKey: String): ByteArray? {
+        val hex = prefs.getString(prefsKey, null) ?: return null
+        return AppLockCrypto.fromHex(hex)
+    }
+
     companion object {
         private const val PREFS_FILE = "finsilo_secure"
         private const val KEY_PASSPHRASE = "sqlcipher_passphrase"
+        private const val KEY_WRAP_PIN = "sqlcipher_wrap_pin"
+        private const val KEY_WRAP_RECOVERY = "sqlcipher_wrap_recovery"
         private const val KEY_ALPHA_VANTAGE = "alpha_vantage_key"
+        private const val PASSPHRASE_BYTES: Int = 32
+
+        fun create(context: Context): DatabaseKeyStore = DatabaseKeyStore(SecurePreferences.open(context, PREFS_FILE))
     }
 }

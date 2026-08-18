@@ -49,6 +49,12 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
                 onBiometric = viewModel::setBiometric,
                 onContinue = viewModel::completeSetup,
             )
+        state.wrapUpgradeRequired ->
+            WrapUpgradeScreen(
+                state = state,
+                onSaved = viewModel::setUpgradeRecoveryConfirm,
+                onContinue = viewModel::completeWrapUpgrade,
+            )
         !state.unlocked && state.recovering ->
             RecoverPinScreen(
                 state = state,

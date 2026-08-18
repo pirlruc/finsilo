@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.security.AppLockRepository
+import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 import kotlin.math.ceil
@@ -37,12 +38,17 @@ data class LockUiState(
     val newRecoveryCode: String? = null,
     val pendingSensitiveAction: SensitiveLockAction? = null,
     val pendingBiometricEnabled: Boolean = false,
+    val wrapUpgradeRequired: Boolean = false,
+    val upgradeRecovery: String = "",
+    val upgradeRecoveryConfirm: Boolean = false,
 )
 
 class LockViewModel(
     private val store: AppLockRepository,
     private val computation: CoroutineDispatcher = Dispatchers.Default,
     private val nowMs: () -> Long = { System.currentTimeMillis() },
+    private val keys: LedgerKeySession? = null,
+    private val openLedger: () -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow(LockUiState(setupComplete = store.isSetup(), biometric = store.biometricEnabled()))
     val state: StateFlow<LockUiState> = _state.asStateFlow()
@@ -52,6 +58,9 @@ class LockViewModel(
 
     @Volatile
     private var externalUiDepth: Int = 0
+
+    @Volatile
+    private var pendingUpgradePin: String? = null
 
     init {
         if (!_state.value.setupComplete) {
@@ -66,6 +75,8 @@ class LockViewModel(
     fun setRecoveryTyped(value: String) = _state.update { it.copy(pin = value, error = null) }
 
     fun setRecoveryConfirm(value: Boolean) = _state.update { it.copy(recoveryConfirm = value) }
+
+    fun setUpgradeRecoveryConfirm(value: Boolean) = _state.update { it.copy(upgradeRecoveryConfirm = value, error = null) }
 
     fun setBiometric(value: Boolean) = _state.update { it.copy(biometric = value) }
 
@@ -105,12 +116,21 @@ class LockViewModel(
     }
 
     fun unlockWithBiometric() {
+        if (keys != null && !keys.isSessionOpen()) {
+            _state.update { it.copy(error = "Enter your PIN after the app restarts.") }
+            return
+        }
         store.clearUnlockFailures()
+        openLedger()
         _state.update { it.copy(unlocked = true, error = null) }
     }
 
     fun recoverAndResetPin() {
         viewModelScope.launch(computation) { applyRecovery() }
+    }
+
+    fun completeWrapUpgrade() {
+        viewModelScope.launch(computation) { persistWrapUpgrade() }
     }
 
     fun requestRotateRecovery() {
@@ -149,51 +169,134 @@ class LockViewModel(
             _state.update { it.copy(error = error) }
             return
         }
-        _state.update { it.copy(unlocked = true, pin = "", error = null) }
+        if (!unwrapLedgerForPin(pin)) return
+        _state.update {
+            it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null)
+        }
+    }
+
+    private fun unwrapLedgerForPin(pin: String): Boolean {
+        val gate = keys ?: return true
+        if (!gate.unlockWithPin(pin)) {
+            _state.update { it.copy(error = "Could not unlock the ledger.") }
+            return false
+        }
+        if (gate.needsWrapUpgrade()) {
+            pendingUpgradePin = pin
+            _state.update {
+                it.copy(
+                    wrapUpgradeRequired = true,
+                    upgradeRecovery = AppLockCrypto.generateRecoveryCode(),
+                    upgradeRecoveryConfirm = false,
+                    pin = "",
+                    error = null,
+                )
+            }
+            return true
+        }
+        openLedger()
+        return true
     }
 
     private fun saveSetup() {
         val current = _state.value
-        val error = setupError(current)
+        val error = setupValidationError(current)
         if (error != null) {
             _state.update { it.copy(error = error) }
             return
         }
+        if (!persistSetup(current)) return
+        openLedger()
         _state.update { it.copy(setupComplete = true, unlocked = true, pin = "", pinConfirm = "", error = null) }
     }
 
-    private fun setupError(current: LockUiState): String? {
+    private fun setupValidationError(current: LockUiState): String? {
         if (!AppLockCrypto.pinOk(current.pin) || current.pin != current.pinConfirm) {
             return if (!AppLockCrypto.pinOk(current.pin)) "PIN must be 4–8 digits." else "PIN confirmation does not match."
         }
         if (!current.recoveryConfirm) return "Confirm that you saved the recovery code."
-        if (!store.setup(current.pin, current.recoveryCode, current.biometric)) return "Could not store the lock."
         return null
+    }
+
+    private fun persistSetup(current: LockUiState): Boolean {
+        if (!store.setup(current.pin, current.recoveryCode, current.biometric)) {
+            _state.update { it.copy(error = "Could not store the lock.") }
+            return false
+        }
+        if (keys != null && !keys.provision(current.pin, current.recoveryCode)) {
+            _state.update { it.copy(error = "Could not wrap the database key.") }
+            return false
+        }
+        return true
     }
 
     private fun applyRecovery() {
         val current = _state.value
-        val lockedOut = lockoutError()
-        if (lockedOut != null) {
-            _state.update { it.copy(error = lockedOut) }
-            return
-        }
-        val error = recoveryError(current)
+        val error = recoveryUnlockError(current) ?: recoveryKeyError(current) ?: resetPinError(current)
         if (error != null) {
             _state.update { it.copy(error = error) }
             return
         }
         store.clearUnlockFailures()
+        openLedger()
         _state.update { it.copy(unlocked = true, recovering = false, pin = "", pinConfirm = "", error = null) }
     }
 
-    private fun recoveryError(current: LockUiState): String? {
+    private fun recoveryUnlockError(current: LockUiState): String? {
+        lockoutError()?.let { return it }
         if (!store.verifyRecovery(current.pin)) {
             store.recordFailedUnlock(nowMs())
             return failedSecretMessage("Recovery code does not match.")
         }
         if (!AppLockCrypto.pinOk(current.pinConfirm)) return "Choose a new 4–8 digit PIN."
+        return null
+    }
+
+    private fun resetPinError(current: LockUiState): String? {
         if (!store.resetPin(current.pinConfirm)) return "Could not reset PIN."
+        return null
+    }
+
+    private fun recoveryKeyError(current: LockUiState): String? {
+        val gate = keys ?: return null
+        if (!gate.unlockWithRecovery(current.pin)) return "Could not unlock the ledger."
+        return rewrapAfterRecovery(gate, current)
+    }
+
+    private fun rewrapAfterRecovery(gate: LedgerKeySession, current: LockUiState): String? {
+        if (gate.needsWrapUpgrade()) {
+            if (gate.finishLegacyMigration(current.pinConfirm, current.pin)) return null
+            return "Could not wrap the database key."
+        }
+        if (gate.rewrapPin(current.pinConfirm)) return null
+        return "Could not rewrap the database key."
+    }
+
+    private fun persistWrapUpgrade() {
+        val error = wrapUpgradeError()
+        if (error != null) {
+            _state.update { it.copy(error = error) }
+            return
+        }
+        pendingUpgradePin = null
+        openLedger()
+        _state.update {
+            it.copy(wrapUpgradeRequired = false, unlocked = true, upgradeRecoveryConfirm = false, error = null)
+        }
+    }
+
+    private fun wrapUpgradeError(): String? {
+        val pin = pendingUpgradePin
+        val gate = keys
+        val current = _state.value
+        if (pin == null || gate == null) return "Unlock with your PIN to finish this upgrade."
+        if (!current.upgradeRecoveryConfirm) return "Confirm that you saved the new recovery code."
+        return persistMigratedWraps(gate, pin, current.upgradeRecovery)
+    }
+
+    private fun persistMigratedWraps(gate: LedgerKeySession, pin: String, recovery: String): String? {
+        if (!gate.finishLegacyMigration(pin, recovery)) return "Could not wrap the database key."
+        if (!store.rotateRecovery(recovery)) return "Could not store the new recovery code."
         return null
     }
 
@@ -213,6 +316,10 @@ class LockViewModel(
 
     private fun rotateRecoveryAfterPin() {
         val code = AppLockCrypto.generateRecoveryCode()
+        if (keys != null && !keys.rewrapRecovery(code)) {
+            _state.update { it.copy(error = "Could not rewrap the database key.") }
+            return
+        }
         if (!store.rotateRecovery(code)) {
             _state.update { it.copy(error = "Could not rotate recovery code.") }
             return
@@ -269,7 +376,11 @@ class LockViewModel(
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = LockViewModel(container.lockStore) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = LockViewModel(
+                store = container.lockStore,
+                keys = container.keys,
+                openLedger = container::openLedger,
+            ) as T
         }
     }
 }

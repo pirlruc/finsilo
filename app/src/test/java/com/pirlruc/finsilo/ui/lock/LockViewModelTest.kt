@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui.lock
 
 import com.pirlruc.finsilo.data.security.AppLockRepository
+import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,84 @@ class LockViewModelTest {
         assertFalse(viewModel.state.value.unlocked)
     }
 
+    @Test
+    fun completeSetupProvisionsWrappedKey() {
+        val keys = FakeLedgerKeys()
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(setup = false), dispatcher, { 1L }, keys) { opened += 1 }
+        viewModel.setPin("1234")
+        viewModel.setPinConfirm("1234")
+        viewModel.setRecoveryConfirm(true)
+        viewModel.completeSetup()
+        assertTrue(viewModel.state.value.unlocked)
+        assertEquals(1, keys.provisionCalls)
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun biometricColdStartRequiresPin() {
+        val keys = FakeLedgerKeys()
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        viewModel.unlockWithBiometric()
+        assertFalse(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.error!!.contains("PIN"))
+    }
+
+    @Test
+    fun biometricWorksWhenSessionAlreadyOpen() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        viewModel.unlockWithBiometric()
+        assertTrue(viewModel.state.value.unlocked)
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun pinUnlockOnLegacyShowsUpgradeUntilConfirm() {
+        val keys = FakeLedgerKeys(upgrade = true)
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        viewModel.setPin("1234")
+        viewModel.unlockWithPin()
+        assertTrue(viewModel.state.value.wrapUpgradeRequired)
+        assertFalse(viewModel.state.value.unlocked)
+        assertEquals(0, opened)
+        viewModel.completeWrapUpgrade()
+        assertFalse(viewModel.state.value.unlocked)
+        assertEquals(0, keys.finishMigrationCalls)
+        viewModel.setUpgradeRecoveryConfirm(true)
+        viewModel.completeWrapUpgrade()
+        assertTrue(viewModel.state.value.unlocked)
+        assertEquals(1, keys.finishMigrationCalls)
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun rotateRecoveryRewrapsKey() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestRotateRecovery()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertTrue(keys.lastRewrapRecovery != null)
+    }
+
+    @Test
+    fun recoverRewrapsPin() {
+        val keys = FakeLedgerKeys()
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        viewModel.showRecover(true)
+        viewModel.setRecoveryTyped(FakeAppLock.INITIAL_RECOVERY)
+        viewModel.setPinConfirm("5678")
+        viewModel.recoverAndResetPin()
+        assertTrue(viewModel.state.value.unlocked)
+        assertEquals("5678", keys.lastRewrapPin)
+        assertEquals(1, opened)
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()
@@ -112,10 +191,9 @@ class LockViewModelTest {
     }
 }
 
-private class FakeAppLock : AppLockRepository {
+private class FakeAppLock(private var setup: Boolean = true) : AppLockRepository {
     var pin: String = "1234"
     var recovery: String = INITIAL_RECOVERY
-    private var setup = true
     private var biometric = false
     private var attempts = 0
     private var lockoutUntil = 0L
@@ -172,5 +250,53 @@ private class FakeAppLock : AppLockRepository {
 
     companion object {
         const val INITIAL_RECOVERY: String = "ABCD1234EFGH5678"
+    }
+}
+
+private class FakeLedgerKeys(
+    var sessionOpen: Boolean = false,
+    var upgrade: Boolean = false,
+) : LedgerKeySession {
+    var provisionCalls: Int = 0
+    var finishMigrationCalls: Int = 0
+    var lastRewrapPin: String? = null
+    var lastRewrapRecovery: String? = null
+
+    override fun isSessionOpen(): Boolean = sessionOpen
+
+    override fun needsWrapUpgrade(): Boolean = upgrade
+
+    override fun provision(pin: String, recovery: String): Boolean {
+        provisionCalls += 1
+        sessionOpen = true
+        upgrade = false
+        return true
+    }
+
+    override fun unlockWithPin(pin: String): Boolean {
+        sessionOpen = true
+        return true
+    }
+
+    override fun unlockWithRecovery(recovery: String): Boolean {
+        sessionOpen = true
+        return true
+    }
+
+    override fun rewrapPin(newPin: String): Boolean {
+        lastRewrapPin = newPin
+        return true
+    }
+
+    override fun rewrapRecovery(newRecovery: String): Boolean {
+        lastRewrapRecovery = newRecovery
+        return true
+    }
+
+    override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
+        finishMigrationCalls += 1
+        upgrade = false
+        sessionOpen = true
+        return true
     }
 }

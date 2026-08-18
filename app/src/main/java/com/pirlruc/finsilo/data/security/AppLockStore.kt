@@ -1,10 +1,6 @@
 package com.pirlruc.finsilo.data.security
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 
@@ -37,28 +33,7 @@ interface AppLockRepository {
 
 /** Encrypted PIN, recovery hash, and biometric flag for the app lock. */
 class AppLockStore(context: Context) : AppLockRepository {
-    private val masterKey =
-        MasterKey.Builder(context)
-            .setKeyGenParameterSpec(
-                KeyGenParameterSpec.Builder(
-                    MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .build(),
-            )
-            .build()
-
-    private val prefs =
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+    private val prefs = SecurePreferences.open(context, PREFS_FILE)
 
     override fun isSetup(): Boolean = prefs.contains(KEY_PIN_HASH)
 

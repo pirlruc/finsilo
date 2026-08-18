@@ -25,20 +25,34 @@ class FinsiloApplication : Application() {
 }
 
 class AppContainer(val application: Application) {
-    private val keyStore = DatabaseKeyStore(application)
+    val keys: DatabaseKeyStore = DatabaseKeyStore.create(application)
     val widgetNav = WidgetNavCache(application)
-
-    val database: FinsiloDatabase =
-        Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
-            .openHelperFactory(SupportOpenHelperFactory(keyStore.passphrase()))
-            .addMigrations(FinsiloDatabase.MIGRATION_1_2)
-            .build()
-
-    val repository: RoomPortfolioRepository = RoomPortfolioRepository(database, widgetNav)
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
-    val marketFeed = CompositeMarketFeed(keys = keyStore)
-    val keys: DatabaseKeyStore = keyStore
+    val marketFeed = CompositeMarketFeed(keys = keys)
     val lockStore = AppLockStore(application)
+
+    @Volatile
+    private var database: FinsiloDatabase? = null
+
+    @Volatile
+    private var portfolioRepository: RoomPortfolioRepository? = null
+
+    val repository: RoomPortfolioRepository
+        get() = portfolioRepository ?: error("Ledger is locked until PIN or recovery unwraps the database key.")
+
+    fun isLedgerOpen(): Boolean = database != null
+
+    @Synchronized
+    fun openLedger() {
+        if (database != null) return
+        val db =
+            Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
+                .openHelperFactory(SupportOpenHelperFactory(keys.sessionPassphrase()))
+                .addMigrations(FinsiloDatabase.MIGRATION_1_2)
+                .build()
+        database = db
+        portfolioRepository = RoomPortfolioRepository(db, widgetNav)
+    }
 
     companion object {
         private const val DB_NAME = "finsilo.db"

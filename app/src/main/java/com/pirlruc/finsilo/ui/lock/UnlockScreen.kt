@@ -26,7 +26,7 @@ fun UnlockScreen(state: LockUiState, onPin: (String) -> Unit, onUnlock: () -> Un
     ) {
         Text("Unlock FinSilo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Text(
-            "Enter your PIN, or use biometrics if you enabled them on first launch.",
+            "Enter your PIN. Biometrics work only after a PIN unlock in this process; after the app is killed you must enter the PIN again.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

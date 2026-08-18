@@ -36,7 +36,7 @@ fun LockSetupScreen(
     ) {
         Text("Protect this device copy", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Text(
-            "Set a PIN before the ledger opens. Optionally unlock later with biometrics. Save the recovery code; it is the only way to reset a forgotten PIN.",
+            "Set a PIN before the ledger opens. Optionally unlock later with biometrics after you have entered the PIN once in this process. Save the recovery code; losing both PIN and recovery code makes this copy of the ledger unreadable.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -61,7 +61,7 @@ fun LockSetupScreen(
         Text("Recovery code", style = MaterialTheme.typography.titleMedium)
         Text(state.recoveryCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
-            "Write this down offline. It is not shown again. Losing both PIN and recovery code locks the UI; the SQLCipher database still needs this device's keystore.",
+            "Write this down offline. It is not shown again. The PIN and this code wrap the SQLCipher key. Losing both makes the ledger on this device unreadable.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

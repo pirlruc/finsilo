@@ -1429,7 +1429,7 @@ milestones:
               - Sync is reachable only after unlock
 
       - id: FS-027
-        status: open
+        status: done
         title: Same-day ledger tie-break and PIN-wrapped SQLCipher
         overview:
           problem: >-
@@ -1439,19 +1439,21 @@ milestones:
             by the PIN, which the setup screen already states.
           goal: >-
             Persist an explicit same-day order (created_at or import source line)
-            used by PositionLedger instead of UUID text. Optionally wrap the
-            database passphrase with the PIN/recovery secret so a stolen
-            ciphertext file is not readable without that secret. Do not reopen
-            FS-DEC-001.
+            used by PositionLedger instead of UUID text. Wrap the database
+            passphrase with the PIN/recovery secret so a stolen ciphertext file
+            is not readable without that secret. Do not reopen FS-DEC-001.
         architecture:
-          target: Transaction row identity plus DatabaseKeyStore
+          target: Transaction row identity plus PIN-wrapped DatabaseKeyStore
           modules:
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/lock
             - app/src/main/java/com/pirlruc/finsilo/data/security
             - app/src/main/java/com/pirlruc/finsilo/data/local
+            - app/src/main/java/com/pirlruc/finsilo/ui/lock
         acceptance_criteria:
           - Same-day replay order is stable without depending on UUID string sort
-          - PIN-wrapped DB is a separate, explicit product step (migration + recovery)
+          - PIN-wrapped DB migrates existing installs without a silent wipe
+          - Recovery rewraps the passphrase; biometric does not unwrap on a cold process
         guardrail_refs:
           - KT-SEC-001
         tasks:
@@ -1466,11 +1468,12 @@ milestones:
               - ./gradlew :domain:test
               - Two same-day sells/buys replay in recorded order, not UUID order
           - id: FS-027-T2
-            status: open
+            status: done
             title: Optional PIN wrap of the SQLCipher passphrase
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/security
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/lock
             verification:
               - ./gradlew :app:testDebugUnitTest
               - Existing installs migrate or re-key without a silent wipe

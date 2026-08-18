@@ -21,6 +21,10 @@ import java.util.concurrent.TimeUnit
 class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as FinsiloApplication).container
+        if (!container.keys.isSessionOpen() || !container.isLedgerOpen()) {
+            schedule(applicationContext)
+            return Result.success()
+        }
         val snapshot = container.repository.load()
         if (snapshot.isEmpty) {
             schedule(applicationContext)
