@@ -130,4 +130,36 @@ class RoomPortfolioRepositoryTest {
         assertEquals(1, loaded.marketData.size)
         assertEquals(2, loaded.transactions.size)
     }
+
+    @Test
+    fun ledgerSequenceRoundTripsThroughRoom() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val first =
+            Transaction(
+                id = "tx-a",
+                assetId = cash.id,
+                date = asOf,
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = BigDecimal("10"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+                sequence = 7,
+            )
+        val second = first.copy(id = "tx-b", quantity = BigDecimal("20"), sequence = 8)
+        repository.saveLedgerEntry(cash, first, null)
+        repository.saveLedgerEntry(null, second, null)
+        val loaded = repository.load().transactions
+        assertEquals(listOf(7L, 8L), loaded.map { it.sequence })
+        assertEquals(listOf("tx-a", "tx-b"), loaded.map { it.id })
+    }
 }

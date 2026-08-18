@@ -51,6 +51,11 @@ data class Transaction(
     val exchangeRateAtExecution: BigDecimal,
     val unitPriceEur: BigDecimal,
     val feesEur: BigDecimal,
+    /**
+     * Monotonic write order. Same-day FIFO uses this instead of sorting [id].
+     * Rows loaded from older databases default to 0 and still fall back to [id].
+     */
+    val sequence: Long = 0L,
 ) {
     val notionalEur: BigDecimal get() = quantity.multiply(unitPriceEur)
 }

@@ -90,5 +90,29 @@ data class YocReport(
     val paymentsPerYear: Int?,
 )
 
+/** Kind of realized FIFO line on the Portuguese plus-valias report. */
+enum class RealizedKind {
+    /** Marketable stock/ETF/crypto/commodity disposal. */
+    DISPOSAL,
+
+    /** Locally valued instrument (deposit, CT, unlisted PPR) redemption. */
+    REDEMPTION,
+}
+
+/** One FIFO lot consumed by a sell in the report year. */
+data class RealizedLotLine(
+    val asset: Asset,
+    val sellDate: LocalDate,
+    val acquiredDate: LocalDate,
+    val quantity: BigDecimal,
+    val costEur: BigDecimal,
+    val proceedsEur: BigDecimal,
+    val gainEur: BigDecimal,
+    val kind: RealizedKind,
+)
+
+/** Calendar-year FIFO realized gains in stored EUR. */
+data class RealizedGainsReport(val year: Int, val lines: List<RealizedLotLine>, val totalGainEur: BigDecimal)
+
 /** One native-currency close used by parsers and SMA math. */
 data class PriceBar(val date: LocalDate, val closeNative: BigDecimal)

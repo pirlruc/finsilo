@@ -12,7 +12,7 @@ interface PortfolioDao {
     @Query("SELECT * FROM assets")
     suspend fun getAssets(): List<AssetEntity>
 
-    @Query("SELECT * FROM transactions ORDER BY date ASC, transaction_id ASC")
+    @Query("SELECT * FROM transactions ORDER BY date ASC, ledger_sequence ASC, transaction_id ASC")
     suspend fun getTransactions(): List<TransactionEntity>
 
     @Query("SELECT * FROM daily_market_data")

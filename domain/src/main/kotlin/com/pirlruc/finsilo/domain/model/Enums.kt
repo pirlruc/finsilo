@@ -53,6 +53,22 @@ enum class TransactionType {
                 BUY -> 4
                 WITHDRAWAL -> 5
             }
+
+    /**
+     * Same-day CSV apply order. Sells run before buys so same-day purchases are
+     * not sellable. Income runs after buys so a first-time purchase can match a
+     * dividend row (the import walk needs the instrument in the snapshot).
+     */
+    val csvImportRank: Int
+        get() =
+            when (this) {
+                DEPOSIT_CASH -> 0
+                SELL -> 1
+                BUY -> 2
+                DIVIDEND -> 3
+                INTEREST -> 4
+                WITHDRAWAL -> 5
+            }
 }
 
 /** Alpha Vantage OVERVIEW consensus mapped to a five-level scale. */

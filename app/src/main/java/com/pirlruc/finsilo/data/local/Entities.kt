@@ -65,6 +65,7 @@ data class TransactionEntity(
     @ColumnInfo(name = "exchange_rate_at_execution") val exchangeRateAtExecution: BigDecimal,
     @ColumnInfo(name = "unit_price_eur") val unitPriceEur: BigDecimal,
     @ColumnInfo(name = "fees_eur") val feesEur: BigDecimal,
+    @ColumnInfo(name = "ledger_sequence", defaultValue = "0") val sequence: Long = 0,
 ) {
     fun toDomain(): Transaction = Transaction(
         id = transactionId,
@@ -76,6 +77,7 @@ data class TransactionEntity(
         exchangeRateAtExecution = exchangeRateAtExecution,
         unitPriceEur = unitPriceEur,
         feesEur = feesEur,
+        sequence = sequence,
     )
 
     companion object {
@@ -89,6 +91,7 @@ data class TransactionEntity(
             exchangeRateAtExecution = tx.exchangeRateAtExecution,
             unitPriceEur = tx.unitPriceEur,
             feesEur = tx.feesEur,
+            sequence = tx.sequence,
         )
     }
 }

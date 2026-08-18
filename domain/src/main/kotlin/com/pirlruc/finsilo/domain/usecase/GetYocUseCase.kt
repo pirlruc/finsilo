@@ -34,13 +34,11 @@ class GetYocUseCase(private val ledger: PositionLedger = PositionLedger()) {
             val ttm = dividends.filter { !it.date.isBefore(ttmStart) }
             val ttmSum = ttm.fold(ZERO) { acc, tx -> acc.add(tx.notionalEur) }
             val ttmPercent = if (ttm.isEmpty()) null else times(div(ttmSum, lots.remainingCostEur), HUNDRED)
-            val last = dividends.maxByOrNull { it.date }
+            val last = dividends.maxBy { it.date }
             val paymentsPerYear = inferPaymentsPerYear(ttm.size)
             val lastTimesFreq =
-                if (last == null || paymentsPerYear == null) {
-                    null
-                } else {
-                    val annualized = times(last.notionalEur, BigDecimal(paymentsPerYear))
+                paymentsPerYear?.let { freq ->
+                    val annualized = times(last.notionalEur, BigDecimal(freq))
                     times(div(annualized, lots.remainingCostEur), HUNDRED)
                 }
             YocReport(

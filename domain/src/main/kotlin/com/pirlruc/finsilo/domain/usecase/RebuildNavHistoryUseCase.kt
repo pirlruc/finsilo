@@ -73,10 +73,10 @@ class RebuildNavHistoryUseCase {
             return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
         }
         val storedFirst = storedPoints.minOf { it.date }
-        val storedLast = storedPoints.maxOf { it.date }
-        if (storedFirst.isAfter(first) || !storedLast.isBefore(asOf)) {
+        if (storedFirst.isAfter(first)) {
             return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
         }
+        val storedLast = storedPoints.maxOf { it.date }
         return storedPoints + walk(valuator, snapshot, storedLast.plusDays(1), asOf)
     }
 

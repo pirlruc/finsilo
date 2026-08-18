@@ -173,23 +173,7 @@ private class ImportWalk(
     private fun ordered(lines: List<BrokerCsvLine>): List<BrokerCsvLine> =
         lines.sortedWith(compareBy({ it.date ?: java.time.LocalDate.MAX }, { importRank(it.type) }, { it.sourceLine }))
 
-    /**
-     * Same-day walk order for applying CSV rows to a growing snapshot.
-     *
-     * Quantity and cash checks match [TransactionType.ledgerRank] for sell-before-buy
-     * (same-day purchases are not sellable). Income is after buy so a first-time
-     * same-day purchase can still match a dividend row — the import walk needs the
-     * instrument in the snapshot; ledger replay does not require quantity for income.
-     */
-    private fun importRank(type: TransactionType?): Int = when (type) {
-        null -> 9
-        TransactionType.DEPOSIT_CASH -> 0
-        TransactionType.SELL -> 1
-        TransactionType.BUY -> 2
-        TransactionType.DIVIDEND -> 3
-        TransactionType.INTEREST -> 4
-        TransactionType.WITHDRAWAL -> 5
-    }
+    private fun importRank(type: TransactionType?): Int = type?.csvImportRank ?: 9
 
     private fun draft(line: BrokerCsvLine) =
         NewAssetDraft(line.symbol, line.name.ifBlank { line.symbol }, line.assetType, line.currency, line.isin, line.quoteSymbol)

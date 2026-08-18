@@ -8,8 +8,10 @@ import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
+import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.ArrayDeque
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -20,6 +22,85 @@ class RecordLedgerEntryUseCaseTest {
     private val apple = Asset("aapl", "AAPL", "Apple", AssetType.STOCK, Currency.USD)
     private val ct = Asset("ct", "CT", "Certificados", AssetType.CT, Currency.EUR)
     private val cash = Asset("cash", "EUR-CASH", "Cash", AssetType.CASH, Currency.EUR)
+
+    @Test
+    fun sameDayBuysReplayInWriteOrderNotUuidOrder() {
+        val ids = ArrayDeque(listOf("zzz-first", "aaa-second", "sell-row"))
+        val recorder = RecordLedgerEntryUseCase(newId = { ids.removeFirst() })
+        val funded = cashOnly(bd("5000"))
+        val cheap =
+            recorder(
+                funded,
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("10"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+            ) as LedgerEntryResult.Accepted
+        val afterCheap =
+            funded.copy(
+                assets = funded.assets + cheap.asset,
+                transactions = funded.transactions + cheap.transaction,
+            )
+        val expensive =
+            recorder(
+                afterCheap,
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("90"),
+                    feesEur = BigDecimal.ZERO,
+                    existingAssetId = cheap.asset.id,
+                ),
+            ) as LedgerEntryResult.Accepted
+        val afterBoth =
+            afterCheap.copy(transactions = afterCheap.transactions + expensive.transaction)
+        val sell =
+            recorder(
+                afterBoth,
+                LedgerEntryRequest(
+                    type = TransactionType.SELL,
+                    date = asOf,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("100"),
+                    feesEur = BigDecimal.ZERO,
+                    existingAssetId = cheap.asset.id,
+                ),
+            ) as LedgerEntryResult.Accepted
+        val remaining =
+            PositionLedger().position(
+                afterBoth.transactions.filter { it.assetId == cheap.asset.id } + sell.transaction,
+            )
+        assertEquals("zzz-first", cheap.transaction.id)
+        assertEquals("aaa-second", expensive.transaction.id)
+        assertTrue(cheap.transaction.sequence < expensive.transaction.sequence)
+        assertEquals(0, bd("90").compareTo(remaining.remainingCostEur))
+    }
+
+    @Test
+    fun sequenceIncrementsFromExistingMax() {
+        val snapshot = fundedApple(qty = bd("1")).let { current ->
+            current.copy(transactions = current.transactions.map { it.copy(sequence = 40) })
+        }
+        val result =
+            useCase(
+                snapshot,
+                LedgerEntryRequest(
+                    type = TransactionType.DIVIDEND,
+                    date = asOf,
+                    quantity = BigDecimal.ONE,
+                    unitPriceNative = bd("1"),
+                    feesEur = BigDecimal.ZERO,
+                    existingAssetId = apple.id,
+                    eurPerUsd = bd("0.92"),
+                ),
+            ) as LedgerEntryResult.Accepted
+        assertEquals(41L, result.transaction.sequence)
+    }
 
     @Test
     fun sellAboveRemainingFifoQuantityIsRejected() {

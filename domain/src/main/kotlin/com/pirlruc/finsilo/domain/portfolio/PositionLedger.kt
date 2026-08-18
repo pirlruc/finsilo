@@ -15,8 +15,8 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.ArrayDeque
 
-/** Open FIFO lot (quantity still held and remaining EUR cost). */
-data class FifoLot(val quantity: BigDecimal, val remainingCostEur: BigDecimal)
+/** Open FIFO lot (quantity still held, remaining EUR cost, and acquire date). */
+data class FifoLot(val quantity: BigDecimal, val remainingCostEur: BigDecimal, val acquiredDate: LocalDate)
 
 /** Aggregated open lots for one instrument. */
 data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecimal, val lots: List<FifoLot> = emptyList()) {
@@ -27,12 +27,12 @@ data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecima
 /** Reconstructs holdings, cash, and locally valued instruments from the transaction ledger. */
 class PositionLedger {
     fun ordered(transactions: List<Transaction>): List<Transaction> =
-        transactions.sortedWith(compareBy({ it.date }, { it.type.ledgerRank }, { it.id }))
+        transactions.sortedWith(compareBy({ it.date }, { it.type.ledgerRank }, { it.sequence }, { it.id }))
 
     fun transactionsOnOrBefore(transactions: List<Transaction>, date: LocalDate): List<Transaction> =
         ordered(transactions.filter { !it.date.isAfter(date) })
 
-    /** Ledger rows that replay strictly before [candidate] (date, type rank, then id). */
+    /** Ledger rows that replay strictly before [candidate] (date, type rank, sequence, then id). */
     fun preceding(transactions: List<Transaction>, candidate: Transaction): List<Transaction> =
         ordered(transactions.filter { comesBefore(it, candidate) })
 
@@ -40,6 +40,8 @@ class PositionLedger {
         if (left.date != right.date) return left.date.isBefore(right.date)
         val rank = left.type.ledgerRank.compareTo(right.type.ledgerRank)
         if (rank != 0) return rank < 0
+        val sequence = left.sequence.compareTo(right.sequence)
+        if (sequence != 0) return sequence < 0
         return left.id < right.id
     }
 
@@ -47,7 +49,7 @@ class PositionLedger {
         val lots = ArrayDeque<FifoLot>()
         for (tx in ordered(transactions)) {
             when (tx.type) {
-                TransactionType.BUY -> lots.addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur)))
+                TransactionType.BUY -> lots.addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur), tx.date))
                 TransactionType.SELL -> {
                     consumeFifo(lots, tx.quantity)
                     Unit
@@ -77,7 +79,7 @@ class PositionLedger {
             } else {
                 val leftoverQty = minus(lot.quantity, remaining)
                 val leftoverCost = times(lot.remainingCostEur, div(leftoverQty, lot.quantity))
-                lots.addFirst(FifoLot(leftoverQty, leftoverCost))
+                lots.addFirst(FifoLot(leftoverQty, leftoverCost, lot.acquiredDate))
                 filled = plus(filled, remaining)
                 remaining = ZERO
             }
@@ -128,7 +130,7 @@ class PositionLedger {
         TransactionType.BUY -> {
             lotsByAsset
                 .getOrPut(tx.assetId) { ArrayDeque() }
-                .addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur)))
+                .addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur), tx.date))
             val cost = plus(tx.notionalEur, tx.feesEur)
             if (cost <= cash) minus(cash, cost) else ZERO
         }

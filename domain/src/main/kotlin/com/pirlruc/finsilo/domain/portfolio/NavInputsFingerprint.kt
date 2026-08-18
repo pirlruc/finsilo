@@ -28,7 +28,8 @@ object NavInputsFingerprint {
                     append(tx.assetId).append('|')
                     append(token(tx.quantity)).append('|')
                     append(token(tx.unitPriceEur)).append('|')
-                    append(token(tx.feesEur)).append(';')
+                    append(token(tx.feesEur)).append('|')
+                    append(tx.sequence).append(';')
                 }
                 append('#')
                 snapshot.fxRates.sortedBy { it.date }.forEach { rate ->

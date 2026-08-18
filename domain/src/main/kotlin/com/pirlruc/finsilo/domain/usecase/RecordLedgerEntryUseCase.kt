@@ -69,7 +69,7 @@ class RecordLedgerEntryUseCase(
         val (asset, created) = resolved
         validateType(asset, request.type)?.let { return it }
         val rate = fxRate(asset, request, snapshot) ?: return missingFx()
-        val transaction = transactionFor(asset, request, rate)
+        val transaction = transactionFor(snapshot, asset, request, rate)
         validateAgainstLedger(snapshot, asset, transaction)?.let { return it }
         return LedgerEntryResult.Accepted(
             asset = asset,
@@ -91,17 +91,19 @@ class RecordLedgerEntryUseCase(
         },
     )
 
-    private fun transactionFor(asset: Asset, request: LedgerEntryRequest, rate: BigDecimal): Transaction = Transaction(
-        id = newId(),
-        assetId = asset.id,
-        date = request.date,
-        type = request.type,
-        quantity = request.quantity,
-        unitPriceNative = request.unitPriceNative,
-        exchangeRateAtExecution = rate,
-        unitPriceEur = toEur(request.unitPriceNative, asset.baseCurrency, rate),
-        feesEur = request.feesEur,
-    )
+    private fun transactionFor(snapshot: PortfolioSnapshot, asset: Asset, request: LedgerEntryRequest, rate: BigDecimal): Transaction =
+        Transaction(
+            id = newId(),
+            assetId = asset.id,
+            date = request.date,
+            type = request.type,
+            quantity = request.quantity,
+            unitPriceNative = request.unitPriceNative,
+            exchangeRateAtExecution = rate,
+            unitPriceEur = toEur(request.unitPriceNative, asset.baseCurrency, rate),
+            feesEur = request.feesEur,
+            sequence = nextSequence(snapshot),
+        )
 
     private fun validateAmounts(request: LedgerEntryRequest): LedgerEntryResult.Rejected? {
         val reason =
@@ -245,6 +247,8 @@ class RecordLedgerEntryUseCase(
         assetType = AssetType.CASH,
         baseCurrency = Currency.EUR,
     )
+
+    private fun nextSequence(snapshot: PortfolioSnapshot): Long = 1L + (snapshot.transactions.maxOfOrNull { it.sequence } ?: 0L)
 
     companion object {
         const val CASH_ASSET_ID: String = "asset-cash"

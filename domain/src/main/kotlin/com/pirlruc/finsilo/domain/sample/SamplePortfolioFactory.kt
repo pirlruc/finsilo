@@ -130,7 +130,7 @@ object SamplePortfolioFactory {
             appleDividend("tx-aapl-div-1", start.plusDays(20), fx),
             appleDividend("tx-aapl-div-2", start.plusDays(90), fx),
             appleDividend("tx-aapl-div-3", start.plusDays(160), fx),
-        )
+        ).mapIndexed { index, tx -> tx.copy(sequence = index + 1L) }
     }
 
     private fun appleDividend(id: String, date: LocalDate, fx: List<CurrencyRate>): Transaction {
