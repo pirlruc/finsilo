@@ -1,0 +1,8 @@
+name: finsilo-codeql
+queries:
+  - uses: security-extended
+paths-ignore:
+  - .github/scaffold
+  - docs/guardrails
+  - "**/build/**"
+  - "**/generated/**"

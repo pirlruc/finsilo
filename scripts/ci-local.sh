@@ -2,6 +2,7 @@
 # Local parity for Phase 7 gates that currently pass.
 # Kover 95/95 is wired but not yet green: ./gradlew :domain:koverVerify
 # (docs/limitations.md LIM-COV). Maintainability scans :domain and :app.
+# CodeQL is CI-only (github/codeql-action); local SAST is semgrep + mobsfscan.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -15,3 +16,5 @@ python3 scripts/check-kdoc-coverage.py
 ./gradlew :app:ktlintCheck :app:detekt :app:lintDebug :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest
 bash scripts/run-gitleaks.sh
 bash scripts/run-syft-sbom.sh
+bash scripts/run-osv-scanner.sh
+bash scripts/run-mobsfscan.sh

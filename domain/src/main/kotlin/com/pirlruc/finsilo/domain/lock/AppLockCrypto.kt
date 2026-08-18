@@ -10,11 +10,12 @@ import javax.crypto.spec.PBEKeySpec
  *
  * Only salt + hash are stored. The PIN cannot be reconstructed from the hash;
  * the recovery code is shown once at setup and later resets the PIN.
+ * PBKDF2-HMAC-SHA256 uses 210_000 iterations (above typical SAST floors).
  */
 object AppLockCrypto {
     const val PIN_MIN_LENGTH: Int = 4
     const val PIN_MAX_LENGTH: Int = 8
-    const val ITERATIONS: Int = 50_000
+    const val ITERATIONS: Int = 210_000
     const val KEY_LENGTH_BITS: Int = 256
     const val SALT_BYTES: Int = 16
     const val RECOVERY_BYTES: Int = 16

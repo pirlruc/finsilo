@@ -753,8 +753,9 @@ milestones:
           problem: >-
             Org Kotlin gates (ktlint, detekt, Kover 95/95, gitleaks, semgrep)
             were not wired. ktlint + detekt run locally and in CI (GATE-001-T1/T2).
-            gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). Kover
-            reads thresholds fail-closed (T3): line coverage is above 95%;
+            gitleaks + semgrep and Dokka/KDoc coverage are wired (T4/T5). CodeQL,
+            OSV Scanner, and MobSF mobsfscan are wired (T6). Kover reads
+            thresholds fail-closed (T3): line coverage is above 95%;
             branch coverage is still ~89% — see docs/limitations.md LIM-COV.
           goal: >-
             CI and local commands enforce KT-BUILD-002, KT-CPLX-001/002,
@@ -768,16 +769,20 @@ milestones:
             - .github/workflows/quality.yml
             - .github/workflows/docs.yml
             - .github/workflows/security.yml
+            - .github/codeql/codeql-config.yml
             - domain/build.gradle.kts
             - app/build.gradle.kts
             - config/kotlin.profile.thresholds.yml
             - scripts/ci-local.sh
+            - scripts/run-osv-scanner.sh
+            - scripts/run-mobsfscan.sh
             - docs/guardrails/kotlin/profile.thresholds.yml
         acceptance_criteria:
           - Domain unit tests run in CI with SHA-pinned actions
           - ktlint and detekt run locally and in CI on :domain (GATE-001-T2)
           - Kover reads statement_coverage and branch_coverage fail-closed
           - gitleaks and semgrep run on PRs; High/Critical (ERROR) fails the job
+          - CodeQL, OSV Scanner, and MobSF mobsfscan run on PRs; High/Critical fails the job
           - Dokka HTML + KDoc coverage read doc_coverage fail-closed
           - No fake deviation entry in docs/guardrail-deviations.yml
         guardrail_refs:
@@ -879,6 +884,28 @@ milestones:
               - KT-DOC-001
               - CI-011
               - CI-022
+          - id: GATE-001-T6
+            status: done
+            title: Add CodeQL, OSV Scanner, and MobSF source scan in CI
+            instructions:
+              files:
+                - .github/workflows/security.yml
+                - .github/codeql/codeql-config.yml
+                - scripts/run-osv-scanner.sh
+                - scripts/run-mobsfscan.sh
+                - scripts/fail-on-sarif-severity.py
+                - scripts/ci-local.sh
+            verification:
+              - CodeQL java-kotlin, OSV Scanner, and mobsfscan run on PRs
+              - High/Critical SARIF findings fail the job (CI-005)
+              - bash scripts/run-osv-scanner.sh and bash scripts/run-mobsfscan.sh work locally
+            guardrail_refs:
+              - KT-SEC-002
+              - CI-001
+              - CI-005
+              - CI-008
+              - CI-012
+              - CI-025
 
       - id: GATE-AND-001
         status: done
@@ -994,7 +1021,7 @@ milestones:
           - CI-009 quality.yml runs ktlint + detekt on :domain and :app; complexity is fail-closed against max_cyclomatic_complexity
           - CI-010 domain-tests.yml runs :domain:test and :domain:koverVerify (T3 still open until 95/95); android.yml runs :app Robolectric
           - CI-011 docs.yml runs Dokka + KDoc coverage against doc_coverage
-          - CI-012 security.yml runs gitleaks, community semgrep ERROR, and PR dependency-review; android.yml retains a CycloneDX SBOM artifact (LIM-REL for signing/release)
+          - CI-012 security.yml runs gitleaks, community semgrep ERROR, CodeQL, OSV Scanner, MobSF mobsfscan, and PR dependency-review; android.yml retains a CycloneDX SBOM artifact (LIM-REL for signing/release)
           - Kotlin has no DYN category; C++ ASan/UBSan/valgrind is not an Android requirement
           - No docs/guardrail-deviations.yml entries (gaps are open tasks or limitations.md, not lowered gates)
         guardrail_refs:

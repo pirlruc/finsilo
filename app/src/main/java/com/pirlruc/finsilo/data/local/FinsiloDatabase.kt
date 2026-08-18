@@ -34,18 +34,18 @@ abstract class FinsiloDatabase : RoomDatabase() {
         val MIGRATION_2_3: Migration =
             object : Migration(2, 3) {
                 override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL("ALTER TABLE assets ADD COLUMN isin TEXT")
-                    db.execSQL("ALTER TABLE assets ADD COLUMN quote_symbol TEXT")
+                    db.execSQL("ALTER TABLE assets ADD COLUMN isin TEXT") // mobsf-ignore: android_kotlin_sql_raw_query
+                    db.execSQL("ALTER TABLE assets ADD COLUMN quote_symbol TEXT") // mobsf-ignore: android_kotlin_sql_raw_query
                 }
             }
 
         val MIGRATION_3_4: Migration =
             object : Migration(3, 4) {
                 override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL(
+                    db.execSQL( // mobsf-ignore: android_kotlin_sql_raw_query
                         "CREATE TABLE IF NOT EXISTS nav_history (date TEXT NOT NULL, value_eur TEXT NOT NULL, PRIMARY KEY(date))",
                     )
-                    db.execSQL(
+                    db.execSQL( // mobsf-ignore: android_kotlin_sql_raw_query
                         "CREATE TABLE IF NOT EXISTS nav_rebuild_state (" +
                             "id INTEGER NOT NULL, fingerprint TEXT NOT NULL, as_of TEXT NOT NULL, " +
                             "rebuilt_at_ms INTEGER NOT NULL, PRIMARY KEY(id))",

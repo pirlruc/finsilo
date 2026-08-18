@@ -12,7 +12,7 @@
 
 ## Current slice
 
-Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, PR dependency-review, Dokka/KDoc, and CycloneDX SBOM are wired. [GATE-001-T3](issues.yml) Kover branch 95% is wired but not green. Untracked limits: [docs/limitations.md](limitations.md).
+Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, PR dependency-review, Dokka/KDoc, and CycloneDX SBOM are wired. [GATE-001-T3](issues.yml) Kover branch 95% is wired but not green. Untracked limits: [docs/limitations.md](limitations.md).
 
 | Module | Path | Notes |
 | --- | --- | --- |
@@ -94,18 +94,34 @@ Do not record a fake lowered-gate deviation.
 | Unlisted PPR | Local NAV (buy + interest); skipped on sync | — |
 | Listed PPR | `quoteSymbol` / exchange suffix; routed like an ETF | — |
 
-The OkHttp client refuses non-GET. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. USD feeds (CoinGecko, AV US/commodities, Stooq XAU) stay USD and convert with stored EUR-per-USD even when the instrument is booked in EUR (`QuoteCurrency`). Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD-quoted holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
+The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. USD feeds (CoinGecko, AV US/commodities, Stooq XAU) stay USD and convert with stored EUR-per-USD even when the instrument is booked in EUR (`QuoteCurrency`). Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD-quoted holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
 
 ## Security
 
 - SQLCipher passphrase and optional Alpha Vantage key in EncryptedSharedPreferences / Android Keystore.
-- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN.
+- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations.
+- `FLAG_SECURE` and `filterTouchesWhenObscured` on the main activity (no screenshots of the ledger/PIN; ignore overlay taps).
 - `android:allowBackup="false"` and backup exclusion rules.
-- INTERNET permission for GET-only sync; cleartext disabled.
+- INTERNET permission for GET-only sync; cleartext disabled; quote URLs built with `HttpUrl.Builder` and restricted to Frankfurter / Alpha Vantage / CoinGecko / Stooq.
 - `POST_NOTIFICATIONS` for Phase 5 alerts; skipped at runtime if denied (API 33+).
+
+## Security scanners vs tools already in place
+
+None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo before GATE-001-T6. They **complement** the existing CI-012 jobs; they do not replace them.
+
+| Tool | Role | Overlap |
+| --- | --- | --- |
+| **gitleaks** (already in `security.yml`) | Secrets in git history | Not replaced. CodeQL/MobSF may also flag hardcoded secrets; gitleaks is the secret-scan gate (KT-SEC-003). |
+| **semgrep** `r/kotlin` + `r/generic.secrets` (already) | Pattern SAST, ERROR+ | Complementary to **CodeQL** (interprocedural dataflow) and **mobsfscan** (Android/MobSF rules). Kotlin pack default is semgrep-only; CodeQL is extra. |
+| **dependency-review-action** (already, PRs only) | GitHub Advisory on the PR diff | Complementary to **OSV Scanner**, which scans the full tree / version catalog and the CycloneDX SBOM against OSV.dev on every push. |
+| **syft** CycloneDX (already in `android.yml`) | SBOM inventory, not a vuln gate | OSV can consume that SBOM when it exists. |
+| **Android lint / detekt** | API/quality | Not MobSF. lint may catch some manifest issues; mobsfscan is MASVS-oriented. |
+| **CodeQL** (new) | Interprocedural SAST (`java-kotlin`, `security-extended`) | Not previously included. CI-only (`github/codeql-action`). |
+| **OSV Scanner** (new) | Dependency vulns (OSV.dev) against the Gradle CycloneDX BOM (`cyclonedxBom`, runtime classpaths) | Not previously included. Local: `scripts/run-osv-scanner.sh`. Complements PR-only dependency-review. |
+| **MobSF mobsfscan** (new) | Mobile Security Framework source SAST | Not previously included. Full MobSF Docker APK analysis is not in CI (no Docker in this flow); mobsfscan is the CI-practical MobSF gate. |
 
 ## Sample data
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-17*
+*Last updated: 2026-08-18*

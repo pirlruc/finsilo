@@ -7,4 +7,12 @@ plugins {
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.kover) apply false
     alias(libs.plugins.dokka) apply false
+    alias(libs.plugins.cyclonedx)
+}
+
+allprojects {
+    tasks.named<org.cyclonedx.gradle.CyclonedxDirectTask>("cyclonedxDirectBom") {
+        includeConfigs = listOf("runtimeClasspath", "debugRuntimeClasspath", "releaseRuntimeClasspath")
+        skipConfigs = listOf("(?i).*test.*")
+    }
 }

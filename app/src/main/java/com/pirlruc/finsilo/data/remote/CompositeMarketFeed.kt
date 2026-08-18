@@ -13,8 +13,6 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PriceBar
 import java.math.BigDecimal
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 
 /**
@@ -29,13 +27,18 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
 
     override suspend fun eurPerUsd(): BigDecimal {
         runCatching {
-            val json = http.get("https://api.frankfurter.app/latest?from=USD&to=EUR")
+            val json = http.get(MarketFeedUrls.frankfurterLatest())
             FrankfurterParser.eurPerUsd(json)
         }.getOrNull()?.let { return it }
 
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("No FX rate (Frankfurter failed, no Alpha Vantage key)")
         val json = http.get(
-            "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=EUR&apikey=${enc(key)}",
+            MarketFeedUrls.alphaVantage(
+                "function" to "CURRENCY_EXCHANGE_RATE",
+                "from_currency" to "USD",
+                "to_currency" to "EUR",
+                "apikey" to key,
+            ),
         )
         AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.exchangeRate(json)
@@ -45,7 +48,7 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
     override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> {
         val start = if (from.isAfter(to)) to else from
         runCatching {
-            val json = http.get("https://api.frankfurter.app/$start..$to?from=USD&to=EUR")
+            val json = http.get(MarketFeedUrls.frankfurterRange(start, to))
             FrankfurterParser.eurPerUsdSeries(json)
         }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
         return listOf(CurrencyRate(to, eurPerUsd()))
@@ -92,9 +95,11 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         }
         val key = keys.alphaVantageKey() ?: return AnalystRating.NONE
         val json = http.get(
-            "https://www.alphavantage.co/query?function=OVERVIEW&symbol=${enc(
-                ListedQuoteRouting.avSymbol(asset.feedSymbol),
-            )}&apikey=${enc(key)}",
+            MarketFeedUrls.alphaVantage(
+                "function" to "OVERVIEW",
+                "symbol" to ListedQuoteRouting.avSymbol(asset.feedSymbol),
+                "apikey" to key,
+            ),
         )
         AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.analystRating(json)
@@ -102,22 +107,24 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
 
     private suspend fun coinGecko(asset: Asset): List<PriceBar> {
         val id = CRYPTO_IDS[asset.feedSymbol.uppercase()] ?: asset.feedSymbol.lowercase()
-        val json = http.get("https://api.coingecko.com/api/v3/coins/$id/market_chart?vs_currency=usd&days=200&interval=daily")
+        val json = http.get(MarketFeedUrls.coinGeckoChart(id))
         return CoinGeckoParser.dailyCloses(json)
     }
 
     private suspend fun stooq(symbol: String): List<PriceBar> {
-        val ticker = ListedQuoteRouting.stooqTicker(symbol)
-        val csv = http.get("https://stooq.com/q/d/l/?s=$ticker&i=d")
+        val csv = http.get(MarketFeedUrls.stooqDaily(ListedQuoteRouting.stooqTicker(symbol)))
         return StooqParser.dailyCloses(csv)
     }
 
     private suspend fun alphaVantageDaily(symbol: String): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
         val json = http.get(
-            "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${enc(
-                ListedQuoteRouting.avSymbol(symbol),
-            )}&outputsize=full&apikey=${enc(key)}",
+            MarketFeedUrls.alphaVantage(
+                "function" to "TIME_SERIES_DAILY",
+                "symbol" to ListedQuoteRouting.avSymbol(symbol),
+                "outputsize" to "full",
+                "apikey" to key,
+            ),
         )
         val bars = AlphaVantageParser.dailyCloses(json)
         if (bars.isEmpty()) throw IllegalStateException("Alpha Vantage daily empty for $symbol")
@@ -129,7 +136,12 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val symbol = asset.feedSymbol.uppercase()
         if (symbol == "XAU" || symbol == "GOLD" || symbol == "XAUUSD") {
             val json = http.get(
-                "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=XAU&to_currency=USD&apikey=${enc(key)}",
+                MarketFeedUrls.alphaVantage(
+                    "function" to "CURRENCY_EXCHANGE_RATE",
+                    "from_currency" to "XAU",
+                    "to_currency" to "USD",
+                    "apikey" to key,
+                ),
             )
             val rate = AlphaVantageParser.exchangeRate(json) ?: throw IllegalStateException("No XAU spot")
             return listOf(PriceBar(asOf, rate))
@@ -137,18 +149,20 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val function = COMMODITY_FUNCTIONS[symbol]
             ?: throw IllegalStateException("Unknown commodity $symbol")
         val json = http.get(
-            "https://www.alphavantage.co/query?function=$function&interval=daily&apikey=${enc(key)}",
+            MarketFeedUrls.alphaVantage(
+                "function" to function,
+                "interval" to "daily",
+                "apikey" to key,
+            ),
         )
         return AlphaVantageParser.commoditySeries(json)
     }
 
     private suspend fun stooqCommodity(asset: Asset): List<PriceBar> {
         val ticker = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
-        val csv = http.get("https://stooq.com/q/d/l/?s=$ticker&i=d")
+        val csv = http.get(MarketFeedUrls.stooqDaily(ticker))
         return StooqParser.dailyCloses(csv)
     }
-
-    private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     companion object {
         private val CRYPTO_IDS = mapOf(

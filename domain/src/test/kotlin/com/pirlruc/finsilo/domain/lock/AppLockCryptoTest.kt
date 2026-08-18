@@ -38,6 +38,11 @@ class AppLockCryptoTest {
     }
 
     @Test
+    fun pbkdf2UsesAtLeast210kIterations() {
+        assertTrue(AppLockCrypto.ITERATIONS >= 210_000)
+    }
+
+    @Test
     fun generateSaltHasConfiguredLength() {
         val salt = AppLockCrypto.generateSalt()
         assertEquals(AppLockCrypto.SALT_BYTES, salt.size)
