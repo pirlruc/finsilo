@@ -4,37 +4,62 @@ import com.pirlruc.finsilo.data.local.AssetEntity
 import com.pirlruc.finsilo.data.local.CurrencyRateEntity
 import com.pirlruc.finsilo.data.local.DailyMarketDataEntity
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
+import com.pirlruc.finsilo.data.local.LedgerTemplateEntity
 import com.pirlruc.finsilo.data.local.NavHistoryEntity
 import com.pirlruc.finsilo.data.local.NavRebuildStateEntity
+import com.pirlruc.finsilo.data.local.PriceAlertThresholdEntity
 import com.pirlruc.finsilo.data.local.TargetAllocationEntity
 import com.pirlruc.finsilo.data.local.TransactionEntity
+import com.pirlruc.finsilo.data.local.WatchlistItemEntity
+import com.pirlruc.finsilo.data.local.WatchlistQuoteEntity
+import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
+import com.pirlruc.finsilo.domain.model.WatchlistItem
+import com.pirlruc.finsilo.domain.model.WatchlistSnapshot
 import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
+import com.pirlruc.finsilo.domain.usecase.BackfillLedgerSequenceUseCase
 import com.pirlruc.finsilo.domain.usecase.RebuildNavHistoryUseCase
 import java.time.LocalDate
 
-class RoomPortfolioRepository(private val database: FinsiloDatabase) :
+class RoomPortfolioRepository(private val database: FinsiloDatabase, private val widgetNav: WidgetNavCache? = null) :
     PortfolioReadRepository,
     SamplePortfolioWriter,
     LedgerWriteRepository {
     private val dao get() = database.portfolioDao()
     private val rebuildNav = RebuildNavHistoryUseCase()
+    private val backfillSequence = BackfillLedgerSequenceUseCase()
 
-    override suspend fun load(): PortfolioSnapshot = PortfolioSnapshot(
+    override suspend fun load(): PortfolioSnapshot {
+        val snapshot = rawLoad()
+        val filled = backfillSequence(snapshot.transactions)
+        if (sameSequences(snapshot.transactions, filled)) return snapshot
+        dao.insertTransactions(filled.map(TransactionEntity::from))
+        return snapshot.copy(transactions = filled)
+    }
+
+    private suspend fun rawLoad(): PortfolioSnapshot = PortfolioSnapshot(
         assets = dao.getAssets().map { it.toDomain() },
         transactions = dao.getTransactions().map { it.toDomain() },
         marketData = dao.getMarketData().map { it.toDomain() },
         fxRates = dao.getFxRates().map { it.toDomain() },
         targets = dao.getTargets().map { it.toDomain() },
     )
+
+    private fun sameSequences(original: List<Transaction>, filled: List<Transaction>): Boolean {
+        if (original.size != filled.size) return false
+        val byId = original.associate { it.id to it.sequence }
+        return filled.all { byId[it.id] == it.sequence }
+    }
 
     override suspend fun write(snapshot: PortfolioSnapshot) {
         dao.replaceAll(
@@ -67,6 +92,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
 
     override suspend fun clear() {
         dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        widgetNav?.write(null)
     }
 
     override suspend fun upsertAsset(asset: Asset) {
@@ -109,7 +135,10 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
         if (snapshot.isEmpty) return
         val stored = dao.getNavHistory().map { it.toDomain() }
         val decision = rebuildNav(snapshot, asOf, dao.getNavRebuildState()?.fingerprint, stored, changedFrom)
-        if (decision.skip) return
+        if (decision.skip) {
+            widgetNav?.write(decision.points.maxByOrNull { it.date })
+            return
+        }
         dao.replaceNavHistory(
             items = decision.points.map(NavHistoryEntity::from),
             state = NavRebuildStateEntity(
@@ -118,5 +147,49 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase) :
                 rebuiltAtMs = System.currentTimeMillis(),
             ),
         )
+        widgetNav?.write(decision.points.maxByOrNull { it.date })
     }
+
+    suspend fun loadThresholds(): List<PriceAlertThreshold> = dao.getThresholds().map { it.toDomain() }
+
+    suspend fun saveThreshold(threshold: PriceAlertThreshold) {
+        if (threshold.isEmpty) {
+            dao.deleteThreshold(threshold.assetId)
+        } else {
+            dao.insertThresholds(listOf(PriceAlertThresholdEntity.from(threshold)))
+        }
+    }
+
+    suspend fun loadTemplates(): List<LedgerTemplate> = dao.getTemplates().map { it.toDomain() }
+
+    suspend fun saveTemplate(template: LedgerTemplate) {
+        dao.insertTemplates(listOf(LedgerTemplateEntity.from(template)))
+    }
+
+    suspend fun deleteTemplate(id: String) {
+        dao.deleteTemplate(id)
+    }
+
+    suspend fun loadWatchlist(): WatchlistSnapshot = WatchlistSnapshot(
+        items = dao.getWatchlistItems().map { it.toDomain() },
+        quotes = dao.getWatchlistQuotes().map { it.toDomain() },
+    )
+
+    suspend fun saveWatchlistItem(item: WatchlistItem) {
+        dao.insertWatchlistItems(listOf(WatchlistItemEntity.from(item)))
+    }
+
+    suspend fun deleteWatchlistItem(id: String) {
+        dao.deleteWatchlistQuotes(id)
+        dao.deleteWatchlistItem(id)
+    }
+
+    suspend fun replaceWatchlistQuotes(quotes: List<DailyMarketData>) {
+        quotes.groupBy { it.assetId }.forEach { (id, rows) ->
+            dao.deleteWatchlistQuotes(id)
+            dao.insertWatchlistQuotes(rows.map(WatchlistQuoteEntity::from))
+        }
+    }
+
+    suspend fun lastNavPoint(): NavPoint? = dao.getNavHistory().maxByOrNull { it.date }?.toDomain()
 }

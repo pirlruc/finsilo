@@ -34,21 +34,54 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
             val txs = txsByAsset[asset.id].orEmpty()
             if (txs.isEmpty()) return@mapNotNull null
             if (asset.locallyValued) {
-                val value = ledger.locallyValuedEur(txs)
-                if (value.signum() == 0) return@mapNotNull null
-                val cost = costOfLocalInstrument(txs)
-                HoldingValuation(
-                    asset = asset,
-                    quantity = BigDecimal.ONE,
-                    priceEur = value,
-                    valueEur = value,
-                    costEur = cost,
-                    unrealizedPnlEur = minus(value, cost),
-                )
+                localHolding(asset, txs, asOf, marketByAsset, eurPerUsd)
             } else {
                 marketableHolding(asset, txs, asOf, marketByAsset, eurPerUsd)
             }
         }
+    }
+
+    private fun localHolding(
+        asset: Asset,
+        txs: List<Transaction>,
+        asOf: LocalDate,
+        marketByAsset: Map<String, List<DailyMarketData>>,
+        eurPerUsd: BigDecimal?,
+    ): HoldingValuation? {
+        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
+        if (market == null) return cashFlowLocalHolding(asset, txs)
+        val lot = ledger.position(txs)
+        if (lot.quantity.signum() == 0) return null
+        val currency = asset.baseCurrency
+        val rate = if (currency == Currency.EUR) BigDecimal.ONE else eurPerUsd
+        val priceEur = rate?.let { toEur(market.closingPriceNative, currency, it) } ?: return null
+        val value = times(lot.quantity, priceEur)
+        return HoldingValuation(
+            asset = asset,
+            quantity = lot.quantity,
+            priceEur = priceEur,
+            valueEur = value,
+            costEur = lot.remainingCostEur,
+            unrealizedPnlEur = minus(value, lot.remainingCostEur),
+            priceNative = market.closingPriceNative,
+            quoteCurrency = currency,
+        )
+    }
+
+    private fun cashFlowLocalHolding(asset: Asset, txs: List<Transaction>): HoldingValuation? {
+        val value = ledger.locallyValuedEur(txs)
+        if (value.signum() == 0) return null
+        val cost = costOfLocalInstrument(txs)
+        return HoldingValuation(
+            asset = asset,
+            quantity = BigDecimal.ONE,
+            priceEur = value,
+            valueEur = value,
+            costEur = cost,
+            unrealizedPnlEur = minus(value, cost),
+            priceNative = value,
+            quoteCurrency = Currency.EUR,
+        )
     }
 
     fun missingUsdFx(snapshot: PortfolioSnapshot): Boolean =
@@ -92,6 +125,9 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         if (lot.quantity.signum() == 0) return null
         val priceEur = pricedInEur(asset, asOf, marketByAsset, txs, eurPerUsd) ?: return null
         val value = times(lot.quantity, priceEur)
+        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
+        val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs)
+        val quote = if (market != null) QuoteCurrency.of(asset) else asset.baseCurrency
         return HoldingValuation(
             asset = asset,
             quantity = lot.quantity,
@@ -99,6 +135,8 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
             valueEur = value,
             costEur = lot.remainingCostEur,
             unrealizedPnlEur = minus(value, lot.remainingCostEur),
+            priceNative = native,
+            quoteCurrency = quote,
         )
     }
 

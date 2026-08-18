@@ -20,12 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.common.Fill
-import com.patrykandpatrick.vico.compose.common.component.TextComponent
 import com.patrykandpatrick.vico.compose.pie.PieChart
 import com.patrykandpatrick.vico.compose.pie.PieChartHost
 import com.patrykandpatrick.vico.compose.pie.PieSize
@@ -79,12 +76,7 @@ internal fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = M
     }
     val sliceStyles =
         slices.map { slice ->
-            PieChart.Slice(
-                fill = Fill(slice.assetType.chartColor()),
-                label = PieChart.SliceLabel.Inside(
-                    TextComponent(TextStyle(color = Color.White, fontWeight = FontWeight.Medium)),
-                ),
-            )
+            PieChart.Slice(fill = Fill(slice.assetType.chartColor()))
         }
     PieChartHost(
         chart =
@@ -92,7 +84,7 @@ internal fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = M
             sliceProvider = PieChart.SliceProvider.series(sliceStyles),
             innerSize = PieSize.Inner.fixed(72.dp),
             spacing = 4.dp,
-            valueFormatter = PieValueFormatter { _, value, _ -> "${"%.0f".format(value)}%" },
+            valueFormatter = PieValueFormatter { _, _, _ -> "" },
         ),
         modelProducer = modelProducer,
         modifier = modifier,

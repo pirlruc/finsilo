@@ -11,6 +11,10 @@ data class HoldingValuation(
     val valueEur: BigDecimal,
     val costEur: BigDecimal,
     val unrealizedPnlEur: BigDecimal,
+    /** Display-only native close; NAV math still uses [priceEur] / [valueEur]. */
+    val priceNative: BigDecimal? = null,
+    /** Feed or booking currency of [priceNative]. */
+    val quoteCurrency: Currency? = null,
 )
 
 /** One investment-type slice of current NAV, including optional target drift. */

@@ -8,6 +8,7 @@ import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
 import com.pirlruc.finsilo.data.security.AppLockStore
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
+import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -23,8 +24,9 @@ class FinsiloApplication : Application() {
     }
 }
 
-class AppContainer(application: Application) {
+class AppContainer(val application: Application) {
     private val keyStore = DatabaseKeyStore(application)
+    val widgetNav = WidgetNavCache(application)
 
     val database: FinsiloDatabase =
         Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
@@ -32,7 +34,7 @@ class AppContainer(application: Application) {
             .addMigrations(FinsiloDatabase.MIGRATION_1_2)
             .build()
 
-    val repository: RoomPortfolioRepository = RoomPortfolioRepository(database)
+    val repository: RoomPortfolioRepository = RoomPortfolioRepository(database, widgetNav)
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
     val marketFeed = CompositeMarketFeed(keys = keyStore)
     val keys: DatabaseKeyStore = keyStore

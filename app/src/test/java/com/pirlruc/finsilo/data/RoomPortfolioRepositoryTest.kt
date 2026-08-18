@@ -8,8 +8,11 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
+import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
+import com.pirlruc.finsilo.domain.model.WatchlistItem
 import java.math.BigDecimal
 import java.time.LocalDate
 import kotlinx.coroutines.test.runTest
@@ -161,5 +164,93 @@ class RoomPortfolioRepositoryTest {
         val loaded = repository.load().transactions
         assertEquals(listOf(7L, 8L), loaded.map { it.sequence })
         assertEquals(listOf("tx-a", "tx-b"), loaded.map { it.id })
+    }
+
+    @Test
+    fun watchlistTemplatesAndThresholdsSurvivePortfolioClear() = runTest {
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        repository.saveLedgerEntry(
+            cash,
+            Transaction(
+                id = "tx-deposit",
+                assetId = cash.id,
+                date = LocalDate.of(2026, 8, 16),
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = BigDecimal("10"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+                sequence = 1,
+            ),
+            null,
+        )
+        repository.saveWatchlistItem(
+            WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD),
+        )
+        repository.saveTemplate(
+            LedgerTemplate(
+                id = "t1",
+                label = "Monthly cash",
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = "250",
+            ),
+        )
+        repository.clear()
+        assertTrue(repository.load().isEmpty)
+        assertEquals("MSFT", repository.loadWatchlist().items.single().symbol)
+        assertEquals("Monthly cash", repository.loadTemplates().single().label)
+        assertTrue(repository.loadThresholds().isEmpty())
+    }
+
+    @Test
+    fun thresholdPersistsUntilAssetIsCleared() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val etf =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        repository.saveLedgerEntry(
+            cash,
+            Transaction(
+                id = "tx-deposit",
+                assetId = cash.id,
+                date = asOf,
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = BigDecimal("1000"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+            ),
+            null,
+        )
+        repository.upsertAsset(etf)
+        repository.saveThreshold(PriceAlertThreshold(etf.id, eurLevel = BigDecimal("100")))
+        assertEquals(0, BigDecimal("100").compareTo(checkNotNull(repository.loadThresholds().single().eurLevel)))
+        repository.saveThreshold(PriceAlertThreshold(etf.id))
+        assertTrue(repository.loadThresholds().isEmpty())
+        repository.saveThreshold(PriceAlertThreshold(etf.id, percentMove = BigDecimal("5")))
+        repository.clear()
+        assertTrue(repository.loadThresholds().isEmpty())
     }
 }

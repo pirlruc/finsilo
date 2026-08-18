@@ -19,10 +19,11 @@ import androidx.compose.ui.unit.dp
 import java.nio.charset.Charset
 
 @Composable
-fun BrokerImportCard(state: BrokerImportUiState, onImportCsvs: (List<String>) -> Unit) {
+fun BrokerImportCard(state: BrokerImportUiState, onImportCsvs: (List<String>) -> Unit, onPickerBusy: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            onPickerBusy(false)
             if (uris.isEmpty()) return@rememberLauncherForActivityResult
             onImportCsvs(uris.mapNotNull { uri -> readCsv(context, uri) })
         }
@@ -37,7 +38,10 @@ fun BrokerImportCard(state: BrokerImportUiState, onImportCsvs: (List<String>) ->
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Button(
-                onClick = { launcher.launch(CSV_MIME_TYPES) },
+                onClick = {
+                    onPickerBusy(true)
+                    launcher.launch(CSV_MIME_TYPES)
+                },
                 enabled = !state.importing,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -49,7 +53,14 @@ fun BrokerImportCard(state: BrokerImportUiState, onImportCsvs: (List<String>) ->
     }
 }
 
-private val CSV_MIME_TYPES = arrayOf("text/*", "text/csv", "text/comma-separated-values", "application/csv", "*/*")
+private val CSV_MIME_TYPES = arrayOf(
+    "text/csv",
+    "text/comma-separated-values",
+    "text/plain",
+    "text/*",
+    "application/csv",
+    "application/vnd.ms-excel",
+)
 
 private fun readCsv(context: android.content.Context, uri: Uri): String? = context.contentResolver.openInputStream(uri)?.use { input ->
     val bytes = input.readBytes()
@@ -58,7 +69,9 @@ private fun readCsv(context: android.content.Context, uri: Uri): String? = conte
 
 internal fun decodeCsv(bytes: ByteArray): String {
     if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) {
-        return String(bytes, Charset.forName("UTF-16LE"))
+        return String(bytes, 2, bytes.size - 2, Charset.forName("UTF-16LE"))
     }
-    return bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
+    val utf8 = bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
+    if ('\uFFFD' !in utf8) return utf8
+    return String(bytes, Charset.forName("windows-1252")).removePrefix("\uFEFF")
 }

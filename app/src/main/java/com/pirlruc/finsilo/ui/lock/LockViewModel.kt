@@ -50,6 +50,9 @@ class LockViewModel(
     @Volatile
     private var biometricPromptActive: Boolean = false
 
+    @Volatile
+    private var externalUiDepth: Int = 0
+
     init {
         if (!_state.value.setupComplete) {
             _state.update { it.copy(recoveryCode = AppLockCrypto.generateRecoveryCode()) }
@@ -76,8 +79,16 @@ class LockViewModel(
         biometricPromptActive = active
     }
 
+    fun setExternalUiActive(active: Boolean) {
+        if (active) {
+            externalUiDepth += 1
+        } else {
+            externalUiDepth = (externalUiDepth - 1).coerceAtLeast(0)
+        }
+    }
+
     fun onAppBackgrounded() {
-        if (biometricPromptActive) return
+        if (biometricPromptActive || externalUiDepth > 0) return
         val current = _state.value
         if (!current.setupComplete || !current.unlocked) return
         _state.update {

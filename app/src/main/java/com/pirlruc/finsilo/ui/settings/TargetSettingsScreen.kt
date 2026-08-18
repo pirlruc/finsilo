@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportCard
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
@@ -35,24 +37,41 @@ import com.pirlruc.finsilo.ui.lock.SecuritySettingsCard
 import com.pirlruc.finsilo.ui.theme.label
 
 @Composable
-fun TargetSettingsRoute(viewModel: TargetSettingsViewModel, lock: LockViewModel, importer: BrokerImportViewModel, onClose: () -> Unit) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+fun TargetSettingsRoute(
+    targets: TargetSettingsViewModel,
+    lock: LockViewModel,
+    importer: BrokerImportViewModel,
+    onClose: () -> Unit,
+    onPickerBusy: (Boolean) -> Unit,
+    container: AppContainer,
+) {
+    val state by targets.state.collectAsStateWithLifecycle()
     val lockState by lock.state.collectAsStateWithLifecycle()
     val importState by importer.state.collectAsStateWithLifecycle()
+    val tools: PortfolioToolsViewModel = viewModel(factory = PortfolioToolsViewModel.factory(container))
+    val toolsState by tools.state.collectAsStateWithLifecycle()
     TargetSettingsScreen(
         state = state,
         lock = lockState,
         importState = importState,
+        tools = toolsState,
         onClose = onClose,
-        onWeight = viewModel::setWeight,
-        onSave = { viewModel.save(onClose) },
+        onWeight = targets::setWeight,
+        onSave = { targets.save(onClose) },
         onImportCsvs = { texts -> importer.importCsvs(texts) { } },
+        onPickerBusy = onPickerBusy,
         onToggleBiometric = lock::requestToggleBiometric,
         onRotateRecovery = lock::requestRotateRecovery,
         onDismissRecovery = lock::clearNewRecovery,
         onConfirmSensitive = lock::confirmSensitiveAction,
         onCancelSensitive = lock::cancelSensitiveAction,
         onLockPin = lock::setPin,
+        onYear = tools::setYear,
+        onRecovery = tools::setRecovery,
+        onExportCsv = tools::exportTaxCsv,
+        onExportPdf = tools::exportTaxPdf,
+        onExportBackup = tools::exportBackup,
+        onRestoreBackup = tools::restoreBackup,
     )
 }
 
@@ -62,21 +81,29 @@ fun TargetSettingsScreen(
     state: TargetSettingsUiState,
     lock: LockUiState,
     importState: BrokerImportUiState,
+    tools: PortfolioToolsUiState,
     onClose: () -> Unit,
     onWeight: (AssetType, String) -> Unit,
     onSave: () -> Unit,
     onImportCsvs: (List<String>) -> Unit,
+    onPickerBusy: (Boolean) -> Unit,
     onToggleBiometric: () -> Unit,
     onRotateRecovery: () -> Unit,
     onDismissRecovery: () -> Unit,
     onConfirmSensitive: () -> Unit,
     onCancelSensitive: () -> Unit,
     onLockPin: (String) -> Unit,
+    onYear: (String) -> Unit,
+    onRecovery: (String) -> Unit,
+    onExportCsv: ((ByteArray) -> Unit) -> Unit,
+    onExportPdf: ((ByteArray) -> Unit) -> Unit,
+    onExportBackup: ((ByteArray) -> Unit) -> Unit,
+    onRestoreBackup: (ByteArray) -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Target allocation") },
+                title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
@@ -91,9 +118,21 @@ fun TargetSettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            BrokerImportCard(state = importState, onImportCsvs = onImportCsvs)
+            Text("Data", style = MaterialTheme.typography.titleLarge)
+            BrokerImportCard(state = importState, onImportCsvs = onImportCsvs, onPickerBusy = onPickerBusy)
+            PortfolioToolsCard(
+                state = tools,
+                onYear = onYear,
+                onRecovery = onRecovery,
+                onExportCsv = onExportCsv,
+                onExportPdf = onExportPdf,
+                onExportBackup = onExportBackup,
+                onRestoreBackup = onRestoreBackup,
+                onPickerBusy = onPickerBusy,
+            )
+            Text("Target allocation", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Weights are percent of total NAV and must sum to 100. Drift beyond ±5% is highlighted on the dashboard.",
                 style = MaterialTheme.typography.bodySmall,
@@ -116,6 +155,7 @@ fun TargetSettingsScreen(
             Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
                 Text("Save targets")
             }
+            Text("Security", style = MaterialTheme.typography.titleLarge)
             SecuritySettingsCard(
                 state = lock,
                 onToggleBiometric = onToggleBiometric,

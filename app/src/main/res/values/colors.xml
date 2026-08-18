@@ -1,4 +1,7 @@
 <resources>
     <color name="finsilo_green">#FF0F3D32</color>
     <color name="finsilo_on_green">#FFF4F7F4</color>
+    <color name="widget_bg">#FF18211D</color>
+    <color name="widget_fg">#FFF4F7F4</color>
+    <color name="widget_muted">#FFC5D5CC</color>
 </resources>

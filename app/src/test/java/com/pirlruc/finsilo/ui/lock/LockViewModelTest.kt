@@ -92,6 +92,19 @@ class LockViewModelTest {
         assertTrue(viewModel.state.value.unlocked)
     }
 
+    @Test
+    fun backgroundDoesNotLockWhileFilePickerIsOpen() {
+        val store = FakeAppLock()
+        val viewModel = LockViewModel(store, dispatcher, { 1L })
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.setExternalUiActive(true)
+        viewModel.onAppBackgrounded()
+        assertTrue(viewModel.state.value.unlocked)
+        viewModel.setExternalUiActive(false)
+        viewModel.onAppBackgrounded()
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()

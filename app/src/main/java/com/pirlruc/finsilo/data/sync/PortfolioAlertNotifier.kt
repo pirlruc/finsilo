@@ -44,6 +44,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         manager.createNotificationChannel(channel(CHANNEL_RATING, "Rating changes"))
         manager.createNotificationChannel(channel(CHANNEL_CROSS, "SMA crosses"))
         manager.createNotificationChannel(channel(CHANNEL_DRIFT, "Allocation drift"))
+        manager.createNotificationChannel(channel(CHANNEL_THRESHOLD, "Price thresholds"))
     }
 
     private fun channel(id: String, name: String): NotificationChannel =
@@ -53,6 +54,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         AlertChannel.RATING -> CHANNEL_RATING
         AlertChannel.CROSS -> CHANNEL_CROSS
         AlertChannel.DRIFT -> CHANNEL_DRIFT
+        AlertChannel.THRESHOLD -> CHANNEL_THRESHOLD
     }
 
     private fun alreadyPublished(alert: PortfolioAlert): Boolean =
@@ -74,6 +76,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         private const val CHANNEL_RATING = "finsilo-rating"
         private const val CHANNEL_CROSS = "finsilo-cross"
         private const val CHANNEL_DRIFT = "finsilo-drift"
+        private const val CHANNEL_THRESHOLD = "finsilo-threshold"
         private const val NOTIFICATION_BASE = 4100
         private const val ID_SPAN = 100_000
         private const val PREFS = "finsilo-alerts"

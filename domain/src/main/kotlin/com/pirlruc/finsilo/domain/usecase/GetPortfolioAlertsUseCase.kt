@@ -10,6 +10,7 @@ enum class AlertChannel {
     RATING,
     CROSS,
     DRIFT,
+    THRESHOLD,
 }
 
 /** One notification payload built from stored SMAs or allocation drift. */

@@ -19,7 +19,7 @@ class GetDashboardUseCase {
         storedNav: List<NavPoint> = emptyList(),
     ): DashboardReport {
         val valuator = PortfolioValuator()
-        val warnings = valuator.valuationWarnings(snapshot, asOf)
+        val warnings = valuator.valuationWarnings(snapshot, asOf) + DashboardCopy.extras(snapshot)
         return DashboardReport(
             asOf = asOf,
             allocation = GetAllocationUseCase(valuator)(snapshot, asOf),

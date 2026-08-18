@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.ui.ledger
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.time.LocalDate
 
@@ -28,4 +29,6 @@ data class LedgerUiState(
     val assets: List<Asset> = emptyList(),
     val cashEur: String? = null,
     val remainingQty: String? = null,
+    val templates: List<LedgerTemplate> = emptyList(),
+    val manualClose: String = "",
 )

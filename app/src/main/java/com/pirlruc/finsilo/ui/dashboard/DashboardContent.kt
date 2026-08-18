@@ -17,10 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
+import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -30,7 +33,9 @@ internal fun DashboardContent(
     report: DashboardReport,
     range: HistoryRange,
     statusMessage: String?,
+    thresholds: Map<String, PriceAlertThreshold>,
     onRangeSelected: (HistoryRange) -> Unit,
+    onSaveThreshold: (PriceAlertThreshold) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -42,7 +47,8 @@ internal fun DashboardContent(
         report.warnings.forEach { warning ->
             Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
-        SummaryRow(report)
+        SummaryColumn(report)
+        HoldingsCard(report.allocation.holdings, report.allocation.cashEur, thresholds, onSaveThreshold)
         AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
         HistoryCard(report.history.points, range, onRangeSelected)
         if (report.yoc.isNotEmpty()) {
@@ -55,28 +61,33 @@ internal fun DashboardContent(
 }
 
 @Composable
-internal fun SummaryRow(report: DashboardReport) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+internal fun SummaryColumn(report: DashboardReport) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         MetricCard(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             label = "Portfolio",
             value = formatEur(report.allocation.totalValueEur),
             caption = "as of ${report.asOf}",
+            description = "Total net asset value ${formatEur(report.allocation.totalValueEur)}",
         )
-        val pnl = report.allocation.unrealizedPnlEur
-        MetricCard(
-            modifier = Modifier.weight(1f),
-            label = "Unrealized",
-            value = formatSignedEur(pnl),
-            caption = if (pnl.signum() >= 0) "Open gains" else "Open losses",
-            valueColor = if (pnl.signum() < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        )
-        MetricCard(
-            modifier = Modifier.weight(1f),
-            label = "TWR",
-            value = formatPercent(report.twr.twrPercent),
-            caption = "${report.twr.subPeriods.size} sub-period(s)",
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            val pnl = report.allocation.unrealizedPnlEur
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Unrealized",
+                value = formatSignedEur(pnl),
+                caption = if (pnl.signum() >= 0) "Open gains" else "Open losses",
+                valueColor = if (pnl.signum() < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                description = "Unrealized ${formatSignedEur(pnl)}",
+            )
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "TWR",
+                value = formatPercent(report.twr.twrPercent),
+                caption = "${report.twr.subPeriods.size} sub-period(s)",
+                description = "Time-weighted return ${formatPercent(report.twr.twrPercent)}",
+            )
+        }
     }
 }
 
@@ -87,8 +98,12 @@ internal fun MetricCard(
     value: String,
     caption: String,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    description: String = "$label $value",
 ) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(
+        modifier.semantics { contentDescription = description },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))

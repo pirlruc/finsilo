@@ -3,13 +3,14 @@ package com.pirlruc.finsilo.data.sync
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.pirlruc.finsilo.FinsiloApplication
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
+import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
 import java.time.Duration
 import java.time.LocalDate
@@ -21,15 +22,23 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
     override suspend fun doWork(): Result {
         val container = (applicationContext as FinsiloApplication).container
         val snapshot = container.repository.load()
-        if (snapshot.isEmpty) return Result.success()
+        if (snapshot.isEmpty) {
+            schedule(applicationContext)
+            return Result.success()
+        }
         val asOf = LocalDate.now()
         val synced = SyncMarketDataUseCase(container.marketFeed)(snapshot, asOf)
         val gotQuotes = synced.marketData.isNotEmpty() || synced.fxRates.isNotEmpty()
-        if (synced.failures.isNotEmpty() && !gotQuotes) return Result.retry()
+        if (synced.failures.isNotEmpty() && !gotQuotes) {
+            schedule(applicationContext)
+            return Result.retry()
+        }
         container.repository.upsertQuotes(synced.marketData, synced.fxRates)
         val updated = container.repository.load()
-        val alerts = GetPortfolioAlertsUseCase()(updated, asOf)
+        val alerts = GetPortfolioAlertsUseCase()(updated, asOf) +
+            GetPriceThresholdAlertsUseCase()(updated, container.repository.loadThresholds(), asOf)
         PortfolioAlertNotifier(applicationContext).publish(alerts)
+        schedule(applicationContext)
         return Result.success()
     }
 
@@ -38,7 +47,7 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
 
         fun schedule(context: Context) {
             val request =
-                PeriodicWorkRequestBuilder<DailyMarketSyncWorker>(1, TimeUnit.DAYS)
+                OneTimeWorkRequestBuilder<DailyMarketSyncWorker>()
                     .setInitialDelay(millisUntil2300(), TimeUnit.MILLISECONDS)
                     .setConstraints(
                         Constraints.Builder()
@@ -46,9 +55,9 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
                             .build(),
                     )
                     .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            WorkManager.getInstance(context).enqueueUniqueWork(
                 UNIQUE_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request,
             )
         }

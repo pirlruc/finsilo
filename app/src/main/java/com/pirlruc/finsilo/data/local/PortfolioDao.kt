@@ -75,6 +75,42 @@ interface PortfolioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNavRebuildState(state: NavRebuildStateEntity)
 
+    @Query("SELECT * FROM price_alert_threshold")
+    suspend fun getThresholds(): List<PriceAlertThresholdEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertThresholds(items: List<PriceAlertThresholdEntity>)
+
+    @Query("DELETE FROM price_alert_threshold WHERE asset_id = :assetId")
+    suspend fun deleteThreshold(assetId: String)
+
+    @Query("SELECT * FROM ledger_template")
+    suspend fun getTemplates(): List<LedgerTemplateEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTemplates(items: List<LedgerTemplateEntity>)
+
+    @Query("DELETE FROM ledger_template WHERE template_id = :id")
+    suspend fun deleteTemplate(id: String)
+
+    @Query("SELECT * FROM watchlist_item")
+    suspend fun getWatchlistItems(): List<WatchlistItemEntity>
+
+    @Query("SELECT * FROM watchlist_quote")
+    suspend fun getWatchlistQuotes(): List<WatchlistQuoteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchlistItems(items: List<WatchlistItemEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchlistQuotes(items: List<WatchlistQuoteEntity>)
+
+    @Query("DELETE FROM watchlist_item WHERE item_id = :id")
+    suspend fun deleteWatchlistItem(id: String)
+
+    @Query("DELETE FROM watchlist_quote WHERE item_id = :id")
+    suspend fun deleteWatchlistQuotes(id: String)
+
     @Transaction
     suspend fun replaceNavHistory(items: List<NavHistoryEntity>, state: NavRebuildStateEntity) {
         deleteNavHistory()

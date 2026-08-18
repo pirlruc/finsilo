@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 @Composable
@@ -52,6 +53,10 @@ fun LedgerEntryRoute(viewModel: LedgerEntryViewModel, onClose: () -> Unit) {
         onCurrency = viewModel::setCurrency,
         onIsin = viewModel::setIsin,
         onQuoteSymbol = viewModel::setQuoteSymbol,
+        onApplyTemplate = viewModel::applyTemplate,
+        onSaveTemplate = viewModel::saveTemplate,
+        onManualClose = viewModel::setManualClose,
+        onSaveManualClose = viewModel::saveManualClose,
         onSave = { viewModel.save(onClose) },
     )
 }
@@ -75,6 +80,10 @@ fun LedgerEntryScreen(
     onCurrency: (Currency) -> Unit,
     onIsin: (String) -> Unit,
     onQuoteSymbol: (String) -> Unit,
+    onApplyTemplate: (LedgerTemplate) -> Unit,
+    onSaveTemplate: (String) -> Unit,
+    onManualClose: (String) -> Unit,
+    onSaveManualClose: () -> Unit,
     onSave: () -> Unit,
 ) {
     val cashLike = state.type == TransactionType.DEPOSIT_CASH || state.type == TransactionType.WITHDRAWAL
@@ -99,6 +108,7 @@ fun LedgerEntryScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             LedgerTypeChips(state.type, onType)
+            LedgerTemplateSection(state.templates, state.type, onApplyTemplate, onSaveTemplate)
             OutlinedTextField(
                 value = state.date,
                 onValueChange = onDate,
@@ -125,6 +135,12 @@ fun LedgerEntryScreen(
                     onFx,
                 )
             }
+            ManualCloseFields(
+                visible = !state.newInstrument && LedgerFormMapper.isLocallyValuedSelection(state),
+                value = state.manualClose,
+                onValue = onManualClose,
+                onSave = onSaveManualClose,
+            )
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {

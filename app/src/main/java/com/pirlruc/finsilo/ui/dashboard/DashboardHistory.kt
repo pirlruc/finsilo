@@ -2,7 +2,8 @@ package com.pirlruc.finsilo.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun HistoryCard(points: List<NavPoint>, range: HistoryRange, onRangeSelected: (HistoryRange) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
@@ -40,9 +42,10 @@ internal fun HistoryCard(points: List<NavPoint>, range: HistoryRange, onRangeSel
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HistoryRange.entries.forEach { candidate ->
                     FilterChip(

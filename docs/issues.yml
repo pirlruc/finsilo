@@ -1051,7 +1051,7 @@ milestones:
   - name: Backlog — next product value
     epics:
       - id: FS-017
-        status: open
+        status: done
         title: Encrypted on-device backup and restore of the ledger
         overview:
           problem: >-
@@ -1075,7 +1075,7 @@ milestones:
           - KT-SEC-001
         tasks:
           - id: FS-017-T1
-            status: open
+            status: done
             title: Design backup file format and restore validation
             instructions:
               files:
@@ -1084,7 +1084,7 @@ milestones:
               - ./gradlew :app:testDebugUnitTest
               - Restore of a truncated file is refused
           - id: FS-017-T2
-            status: open
+            status: done
             title: Add export and restore UI behind the app lock
             instructions:
               files:
@@ -1094,7 +1094,7 @@ milestones:
               - ./gradlew :app:lintDebug
 
       - id: FS-018
-        status: open
+        status: done
         title: Portuguese FIFO capital-gains CSV/PDF report
         overview:
           problem: >-
@@ -1124,7 +1124,7 @@ milestones:
             verification:
               - ./gradlew :domain:test
           - id: FS-018-T2
-            status: open
+            status: done
             title: CSV and PDF export from settings
             instructions:
               files:
@@ -1133,7 +1133,7 @@ milestones:
               - ./gradlew :app:lintDebug
 
       - id: FS-019
-        status: open
+        status: done
         title: Home-screen widget for glanceable EUR NAV
         overview:
           problem: >-
@@ -1153,7 +1153,7 @@ milestones:
           - KT-SEC-001
         tasks:
           - id: FS-019-T1
-            status: open
+            status: done
             title: Widget provider bound to last nav_history point
             instructions:
               files:
@@ -1163,7 +1163,7 @@ milestones:
               - ./gradlew :app:assembleDebug
 
       - id: FS-020
-        status: open
+        status: done
         title: Intraday price alerts beyond the 23:00 worker
         overview:
           problem: >-
@@ -1185,7 +1185,7 @@ milestones:
           - KT-API-001
         tasks:
           - id: FS-020-T1
-            status: open
+            status: done
             title: Domain threshold evaluation on stored bars
             instructions:
               files:
@@ -1193,7 +1193,7 @@ milestones:
             verification:
               - ./gradlew :domain:test
           - id: FS-020-T2
-            status: open
+            status: done
             title: Per-holding threshold UI and notification
             instructions:
               files:
@@ -1202,7 +1202,7 @@ milestones:
               - ./gradlew :app:lintDebug
 
       - id: FS-021
-        status: open
+        status: done
         title: Dual-currency display without changing stored FX
         overview:
           problem: >-
@@ -1223,7 +1223,7 @@ milestones:
           - KT-API-001
         tasks:
           - id: FS-021-T1
-            status: open
+            status: done
             title: Show native quote next to EUR value for USD-feed holdings
             instructions:
               files:
@@ -1233,7 +1233,7 @@ milestones:
               - ./gradlew :domain:test
 
       - id: FS-022
-        status: open
+        status: done
         title: Manual quote override for unlisted assets
         overview:
           problem: >-
@@ -1254,7 +1254,7 @@ milestones:
           - KT-API-001
         tasks:
           - id: FS-022-T1
-            status: open
+            status: done
             title: Persist a manual close for locally valued instruments
             instructions:
               files:
@@ -1264,7 +1264,7 @@ milestones:
               - ./gradlew :domain:test
 
       - id: FS-023
-        status: open
+        status: done
         title: Recurring deposit and interest templates
         overview:
           problem: >-
@@ -1284,7 +1284,7 @@ milestones:
           - KT-TEST-001
         tasks:
           - id: FS-023-T1
-            status: open
+            status: done
             title: Store templates on-device and apply them to the ledger form
             instructions:
               files:
@@ -1294,7 +1294,7 @@ milestones:
               - ./gradlew :app:testDebugUnitTest
 
       - id: FS-024
-        status: open
+        status: done
         title: Watchlist that does not mix with the live ledger
         overview:
           problem: >-
@@ -1315,7 +1315,7 @@ milestones:
           - KT-API-001
         tasks:
           - id: FS-024-T1
-            status: open
+            status: done
             title: Watchlist model isolated from PortfolioSnapshot transactions
             instructions:
               files:
@@ -1324,7 +1324,7 @@ milestones:
               - ./gradlew :domain:test
               - Allocation of the live ledger is unchanged when the watchlist is non-empty
           - id: FS-024-T2
-            status: open
+            status: done
             title: Watchlist UI and GET-only refresh
             instructions:
               files:
