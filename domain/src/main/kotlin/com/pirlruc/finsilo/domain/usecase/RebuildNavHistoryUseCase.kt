@@ -53,9 +53,12 @@ class RebuildNavHistoryUseCase {
         asOf: LocalDate,
     ): Boolean {
         if (storedFingerprint != fingerprint) return false
-        if (storedPoints.isEmpty()) return false
-        val storedFirst = storedPoints.minOf { it.date }
-        val storedLast = storedPoints.maxOf { it.date }
+        return spanCovers(storedPoints, first, asOf)
+    }
+
+    private fun spanCovers(storedPoints: List<NavPoint>, first: LocalDate, asOf: LocalDate): Boolean {
+        val storedFirst = earliest(storedPoints) ?: return false
+        val storedLast = latest(storedPoints) ?: return false
         if (storedFirst.isAfter(first)) return false
         return !storedLast.isBefore(asOf)
     }
@@ -69,14 +72,14 @@ class RebuildNavHistoryUseCase {
         storedPoints: List<NavPoint>,
         changedFrom: LocalDate?,
     ): List<NavPoint> {
-        if (!fingerprintMatches || storedPoints.isEmpty()) {
+        if (!fingerprintMatches) {
             return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
         }
-        val storedFirst = storedPoints.minOf { it.date }
-        if (storedFirst.isAfter(first)) {
+        val storedFirst = earliest(storedPoints)
+        val storedLast = latest(storedPoints)
+        if (storedFirst == null || storedLast == null || storedFirst.isAfter(first)) {
             return incrementalOrFull(valuator, snapshot, first, asOf, storedPoints, changedFrom)
         }
-        val storedLast = storedPoints.maxOf { it.date }
         return storedPoints + walk(valuator, snapshot, storedLast.plusDays(1), asOf)
     }
 
@@ -88,17 +91,21 @@ class RebuildNavHistoryUseCase {
         storedPoints: List<NavPoint>,
         changedFrom: LocalDate?,
     ): List<NavPoint> {
-        if (changedFrom == null || storedPoints.isEmpty()) {
+        if (changedFrom == null) {
             return walk(valuator, snapshot, first, asOf)
         }
-        val storedFirst = storedPoints.minOf { it.date }
+        val storedFirst = earliest(storedPoints)
         val from = maxOf(first, changedFrom)
-        if (storedFirst.isAfter(first) || !from.isAfter(first)) {
+        if (storedFirst == null || storedFirst.isAfter(first) || !from.isAfter(first)) {
             return walk(valuator, snapshot, first, asOf)
         }
         val prefix = storedPoints.filter { it.date.isBefore(from) }
         return prefix + walk(valuator, snapshot, from, asOf)
     }
+
+    private fun earliest(points: List<NavPoint>): LocalDate? = points.minByOrNull { it.date }?.date
+
+    private fun latest(points: List<NavPoint>): LocalDate? = points.maxByOrNull { it.date }?.date
 
     private fun walk(valuator: PortfolioValuator, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> {
         val points = ArrayList<NavPoint>()

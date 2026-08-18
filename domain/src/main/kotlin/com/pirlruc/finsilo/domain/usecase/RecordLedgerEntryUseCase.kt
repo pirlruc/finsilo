@@ -84,10 +84,10 @@ class RecordLedgerEntryUseCase(
     )
 
     private fun missingAsset(request: LedgerEntryRequest): LedgerEntryResult.Rejected = LedgerEntryResult.Rejected(
-        when (request.type) {
-            TransactionType.BUY -> "Choose an existing holding or enter a new instrument."
-            TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL -> "Cash account is missing."
-            else -> "Choose an existing instrument."
+        if (request.type == TransactionType.BUY) {
+            "Choose an existing holding or enter a new instrument."
+        } else {
+            "Choose an existing instrument."
         },
     )
 

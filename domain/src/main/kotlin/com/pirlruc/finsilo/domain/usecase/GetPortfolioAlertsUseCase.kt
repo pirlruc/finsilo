@@ -31,7 +31,7 @@ class GetPortfolioAlertsUseCase(
                     PortfolioAlert(
                         AlertChannel.RATING,
                         "${signal.asset.symbol} rating",
-                        "${signal.previousRating?.displayName} → ${signal.rating.displayName}",
+                        "${checkNotNull(signal.previousRating).displayName} → ${signal.rating.displayName}",
                     )
             }
             when (signal.cross) {

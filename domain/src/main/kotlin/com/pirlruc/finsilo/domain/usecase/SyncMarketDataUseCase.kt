@@ -77,15 +77,15 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
     }
 
     private fun overlaySpotOnStoredSma(asset: Asset, bar: PriceBar, stored: List<DailyMarketData>): List<DailyMarketData> {
-        val last = stored.maxByOrNull { it.date }
+        val last = stored.maxBy { it.date }
         return listOf(
             DailyMarketData(
                 assetId = asset.id,
                 date = bar.date,
                 closingPriceNative = bar.closeNative,
                 analystRating = AnalystRating.NONE,
-                sma50 = last?.sma50,
-                sma200 = last?.sma200,
+                sma50 = last.sma50,
+                sma200 = last.sma200,
             ),
         )
     }

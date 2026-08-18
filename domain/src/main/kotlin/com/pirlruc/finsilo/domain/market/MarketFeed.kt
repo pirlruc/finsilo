@@ -86,7 +86,7 @@ object AlphaVantageParser {
     fun analystRating(json: String): AnalystRating {
         ensureUsable(json)
 
-        fun count(label: String): Int = Regex("\"$label\"\\s*:\\s*\"?(\\d+)\"?")
+        fun count(label: String): Int = Regex("\"$label\"\\s*:\\s*\"?([^\"\\s}]+)\"?")
             .find(json)
             ?.groupValues
             ?.get(1)

@@ -32,7 +32,7 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
         }
         val dense =
             if (covers(storedNav, snapshot, from, to)) {
-                storedNav.filter { !it.date.isBefore(from) && !it.date.isAfter(to) }
+                storedNav.filter { point -> !point.date.isBefore(from) && !point.date.isAfter(to) }
             } else {
                 walk(snapshot, from, to)
             }
@@ -40,14 +40,19 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
     }
 
     private fun covers(stored: List<NavPoint>, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): Boolean {
-        if (stored.isEmpty() || stored.minOf { it.date }.isAfter(from) || stored.maxOf { it.date }.isBefore(to)) {
-            return false
-        }
+        if (!rangeCovered(stored, from, to)) return false
         val atFrom = stored.find { it.date == from }
         val atTo = stored.find { it.date == to }
         if (atFrom == null || atTo == null) return false
         if (atFrom.valueEur.compareTo(valuator.totalNavEur(snapshot, from)) != 0) return false
         return atTo.valueEur.compareTo(valuator.totalNavEur(snapshot, to)) == 0
+    }
+
+    private fun rangeCovered(stored: List<NavPoint>, from: LocalDate, to: LocalDate): Boolean {
+        val first = stored.minByOrNull { it.date }?.date ?: return false
+        val last = stored.maxByOrNull { it.date }?.date ?: return false
+        if (first.isAfter(from)) return false
+        return !last.isBefore(to)
     }
 
     private fun walk(snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> {
