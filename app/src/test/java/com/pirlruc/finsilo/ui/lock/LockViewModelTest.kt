@@ -125,7 +125,7 @@ private class FakeAppLock : AppLockRepository {
         return true
     }
 
-    override fun verifyPin(candidate: String): Boolean = candidate == pin
+    override fun verifyPin(pin: String): Boolean = pin == this.pin
 
     override fun verifyRecovery(code: String): Boolean = AppLockCrypto.normalizeRecovery(code) == recovery
 
