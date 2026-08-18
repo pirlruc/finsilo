@@ -61,8 +61,11 @@ internal object DegiroAccountParser {
     }
 
     private fun trade(sourceLine: Int, date: java.time.LocalDate, kind: AccountKind, row: CsvRow, change: BigDecimal): BrokerCsvLine {
-        val qty = buySellQty.find(row.get("Omschrijving", "Description"))?.groupValues?.get(1)
-            ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account buy/sell needs Transactions.csv", date)
+        val match = buySellQty.find(row.get("Omschrijving", "Description"))
+        if (match == null) {
+            return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account buy/sell needs Transactions.csv", date)
+        }
+        val qty = match.groupValues[1]
         val product = row.get("Product")
         val isin = row.get("ISIN").ifBlank { null }
         val booked =

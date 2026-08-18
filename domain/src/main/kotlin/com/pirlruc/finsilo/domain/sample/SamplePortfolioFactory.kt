@@ -76,14 +76,17 @@ object SamplePortfolioFactory {
         TargetAllocation(AssetType.CASH, bd("2")),
     )
 
-    private fun eurPerUsdOn(date: LocalDate, fx: List<CurrencyRate>): BigDecimal =
-        fx.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.eurPerUsd ?: bd("0.92")
+    private fun eurPerUsdOn(date: LocalDate, fx: List<CurrencyRate>): BigDecimal {
+        val onOrBefore = fx.filter { !it.date.isAfter(date) }
+        if (onOrBefore.isEmpty()) return bd("0.92")
+        return onOrBefore.maxBy { it.date }.eurPerUsd
+    }
 
     private fun fxHistory(start: LocalDate, asOf: LocalDate): List<CurrencyRate> {
         val random = Random(7)
         val rates = ArrayList<CurrencyRate>()
         var rate = bd("0.922")
-        var date = start
+        var date = start.plusDays(2)
         while (!date.isAfter(asOf)) {
             val tick = (random.nextDouble() - 0.48) * 0.003
             rate = rate.add(BigDecimal.valueOf(tick), MoneyMath.CONTEXT).max(bd("0.88")).min(bd("0.98"))

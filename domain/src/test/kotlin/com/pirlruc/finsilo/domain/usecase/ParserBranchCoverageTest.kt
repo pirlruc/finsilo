@@ -3,9 +3,11 @@ package com.pirlruc.finsilo.domain.usecase
 import com.pirlruc.finsilo.domain.importcsv.BrokerCsv
 import com.pirlruc.finsilo.domain.importcsv.BrokerCsvDetect
 import com.pirlruc.finsilo.domain.importcsv.BrokerCsvFormat
+import com.pirlruc.finsilo.domain.importcsv.BrokerCsvLine
 import com.pirlruc.finsilo.domain.importcsv.BrokerMoney
 import com.pirlruc.finsilo.domain.importcsv.BrokerQuoteSymbol
 import com.pirlruc.finsilo.domain.importcsv.CsvReader
+import com.pirlruc.finsilo.domain.importcsv.ImportFingerprints
 import com.pirlruc.finsilo.domain.importcsv.MoneyParts
 import com.pirlruc.finsilo.domain.market.AlphaVantageParser
 import com.pirlruc.finsilo.domain.market.CoinGeckoParser
@@ -40,6 +42,7 @@ class ParserBranchCoverageTest {
         val csv =
             """
             Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Market buy,2024-01-15 10:30:00,IE00BK5BQT80,,VWCE,1,100.00,EUR,100.00,EUR,ISINONLY
             Market buy,2024-01-15 10:30:00,,,VWCE,,,EUR,,,EUR,B0
             Market buy,2024-01-16 10:30:00,IE00BK5BQT80,VWCE,VWCE,0,100,EUR,0,EUR,B1
             Interest,2024-01-17 10:30:00,,,,,,,1.00,EUR,INT1
@@ -95,6 +98,7 @@ class ParserBranchCoverageTest {
         val csv =
             """
             Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate,ISIN
+            2026-02-17T10:12:51.768Z,,BUY - MARKET,1,100,100,EUR,1.0000,US0378331005
             2026-02-17T10:12:51.768Z,,BUY - MARKET,,,10,EUR,1.0000,
             2026-02-18T10:12:51.768Z,ASME,BUY - MARKET,,,10,EUR,1.0000,
             2026-02-19T10:12:51.768Z,ASME,SELL - MARKET,1,100,100,EUR,1.0000,
@@ -130,7 +134,64 @@ class ParserBranchCoverageTest {
         assertEquals(BrokerCsvFormat.DEGIRO_TRANSACTIONS, BrokerCsvDetect.from(listOf("Quantity", "Price", "Product")))
         assertNull(BrokerCsvDetect.from(listOf("Action")))
         assertNull(BrokerCsvDetect.from(listOf("Ticker", "Type")))
-        assertNull(BrokerCsvDetect.from(listOf("Product", "Price")))
+        assertNull(BrokerCsvDetect.from(listOf("Action", "Quantity", "Price", "Product")))
+        assertEquals(
+            "",
+            ImportFingerprints.of(
+                BrokerCsvLine(
+                    date = null,
+                    type = TransactionType.BUY,
+                    skipReason = null,
+                    symbol = "X",
+                    name = "X",
+                    isin = null,
+                    quoteSymbol = null,
+                    assetType = AssetType.STOCK,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("1"),
+                    currency = Currency.EUR,
+                    feesEur = BigDecimal.ZERO,
+                    eurPerUsd = null,
+                    externalId = null,
+                    sourceLine = 2,
+                    format = BrokerCsvFormat.TRADING_212,
+                ),
+            ),
+        )
+        assertEquals(
+            "",
+            ImportFingerprints.of(
+                BrokerCsvLine(
+                    date = LocalDate.of(2024, 1, 15),
+                    type = null,
+                    skipReason = null,
+                    symbol = "X",
+                    name = "X",
+                    isin = null,
+                    quoteSymbol = null,
+                    assetType = AssetType.STOCK,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("1"),
+                    currency = Currency.EUR,
+                    feesEur = BigDecimal.ZERO,
+                    eurPerUsd = null,
+                    externalId = null,
+                    sourceLine = 2,
+                    format = BrokerCsvFormat.TRADING_212,
+                ),
+            ),
+        )
+        assertEquals("", BrokerQuoteSymbol.fromTrading212("  "))
+        assertEquals("PTYAAAA00001", BrokerQuoteSymbol.fromIsin("PTYAAAA00001", null))
+        assertEquals("FOO", BrokerQuoteSymbol.fromIsin("FOO", "ZZ0000000000"))
+        assertEquals("FOO.DE", BrokerQuoteSymbol.fromIsin("FOO", "DE0000000000"))
+        assertEquals(1, GetYocUseCase.inferPaymentsPerYear(1))
+        assertEquals(2, GetYocUseCase.inferPaymentsPerYear(2))
+        assertEquals(4, GetYocUseCase.inferPaymentsPerYear(3))
+        assertEquals(4, GetYocUseCase.inferPaymentsPerYear(5))
+        assertEquals(12, GetYocUseCase.inferPaymentsPerYear(6))
+        assertNull(GetYocUseCase.inferPaymentsPerYear(0))
+        assertNull(GetYocUseCase.inferPaymentsPerYear(-1))
         val headerAbove =
             BrokerCsv.parse(
                 """

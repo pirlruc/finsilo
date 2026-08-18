@@ -58,11 +58,8 @@ object AlphaVantageParser {
 
     fun exchangeRate(json: String): BigDecimal? {
         ensureUsable(json)
-        return fxRate
-            .find(json)
-            ?.groupValues
-            ?.get(1)
-            ?.let { BigDecimal(it) }
+        val match = fxRate.find(json) ?: return null
+        return BigDecimal(match.groupValues[1])
     }
 
     fun commoditySeries(json: String): List<PriceBar> {
@@ -86,11 +83,10 @@ object AlphaVantageParser {
     fun analystRating(json: String): AnalystRating {
         ensureUsable(json)
 
-        fun count(label: String): Int = Regex("\"$label\"\\s*:\\s*\"?([^\"\\s}]+)\"?")
-            .find(json)
-            ?.groupValues
-            ?.get(1)
-            ?.toIntOrNull() ?: 0
+        fun count(label: String): Int {
+            val match = Regex("\"$label\"\\s*:\\s*\"?([^\"\\s}]+)\"?").find(json) ?: return 0
+            return match.groupValues[1].toIntOrNull() ?: 0
+        }
         val strongBuy = count("AnalystRatingStrongBuy")
         val buy = count("AnalystRatingBuy")
         val hold = count("AnalystRatingHold")
@@ -129,11 +125,10 @@ object FrankfurterParser {
     private val eur = Regex("\"EUR\"\\s*:\\s*([0-9.]+)")
     private val datedEur = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{\\s*\"EUR\"\\s*:\\s*([0-9.]+)")
 
-    fun eurPerUsd(json: String): BigDecimal? = eur
-        .find(json)
-        ?.groupValues
-        ?.get(1)
-        ?.let { BigDecimal(it) }
+    fun eurPerUsd(json: String): BigDecimal? {
+        val match = eur.find(json) ?: return null
+        return BigDecimal(match.groupValues[1])
+    }
 
     fun eurPerUsdSeries(json: String): List<CurrencyRate> = datedEur
         .findAll(json)

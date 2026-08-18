@@ -303,8 +303,10 @@ class CoverageGapsTest {
         val secondUsd = firstUsd.copy(quantity = bd("2"), unitPriceNative = bd("11"), sourceLine = 3)
         val seededFx = importer.importLines(usdBook, listOf(firstUsd))
         assertEquals(1, seededFx.snapshot.fxRates.size)
+        assertTrue(seededFx.accepted >= 1)
         val deduped = importer.importLines(seededFx.snapshot, listOf(secondUsd))
         assertEquals(1, deduped.snapshot.fxRates.size)
+        assertTrue(deduped.accepted >= 1)
         val cashLine = csvLine(type = TransactionType.DEPOSIT_CASH, symbol = "EUR-CASH", quantity = bd("25"))
         val cashIn = importer.importLines(seeded, listOf(cashLine))
         assertTrue(cashIn.accepted >= 1)
@@ -356,7 +358,24 @@ class CoverageGapsTest {
         assertTrue(usdOmitted.contains(usd.symbol))
         val native = PositionLedger().nativePrice(etf.id, asOf, emptyMap(), listOf(buy(etf.id)))
         assertEquals(0, bd("100").compareTo(native!!))
-        assertNull(PositionLedger().nativePrice(etf.id, asOf, emptyMap(), emptyList()))
+        val sellOnly =
+            Transaction(
+                "s-only",
+                etf.id,
+                start.plusDays(1),
+                TransactionType.SELL,
+                bd("1"),
+                bd("99"),
+                BigDecimal.ONE,
+                bd("99"),
+                BigDecimal.ZERO,
+                sequence = 3,
+            )
+        assertEquals(0, bd("99").compareTo(PositionLedger().nativePrice(etf.id, asOf, emptyMap(), listOf(sellOnly))!!))
+        val firstBuy = buy(etf.id).copy(id = "seq-a", sequence = 1)
+        val secondBuy = buy(etf.id).copy(id = "seq-b", sequence = 2)
+        assertEquals(listOf("seq-a"), PositionLedger().preceding(listOf(firstBuy, secondBuy), secondBuy).map { it.id })
+        assertTrue(PositionLedger().preceding(listOf(firstBuy, secondBuy), firstBuy).isEmpty())
         val later = buy(etf.id).copy(id = "later", date = asOf.plusDays(1), sequence = 9)
         val earlier = buy(etf.id).copy(id = "earlier", sequence = 1)
         assertEquals(listOf("earlier"), PositionLedger().preceding(listOf(later, earlier), later).map { it.id })

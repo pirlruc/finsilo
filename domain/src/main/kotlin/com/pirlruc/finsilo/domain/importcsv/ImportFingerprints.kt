@@ -9,8 +9,10 @@ import java.time.LocalDate
 /** Count matching broker rows so a second same-day lot is not treated as a duplicate. */
 internal object ImportFingerprints {
     fun of(line: BrokerCsvLine): String {
+        val date = line.date ?: return ""
+        val type = line.type ?: return ""
         val id = line.isin?.ifBlank { null } ?: line.symbol
-        return key(requireNotNull(line.date), requireNotNull(line.type), id, line.quantity, line.unitPriceNative)
+        return key(date, type, id, line.quantity, line.unitPriceNative)
     }
 
     fun counts(snapshot: PortfolioSnapshot): Map<String, Int> {
