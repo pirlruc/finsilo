@@ -26,4 +26,18 @@ class WidgetNavCacheTest {
         cache.write(null)
         assertNull(cache.read())
     }
+
+    @Test
+    fun migratesLegacyPlaintextPrefs() {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.getSharedPreferences("finsilo_widget_nav", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("date", "2026-08-16")
+            .putString("value_eur", "99.50")
+            .commit()
+        val cache = WidgetNavCache(context)
+        val read = checkNotNull(cache.read())
+        assertEquals(LocalDate.of(2026, 8, 16), read.date)
+        assertEquals(0, BigDecimal("99.50").compareTo(read.valueEur))
+    }
 }

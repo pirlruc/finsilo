@@ -111,6 +111,21 @@ interface PortfolioDao {
     @Query("DELETE FROM watchlist_quote WHERE item_id = :id")
     suspend fun deleteWatchlistQuotes(id: String)
 
+    @Query("DELETE FROM watchlist_quote")
+    suspend fun deleteAllWatchlistQuotes()
+
+    @Query("DELETE FROM watchlist_item")
+    suspend fun deleteAllWatchlistItems()
+
+    @Query("DELETE FROM ledger_template")
+    suspend fun deleteAllTemplates()
+
+    @Transaction
+    suspend fun clearWatchlist() {
+        deleteAllWatchlistQuotes()
+        deleteAllWatchlistItems()
+    }
+
     @Transaction
     suspend fun replaceNavHistory(items: List<NavHistoryEntity>, state: NavRebuildStateEntity) {
         deleteNavHistory()

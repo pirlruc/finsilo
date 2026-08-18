@@ -1,7 +1,11 @@
 package com.pirlruc.finsilo.ui.dashboard
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -11,11 +15,13 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
@@ -53,6 +60,9 @@ fun DashboardRoute(
         onRequestClear = viewModel::requestClear,
         onConfirmClear = viewModel::confirmClear,
         onCancelClear = viewModel::cancelClear,
+        onClearLedger = viewModel::setClearLedger,
+        onClearWatchlist = viewModel::setClearWatchlist,
+        onClearTemplates = viewModel::setClearTemplates,
         onSync = viewModel::syncMarketData,
         onSaveKey = viewModel::saveAlphaVantageKey,
         onSaveThreshold = viewModel::saveThreshold,
@@ -74,6 +84,9 @@ fun DashboardScreen(
     onRequestClear: () -> Unit,
     onConfirmClear: () -> Unit,
     onCancelClear: () -> Unit,
+    onClearLedger: (Boolean) -> Unit,
+    onClearWatchlist: (Boolean) -> Unit,
+    onClearTemplates: (Boolean) -> Unit,
     onSync: () -> Unit,
     onSaveKey: (String) -> Unit,
     onSaveThreshold: (PriceAlertThreshold) -> Unit,
@@ -89,7 +102,6 @@ fun DashboardScreen(
             DashboardTopBar(
                 empty = state.empty,
                 syncing = state.syncing,
-                hasReport = state.report != null,
                 onOpenSettings = onOpenSettings,
                 onOpenWatchlist = onOpenWatchlist,
                 onShowKey = { showKeyDialog = true },
@@ -133,20 +145,15 @@ fun DashboardScreen(
         )
     }
     if (state.confirmClear) {
-        AlertDialog(
-            onDismissRequest = onCancelClear,
-            title = { Text("Clear portfolio?") },
-            text = {
-                Text(
-                    "This permanently deletes holdings, transactions, quotes, FX, targets, and NAV history on this device. Watchlist symbols and ledger templates are kept.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = onConfirmClear) { Text("Clear") }
-            },
-            dismissButton = {
-                TextButton(onClick = onCancelClear) { Text("Cancel") }
-            },
+        ClearSelectionDialog(
+            ledger = state.clearLedger,
+            watchlist = state.clearWatchlist,
+            templates = state.clearTemplates,
+            onLedger = onClearLedger,
+            onWatchlist = onClearWatchlist,
+            onTemplates = onClearTemplates,
+            onConfirm = onConfirmClear,
+            onCancel = onCancelClear,
         )
     }
 }
@@ -156,7 +163,6 @@ fun DashboardScreen(
 internal fun DashboardTopBar(
     empty: Boolean,
     syncing: Boolean,
-    hasReport: Boolean,
     onOpenSettings: () -> Unit,
     onOpenWatchlist: () -> Unit,
     onShowKey: () -> Unit,
@@ -180,11 +186,72 @@ internal fun DashboardTopBar(
                     Icon(Icons.Outlined.Sync, contentDescription = "Sync quotes")
                 }
             }
-            if (hasReport) {
-                IconButton(onClick = onRequestClear) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Clear portfolio")
-                }
+            IconButton(onClick = onRequestClear) {
+                Icon(Icons.Outlined.Delete, contentDescription = "Clear data")
             }
         },
     )
+}
+
+@Composable
+private fun ClearSelectionDialog(
+    ledger: Boolean,
+    watchlist: Boolean,
+    templates: Boolean,
+    onLedger: (Boolean) -> Unit,
+    onWatchlist: (Boolean) -> Unit,
+    onTemplates: (Boolean) -> Unit,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Clear on this device?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "Choose what to wipe. This cannot be undone. Encrypted backups are not deleted.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ClearChoice(
+                    checked = ledger,
+                    onChecked = onLedger,
+                    title = "Ledger",
+                    caption = "Holdings, transactions, quotes, FX, targets, NAV, and price alerts",
+                )
+                ClearChoice(
+                    checked = watchlist,
+                    onChecked = onWatchlist,
+                    title = "Watchlist",
+                    caption = "Followed symbols and their stored quotes",
+                )
+                ClearChoice(
+                    checked = templates,
+                    onChecked = onTemplates,
+                    title = "Templates",
+                    caption = "Saved ledger pre-fills; they never post by themselves",
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = ledger || watchlist || templates) {
+                Text(if (ledger && watchlist && templates) "Clear all" else "Clear selected")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun ClearChoice(checked: Boolean, onChecked: (Boolean) -> Unit, title: String, caption: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = checked, onCheckedChange = onChecked)
+        Column(Modifier.padding(start = 4.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

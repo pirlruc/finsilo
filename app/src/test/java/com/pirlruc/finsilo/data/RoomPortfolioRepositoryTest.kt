@@ -167,7 +167,7 @@ class RoomPortfolioRepositoryTest {
     }
 
     @Test
-    fun watchlistTemplatesAndThresholdsSurvivePortfolioClear() = runTest {
+    fun watchlistAndTemplatesSurviveLedgerOnlyClear() = runTest {
         val cash =
             Asset(
                 id = "asset-cash",
@@ -203,11 +203,14 @@ class RoomPortfolioRepositoryTest {
                 quantity = "250",
             ),
         )
-        repository.clear()
+        repository.applyClear(ClearSelection(ledger = true, watchlist = false, templates = false))
         assertTrue(repository.load().isEmpty)
         assertEquals("MSFT", repository.loadWatchlist().items.single().symbol)
         assertEquals("Monthly cash", repository.loadTemplates().single().label)
         assertTrue(repository.loadThresholds().isEmpty())
+        repository.applyClear(ClearSelection(ledger = false, watchlist = true, templates = true))
+        assertTrue(repository.loadWatchlist().items.isEmpty())
+        assertTrue(repository.loadTemplates().isEmpty())
     }
 
     @Test

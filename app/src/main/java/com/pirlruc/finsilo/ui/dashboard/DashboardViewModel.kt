@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
+import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.sync.PortfolioAlertNotifier
 import com.pirlruc.finsilo.domain.model.DashboardReport
@@ -35,6 +36,9 @@ data class DashboardUiState(
     val statusMessage: String? = null,
     val hasAlphaVantageKey: Boolean = false,
     val confirmClear: Boolean = false,
+    val clearLedger: Boolean = true,
+    val clearWatchlist: Boolean = true,
+    val clearTemplates: Boolean = true,
     val thresholds: Map<String, PriceAlertThreshold> = emptyMap(),
     val transactionsByAsset: Map<String, Int> = emptyMap(),
 )
@@ -97,16 +101,39 @@ class DashboardViewModel(
     }
 
     fun requestClear() {
-        _state.update { it.copy(confirmClear = true) }
+        _state.update {
+            it.copy(
+                confirmClear = true,
+                clearLedger = true,
+                clearWatchlist = true,
+                clearTemplates = true,
+            )
+        }
     }
 
     fun cancelClear() {
         _state.update { it.copy(confirmClear = false) }
     }
 
+    fun setClearLedger(value: Boolean) = _state.update { it.copy(clearLedger = value) }
+
+    fun setClearWatchlist(value: Boolean) = _state.update { it.copy(clearWatchlist = value) }
+
+    fun setClearTemplates(value: Boolean) = _state.update { it.copy(clearTemplates = value) }
+
     fun confirmClear() {
+        val selection =
+            ClearSelection(
+                ledger = _state.value.clearLedger,
+                watchlist = _state.value.clearWatchlist,
+                templates = _state.value.clearTemplates,
+            )
+        if (!selection.any) {
+            _state.update { it.copy(confirmClear = false) }
+            return
+        }
         viewModelScope.launch {
-            runCatching { repository.clear() }
+            runCatching { repository.applyClear(selection) }
                 .onSuccess {
                     snapshot = null
                     storedNav = emptyList()

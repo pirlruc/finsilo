@@ -91,8 +91,18 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     }
 
     override suspend fun clear() {
-        dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
-        widgetNav?.write(null)
+        applyClear(ClearSelection(ledger = true, watchlist = true, templates = true))
+    }
+
+    /** Wipes only the stores in [selection]. Price alerts follow the ledger (FK CASCADE). */
+    suspend fun applyClear(selection: ClearSelection) {
+        if (!selection.any) return
+        if (selection.ledger) {
+            dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            widgetNav?.write(null)
+        }
+        if (selection.watchlist) dao.clearWatchlist()
+        if (selection.templates) dao.deleteAllTemplates()
     }
 
     override suspend fun upsertAsset(asset: Asset) {
