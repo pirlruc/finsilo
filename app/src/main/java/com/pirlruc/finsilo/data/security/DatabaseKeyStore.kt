@@ -81,6 +81,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         val key = session ?: return false
         if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
         if (!persistWraps(pin, recovery, key)) return false
+        // Confirm-screen path: wraps were just written; only then drop hex.
         return prefs.edit().remove(KEY_PASSPHRASE).commit()
     }
 
@@ -95,6 +96,12 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         return true
     }
 
+    /**
+     * Legacy hex is wiped only after a wrap already exists. The upgrade confirm
+     * screen ([finishLegacyMigration]) is the path that creates wraps and then
+     * deletes hex. This method must not be that path: leftover hex next to
+     * existing wraps is stale, so a successful PIN/recovery unwrap may delete it.
+     */
     private fun acceptWrapped(key: ByteArray?): Boolean {
         if (key == null) return false
         session = key

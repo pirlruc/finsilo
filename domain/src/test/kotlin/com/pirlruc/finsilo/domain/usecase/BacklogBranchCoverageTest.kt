@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.backup.LedgerBackupCodec
+import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.backup.LedgerBackupText
 import com.pirlruc.finsilo.domain.market.MarketFeed
@@ -10,6 +11,7 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.PriceBar
@@ -273,7 +275,46 @@ class BacklogBranchCoverageTest {
         val restored = LedgerBackupText.decode(withBlanks) as LedgerBackupResult.Restored
         assertEquals(null, restored.snapshot.assets.single().isin)
         assertEquals(null, restored.snapshot.assets.single().quoteSymbol)
-        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nT\t1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nW\tw1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nZ\tbad") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nW\t1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nL\t1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nH\t1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nQ\t1") is LedgerBackupResult.Refused)
+        val extrasText =
+            LedgerBackupText.encode(
+                PortfolioSnapshot(listOf(blank), emptyList(), emptyList(), emptyList(), emptyList()),
+                LedgerBackupExtras(
+                    watchlist = WatchlistSnapshot(
+                        items = listOf(WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD, "MSFT.US")),
+                        quotes = listOf(DailyMarketData("w1", asOf, bd("1"), AnalystRating.NONE, bd("2"), bd("3"))),
+                    ),
+                    templates = listOf(LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, "cash", "10", "1", "0")),
+                    thresholds = listOf(PriceAlertThreshold("x", bd("9"), bd("5"))),
+                ),
+            )
+        val extras = LedgerBackupText.decode(extrasText) as LedgerBackupResult.Restored
+        assertEquals("MSFT", extras.extras.watchlist.items.single().symbol)
+        assertEquals("MSFT.US", extras.extras.watchlist.items.single().quoteSymbol)
+        assertEquals("w1", extras.extras.watchlist.quotes.single().assetId)
+        assertEquals("cash", extras.extras.templates.single().assetId)
+        assertEquals(0, bd("9").compareTo(checkNotNull(extras.extras.thresholds.single().eurLevel)))
+        val blankQuote =
+            LedgerBackupText.encode(
+                PortfolioSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()),
+                LedgerBackupExtras(
+                    watchlist = WatchlistSnapshot(
+                        items = listOf(WatchlistItem("w2", "IBM", "IBM", AssetType.STOCK, Currency.USD, "")),
+                        quotes = listOf(DailyMarketData("w2", asOf, bd("1"), AnalystRating.NONE)),
+                    ),
+                    templates = listOf(LedgerTemplate("t2", "X", TransactionType.BUY, "", "1", "1", "0")),
+                    thresholds = listOf(PriceAlertThreshold("y")),
+                ),
+            )
+        val blankDecoded = LedgerBackupText.decode(blankQuote) as LedgerBackupResult.Restored
+        assertEquals(null, blankDecoded.extras.watchlist.items.single().quoteSymbol)
+        assertEquals(null, blankDecoded.extras.templates.single().assetId)
+        assertTrue(blankDecoded.extras.thresholds.single().isEmpty)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nM\t1") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nX\t1") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nG\t1") is LedgerBackupResult.Refused)

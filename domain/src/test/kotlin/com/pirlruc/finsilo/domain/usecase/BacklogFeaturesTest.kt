@@ -1,13 +1,16 @@
 package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.backup.LedgerBackupCodec
+import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
+import com.pirlruc.finsilo.domain.backup.LedgerBackupText
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.PriceBar
@@ -112,6 +115,29 @@ class BacklogFeaturesTest {
         val refused = LedgerBackupCodec.decrypt(bytes.copyOf(10), "ABCD1234EFGH5678")
         assertTrue(refused is LedgerBackupResult.Refused)
         assertTrue((refused as LedgerBackupResult.Refused).reason.contains("truncated"))
+    }
+
+    @Test
+    fun backupRoundTripKeepsWatchlistTemplatesAndThresholds() {
+        val snapshot = SamplePortfolioFactory.create(asOf)
+        val extras =
+            LedgerBackupExtras(
+                watchlist = WatchlistSnapshot(
+                    items = listOf(WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)),
+                    quotes = listOf(DailyMarketData("w1", asOf, bd("400"), AnalystRating.NONE)),
+                ),
+                templates = listOf(
+                    LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, quantity = "250"),
+                ),
+                thresholds = listOf(PriceAlertThreshold(snapshot.assets.first().id, eurLevel = bd("10"))),
+            )
+        val bytes = LedgerBackupCodec.encrypt(snapshot, "ABCD1234EFGH5678", extras)
+        val restored = LedgerBackupCodec.decrypt(bytes, "ABCD1234EFGH5678") as LedgerBackupResult.Restored
+        assertEquals("MSFT", restored.extras.watchlist.items.single().symbol)
+        assertEquals("Cash", restored.extras.templates.single().label)
+        assertEquals(0, bd("10").compareTo(checkNotNull(restored.extras.thresholds.single().eurLevel)))
+        val v1 = LedgerBackupText.decode("FSILO-LEDGER-1\nEND") as LedgerBackupResult.Restored
+        assertTrue(v1.extras.watchlist.items.isEmpty())
     }
 
     @Test

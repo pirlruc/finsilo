@@ -72,6 +72,8 @@ fun TargetSettingsRoute(
         onExportPdf = tools::exportTaxPdf,
         onExportBackup = tools::exportBackup,
         onRestoreBackup = tools::restoreBackup,
+        onConfirmRestore = tools::confirmRestore,
+        onCancelRestore = tools::cancelRestore,
     )
 }
 
@@ -99,6 +101,8 @@ fun TargetSettingsScreen(
     onExportPdf: ((ByteArray) -> Unit) -> Unit,
     onExportBackup: ((ByteArray) -> Unit) -> Unit,
     onRestoreBackup: (ByteArray) -> Unit,
+    onConfirmRestore: () -> Unit,
+    onCancelRestore: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -130,6 +134,8 @@ fun TargetSettingsScreen(
                 onExportPdf = onExportPdf,
                 onExportBackup = onExportBackup,
                 onRestoreBackup = onRestoreBackup,
+                onConfirmRestore = onConfirmRestore,
+                onCancelRestore = onCancelRestore,
                 onPickerBusy = onPickerBusy,
             )
             Text("Target allocation", style = MaterialTheme.typography.titleLarge)

@@ -10,8 +10,8 @@ import androidx.fragment.app.FragmentActivity
 
 internal fun biometricAvailable(activity: FragmentActivity): Boolean {
     val manager = BiometricManager.from(activity)
-    val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
-    return manager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+    return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
+        BiometricManager.BIOMETRIC_SUCCESS
 }
 
 @Composable
@@ -28,6 +28,10 @@ internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) ->
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     onClosed()
+                    if (!BiometricSessionCipher.confirm(result)) {
+                        onError("Biometric unlock failed")
+                        return
+                    }
                     onSuccess()
                 }
 
@@ -42,12 +46,18 @@ internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) ->
             },
         )
     }
-    return {
+    return launchPrompt@{
+        val crypto = runCatching { BiometricSessionCipher.cryptoObject() }.getOrElse { error ->
+            onError(error.message ?: "Biometric unlock failed")
+            return@launchPrompt
+        }
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Unlock FinSilo")
                 .setNegativeButtonText("Use PIN")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 .build(),
+            crypto,
         )
     }
 }

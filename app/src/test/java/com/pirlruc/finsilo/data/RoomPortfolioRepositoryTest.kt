@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
+import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
@@ -13,6 +14,7 @@ import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.WatchlistItem
+import com.pirlruc.finsilo.domain.model.WatchlistSnapshot
 import java.math.BigDecimal
 import java.time.LocalDate
 import kotlinx.coroutines.test.runTest
@@ -255,5 +257,58 @@ class RoomPortfolioRepositoryTest {
         repository.saveThreshold(PriceAlertThreshold(etf.id, percentMove = BigDecimal("5")))
         repository.clear()
         assertTrue(repository.loadThresholds().isEmpty())
+    }
+
+    @Test
+    fun restoreBackupReplacesWatchlistTemplatesAndThresholds() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val live =
+            Asset(
+                id = "asset-live",
+                symbol = "LIVE",
+                name = "Live",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        repository.saveLedgerEntry(
+            cash,
+            Transaction(
+                id = "tx-deposit",
+                assetId = cash.id,
+                date = asOf,
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = BigDecimal("10"),
+                unitPriceNative = BigDecimal.ONE,
+                exchangeRateAtExecution = BigDecimal.ONE,
+                unitPriceEur = BigDecimal.ONE,
+                feesEur = BigDecimal.ZERO,
+            ),
+            null,
+        )
+        repository.upsertAsset(live)
+        repository.saveWatchlistItem(WatchlistItem("old", "OLD", "Old", AssetType.STOCK, Currency.USD))
+        val snapshot = repository.load()
+        val extras =
+            LedgerBackupExtras(
+                watchlist = WatchlistSnapshot(
+                    items = listOf(WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)),
+                ),
+                templates = listOf(
+                    LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, quantity = "250"),
+                ),
+                thresholds = listOf(PriceAlertThreshold(live.id, eurLevel = BigDecimal("12"))),
+            )
+        repository.restoreBackup(snapshot, extras)
+        assertEquals("MSFT", repository.loadWatchlist().items.single().symbol)
+        assertEquals("Cash", repository.loadTemplates().single().label)
+        assertEquals(0, BigDecimal("12").compareTo(checkNotNull(repository.loadThresholds().single().eurLevel)))
     }
 }

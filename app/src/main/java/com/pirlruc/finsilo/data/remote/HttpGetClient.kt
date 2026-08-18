@@ -20,13 +20,14 @@ class GetOnlyInterceptor : Interceptor {
     }
 }
 
-class HttpGetClient(
-    private val client: OkHttpClient =
-        OkHttpClient.Builder()
-            .addInterceptor(GetOnlyInterceptor())
-            .callTimeout(30, TimeUnit.SECONDS)
-            .build(),
-) {
+internal fun marketHttpClient(): OkHttpClient = OkHttpClient.Builder()
+    .followRedirects(false)
+    .followSslRedirects(false)
+    .addNetworkInterceptor(GetOnlyInterceptor())
+    .callTimeout(30, TimeUnit.SECONDS)
+    .build()
+
+class HttpGetClient(private val client: OkHttpClient = marketHttpClient()) {
     suspend fun get(url: String): String = withContext(Dispatchers.IO) {
         MarketHttpsPolicy.requireHttpsUrl(url)
         val request = Request.Builder().url(url).get().build()

@@ -120,6 +120,9 @@ interface PortfolioDao {
     @Query("DELETE FROM ledger_template")
     suspend fun deleteAllTemplates()
 
+    @Query("DELETE FROM price_alert_threshold")
+    suspend fun deleteAllThresholds()
+
     @Transaction
     suspend fun clearWatchlist() {
         deleteAllWatchlistQuotes()
@@ -164,27 +167,5 @@ interface PortfolioDao {
     suspend fun replaceTargets(items: List<TargetAllocationEntity>) {
         deleteTargets()
         if (items.isNotEmpty()) insertTargets(items)
-    }
-
-    @Transaction
-    suspend fun replaceAll(
-        assets: List<AssetEntity>,
-        transactions: List<TransactionEntity>,
-        market: List<DailyMarketDataEntity>,
-        fx: List<CurrencyRateEntity>,
-        targets: List<TargetAllocationEntity>,
-    ) {
-        deleteTransactions()
-        deleteMarketData()
-        deleteFxRates()
-        deleteTargets()
-        deleteAssets()
-        deleteNavHistory()
-        deleteNavRebuildState()
-        insertAssets(assets)
-        insertTransactions(transactions)
-        insertMarketData(market)
-        insertFxRates(fx)
-        insertTargets(targets)
     }
 }

@@ -1048,6 +1048,61 @@ milestones:
               - bash scripts/issues-sync.sh --validate-only
               - rg -n "GATE-AND-001|GATE-002|CI-009" docs/issues.yml
 
+      - id: GATE-003
+        status: open
+        title: Remaining Kotlin gate leftovers after first landing
+        overview:
+          problem: >-
+            First-landing CI cannot clone private analog (LIM-SUB / CI-022),
+            and detekt ignores @Composable complexity (KT-CPLX-001). GATE-002
+            already decided gaps are open tasks or limitations.md — not a
+            silent or invented docs/guardrail-deviations.yml row.
+          goal: >-
+            Keep deviations empty until Engineering Lead approval exists.
+            Either check out analog in CI with a read token, or record a dated
+            CI-022 deviation with approved_by. After MI is green, drop the
+            detekt Composable ignore or record KT-CPLX-001 the same way.
+        architecture:
+          target: GitHub Actions plus detekt config
+          modules:
+            - .github/workflows
+            - config/detekt/detekt.yml
+            - docs/limitations.md
+            - docs/guardrail-deviations.yml
+        acceptance_criteria:
+          - No invented approved_by on a CI-022 or KT-CPLX-001 deviation
+          - LIM-SUB remains until analog is cloned in CI or a dated deviation exists
+          - detekt @Composable ignore is removed or recorded as a real deviation
+        guardrail_refs:
+          - CI-022
+          - KT-CPLX-001
+          - KT-SEC-002
+        tasks:
+          - id: GATE-003-T1
+            status: open
+            title: Clone analog in CI or record an EL-approved CI-022 deviation
+            instructions:
+              files:
+                - .github/workflows
+                - docs/guardrail-deviations.yml
+                - docs/limitations.md
+            verification:
+              - Jobs read docs/guardrails/kotlin/profile.thresholds.yml or a dated CI-022 row exists
+              - approved_by is a real Engineering Lead, not invented
+            guardrail_refs:
+              - CI-022
+          - id: GATE-003-T2
+            status: open
+            title: Drop detekt Composable ignore or record KT-CPLX-001
+            instructions:
+              files:
+                - config/detekt/detekt.yml
+                - docs/guardrail-deviations.yml
+            verification:
+              - ignoreAnnotated Composable is gone, or a dated KT-CPLX-001 deviation exists
+            guardrail_refs:
+              - KT-CPLX-001
+
   - name: Backlog — next product value
     epics:
       - id: FS-017
@@ -1061,15 +1116,20 @@ milestones:
           goal: >-
             Export an encrypted backup the user can store offline, and restore
             it onto a new install after unlocking with the existing PIN/recovery
-            flow. Do not add a cloud account. Do not reopen FS-DEC-001.
+            flow. Restore confirms before overwrite and includes Room v6
+            watchlist, templates, and price alerts. Do not add a cloud account.
+            Do not reopen FS-DEC-001.
         architecture:
           target: Encrypted Room database plus AppLockStore
           modules:
             - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
             - app/src/main/java/com/pirlruc/finsilo/data/security
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/backup
         acceptance_criteria:
           - User can export a backup file that is not plaintext SQLite
           - Restore requires the current app lock (PIN, biometrics, or recovery code)
+          - Restore confirms before overwriting live data
+          - Watchlist, templates, and price alerts round-trip with the ledger
           - Sample-only installs are not a substitute for this backup
         guardrail_refs:
           - KT-SEC-001
@@ -1092,6 +1152,18 @@ milestones:
             verification:
               - Export/restore is unreachable before unlock
               - ./gradlew :app:lintDebug
+          - id: FS-017-T3
+            status: done
+            title: Persist v6 extras and confirm destructive restore
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/backup
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
+            verification:
+              - Restore calls verifyRecovery and requires an explicit confirm
+              - Watchlist, templates, and thresholds round-trip
+              - ./gradlew :domain:test :app:testDebugUnitTest
 
       - id: FS-018
         status: done

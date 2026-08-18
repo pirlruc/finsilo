@@ -2,7 +2,6 @@ package com.pirlruc.finsilo.domain.portfolio
 
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.AllocationReport
-import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
@@ -10,13 +9,7 @@ import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HoldingValuation
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
-import com.pirlruc.finsilo.domain.model.TransactionType
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.minus
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.percentOf
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -29,59 +22,11 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
         val marketByAsset = ledger.indexMarket(snapshot.marketData)
         val eurPerUsd = ledger.eurPerUsdOn(asOf, snapshot.fxRates)
-
         return snapshot.assets.mapNotNull { asset ->
             val txs = txsByAsset[asset.id].orEmpty()
             if (txs.isEmpty()) return@mapNotNull null
-            if (asset.locallyValued) {
-                localHolding(asset, txs, asOf, marketByAsset, eurPerUsd)
-            } else {
-                marketableHolding(asset, txs, asOf, marketByAsset, eurPerUsd)
-            }
+            holdingFor(asset, txs, asOf, marketByAsset, eurPerUsd)
         }
-    }
-
-    private fun localHolding(
-        asset: Asset,
-        txs: List<Transaction>,
-        asOf: LocalDate,
-        marketByAsset: Map<String, List<DailyMarketData>>,
-        eurPerUsd: BigDecimal?,
-    ): HoldingValuation? {
-        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
-        if (market == null) return cashFlowLocalHolding(asset, txs)
-        val lot = ledger.position(txs)
-        if (lot.quantity.signum() == 0) return null
-        val currency = asset.baseCurrency
-        val rate = if (currency == Currency.EUR) BigDecimal.ONE else eurPerUsd
-        val priceEur = rate?.let { toEur(market.closingPriceNative, currency, it) } ?: return null
-        val value = times(lot.quantity, priceEur)
-        return HoldingValuation(
-            asset = asset,
-            quantity = lot.quantity,
-            priceEur = priceEur,
-            valueEur = value,
-            costEur = lot.remainingCostEur,
-            unrealizedPnlEur = minus(value, lot.remainingCostEur),
-            priceNative = market.closingPriceNative,
-            quoteCurrency = currency,
-        )
-    }
-
-    private fun cashFlowLocalHolding(asset: Asset, txs: List<Transaction>): HoldingValuation? {
-        val value = ledger.locallyValuedEur(txs)
-        if (value.signum() == 0) return null
-        val cost = costOfLocalInstrument(txs)
-        return HoldingValuation(
-            asset = asset,
-            quantity = BigDecimal.ONE,
-            priceEur = value,
-            valueEur = value,
-            costEur = cost,
-            unrealizedPnlEur = minus(value, cost),
-            priceNative = value,
-            quoteCurrency = Currency.EUR,
-        )
     }
 
     fun missingUsdFx(snapshot: PortfolioSnapshot): Boolean =
@@ -114,51 +59,6 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         }
     }
 
-    private fun marketableHolding(
-        asset: Asset,
-        txs: List<Transaction>,
-        asOf: LocalDate,
-        marketByAsset: Map<String, List<DailyMarketData>>,
-        eurPerUsd: BigDecimal?,
-    ): HoldingValuation? {
-        val lot = ledger.position(txs)
-        if (lot.quantity.signum() == 0) return null
-        val priceEur = pricedInEur(asset, asOf, marketByAsset, txs, eurPerUsd) ?: return null
-        val value = times(lot.quantity, priceEur)
-        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
-        val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs)
-        val quote = if (market != null) QuoteCurrency.of(asset) else asset.baseCurrency
-        return HoldingValuation(
-            asset = asset,
-            quantity = lot.quantity,
-            priceEur = priceEur,
-            valueEur = value,
-            costEur = lot.remainingCostEur,
-            unrealizedPnlEur = minus(value, lot.remainingCostEur),
-            priceNative = native,
-            quoteCurrency = quote,
-        )
-    }
-
-    /**
-     * Live USD feeds (crypto, commodities, US listings) convert with EUR-per-USD
-     * even when the instrument is booked in EUR. Last-trade fallback stays in the
-     * booking currency.
-     */
-    private fun pricedInEur(
-        asset: Asset,
-        asOf: LocalDate,
-        marketByAsset: Map<String, List<DailyMarketData>>,
-        txs: List<Transaction>,
-        eurPerUsd: BigDecimal?,
-    ): BigDecimal? {
-        val market = ledger.marketOnOrBefore(asset.id, asOf, marketByAsset)
-        val native = ledger.nativePrice(asset.id, asOf, marketByAsset, txs) ?: return null
-        val currency = if (market != null) QuoteCurrency.of(asset) else asset.baseCurrency
-        val rate = if (currency == Currency.EUR) BigDecimal.ONE else eurPerUsd
-        return rate?.let { toEur(native, currency, it) }
-    }
-
     fun cashEur(snapshot: PortfolioSnapshot, asOf: LocalDate): BigDecimal {
         val assetsById = snapshot.assets.associateBy { it.id }
         val txs = ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
@@ -180,61 +80,7 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     fun allocation(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport {
         val holdings = valueHoldings(snapshot, asOf)
         val cash = cashEur(snapshot, asOf)
-        val holdingTotal = holdings.fold(ZERO) { acc, h -> plus(acc, h.valueEur) }
-        val total = plus(holdingTotal, cash)
-        val targets = snapshot.targets.associate { it.assetType to it.weightPercent }
-
-        val byType = LinkedHashMap<AssetType, BigDecimal>()
-        for (holding in holdings) {
-            val type = holding.asset.assetType
-            byType[type] = plus(byType[type] ?: ZERO, holding.valueEur)
-        }
-        if (cash.signum() > 0) {
-            byType[AssetType.CASH] = plus(byType[AssetType.CASH] ?: ZERO, cash)
-        }
-
-        val slices =
-            byType.entries
-                .sortedByDescending { it.value }
-                .map { (type, value) ->
-                    val weight = percentOf(value, total)
-                    val target = targets[type]
-                    AllocationSlice(
-                        assetType = type,
-                        valueEur = value,
-                        weightPercent = weight,
-                        targetPercent = target,
-                        driftPercent = target?.let { minus(weight, it) },
-                    )
-                }
-
-        val unrealized = holdings.fold(ZERO) { acc, h -> plus(acc, h.unrealizedPnlEur) }
-        return AllocationReport(
-            asOf = asOf,
-            totalValueEur = total,
-            unrealizedPnlEur = unrealized,
-            cashEur = cash,
-            slices = slices,
-            holdings = holdings.sortedByDescending { it.valueEur },
-        )
-    }
-
-    private fun costOfLocalInstrument(transactions: List<Transaction>): BigDecimal {
-        var cost = ZERO
-        for (tx in transactions) {
-            cost =
-                when (tx.type) {
-                    TransactionType.BUY ->
-                        plus(cost, plus(tx.notionalEur, tx.feesEur))
-                    TransactionType.SELL -> {
-                        // Withdrawals reduce remaining principal cost, not below zero.
-                        val reduced = minus(cost, tx.notionalEur)
-                        if (reduced.signum() < 0) ZERO else reduced
-                    }
-                    else -> cost
-                }
-        }
-        return cost
+        return AllocationComposer.compose(snapshot, asOf, holdings, cash)
     }
 
     fun syntheticCashAsset(): Asset = Asset(
@@ -244,6 +90,18 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         assetType = AssetType.CASH,
         baseCurrency = Currency.EUR,
     )
+
+    private fun holdingFor(
+        asset: Asset,
+        txs: List<Transaction>,
+        asOf: LocalDate,
+        marketByAsset: Map<String, List<DailyMarketData>>,
+        eurPerUsd: BigDecimal?,
+    ): HoldingValuation? = if (asset.locallyValued) {
+        LocalInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, eurPerUsd)
+    } else {
+        MarketInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, eurPerUsd)
+    }
 
     companion object {
         const val CASH_ASSET_ID: String = "cash"

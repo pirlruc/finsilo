@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +36,8 @@ fun PortfolioToolsCard(
     onExportPdf: ((ByteArray) -> Unit) -> Unit,
     onExportBackup: ((ByteArray) -> Unit) -> Unit,
     onRestoreBackup: (ByteArray) -> Unit,
+    onConfirmRestore: () -> Unit,
+    onCancelRestore: () -> Unit,
     onPickerBusy: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
@@ -86,7 +90,7 @@ fun PortfolioToolsCard(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Encrypted backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Not plaintext SQLite. Encrypt with the current recovery code so a new phone can restore after unlock. The sample portfolio is not a backup.",
+                    "Not plaintext SQLite. Encrypt with the current recovery code so a new phone can restore after unlock. Restore asks before overwriting the live ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -113,6 +117,9 @@ fun PortfolioToolsCard(
                 ) { Text("Restore backup") }
             }
         }
+        if (state.confirmRestore) {
+            RestoreConfirmDialog(onConfirm = onConfirmRestore, onCancel = onCancelRestore)
+        }
         state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
@@ -120,4 +127,19 @@ fun PortfolioToolsCard(
 
 private fun writeUri(context: Context, uri: Uri, bytes: ByteArray) {
     context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+}
+
+@Composable
+private fun RestoreConfirmDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Replace live data?") },
+        text = {
+            Text(
+                "Restore overwrites the ledger, watchlist, templates, and price alerts on this device. Encrypted backups on disk are not deleted.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Restore") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+    )
 }

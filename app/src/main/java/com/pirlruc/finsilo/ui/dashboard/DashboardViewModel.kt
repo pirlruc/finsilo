@@ -4,10 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
-import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.sync.PortfolioAlertNotifier
-import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
@@ -15,9 +13,7 @@ import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioHistoryUseCase
-import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
-import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
 import java.time.LocalDate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,23 +21,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class DashboardUiState(
-    val loading: Boolean = true,
-    val empty: Boolean = false,
-    val error: String? = null,
-    val range: HistoryRange = HistoryRange.THREE_MONTHS,
-    val report: DashboardReport? = null,
-    val syncing: Boolean = false,
-    val statusMessage: String? = null,
-    val hasAlphaVantageKey: Boolean = false,
-    val confirmClear: Boolean = false,
-    val clearLedger: Boolean = true,
-    val clearWatchlist: Boolean = true,
-    val clearTemplates: Boolean = true,
-    val thresholds: Map<String, PriceAlertThreshold> = emptyMap(),
-    val transactionsByAsset: Map<String, Int> = emptyMap(),
-)
 
 class DashboardViewModel(
     private val repository: RoomPortfolioRepository,
@@ -101,14 +80,7 @@ class DashboardViewModel(
     }
 
     fun requestClear() {
-        _state.update {
-            it.copy(
-                confirmClear = true,
-                clearLedger = true,
-                clearWatchlist = true,
-                clearTemplates = true,
-            )
-        }
+        _state.update { DashboardMutations.requestClear(it) }
     }
 
     fun cancelClear() {
@@ -122,18 +94,13 @@ class DashboardViewModel(
     fun setClearTemplates(value: Boolean) = _state.update { it.copy(clearTemplates = value) }
 
     fun confirmClear() {
-        val selection =
-            ClearSelection(
-                ledger = _state.value.clearLedger,
-                watchlist = _state.value.clearWatchlist,
-                templates = _state.value.clearTemplates,
-            )
+        val selection = DashboardMutations.selection(_state.value)
         if (!selection.any) {
             _state.update { it.copy(confirmClear = false) }
             return
         }
         viewModelScope.launch {
-            runCatching { repository.applyClear(selection) }
+            runCatching { DashboardMutations.applyClear(repository, selection) }
                 .onSuccess {
                     snapshot = null
                     storedNav = emptyList()
@@ -148,18 +115,13 @@ class DashboardViewModel(
     }
 
     fun saveAlphaVantageKey(key: String) {
-        container.keys.setAlphaVantageKey(key)
-        _state.update {
-            it.copy(
-                hasAlphaVantageKey = key.isNotBlank(),
-                statusMessage = if (key.isBlank()) "Alpha Vantage key cleared" else "Alpha Vantage key stored on-device",
-            )
-        }
+        val (hasKey, message) = DashboardMutations.storeAlphaKey(container, key)
+        _state.update { it.copy(hasAlphaVantageKey = hasKey, statusMessage = message) }
     }
 
     fun saveThreshold(threshold: PriceAlertThreshold) {
         viewModelScope.launch {
-            runCatching { repository.saveThreshold(threshold) }
+            runCatching { DashboardMutations.saveThreshold(repository, threshold) }
                 .onSuccess {
                     val next = _state.value.thresholds.toMutableMap()
                     if (threshold.isEmpty) next.remove(threshold.assetId) else next[threshold.assetId] = threshold
@@ -174,63 +136,31 @@ class DashboardViewModel(
     fun syncMarketData() {
         viewModelScope.launch {
             _state.update { it.copy(syncing = true, statusMessage = "Syncing quotes…") }
-            runCatching {
-                val loaded = repository.load()
-                val day = today()
-                val result = SyncMarketDataUseCase(container.marketFeed)(loaded, day)
-                repository.upsertQuotes(result.marketData, result.fxRates)
-                val updated = repository.load()
-                val alerts =
-                    GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), day)
-                notify(alerts)
-                result
-            }.onSuccess { result ->
-                val extra = if (result.failures.isEmpty()) "" else " (${result.failures.size} skipped)"
-                _state.update { it.copy(syncing = false, statusMessage = "Updated ${result.marketData.size} daily rows$extra") }
-                refresh()
-            }.onFailure { error ->
-                _state.update { it.copy(syncing = false, statusMessage = error.message ?: "Sync failed") }
-            }
+            runCatching { DashboardMutations.syncQuotes(repository, container, notify, today()) }
+                .onSuccess { message ->
+                    _state.update { it.copy(syncing = false, statusMessage = message) }
+                    refresh()
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(syncing = false, statusMessage = error.message ?: "Sync failed") }
+                }
         }
     }
 
     private suspend fun loadDashboard(): DashboardUiState {
-        val loaded = repository.load()
-        snapshot = loaded
-        if (loaded.isEmpty) {
-            return DashboardUiState(
-                loading = false,
-                empty = true,
+        val (session, state) =
+            DashboardLoader.load(
+                repository = repository,
+                getDashboard = getDashboard,
                 range = _state.value.range,
-                hasAlphaVantageKey = container.keys.alphaVantageKey() != null,
+                statusMessage = _state.value.statusMessage,
+                hasKey = container.keys.alphaVantageKey() != null,
+                today = today(),
             )
-        }
-        val resolved = resolveAsOf(loaded.marketData.maxOfOrNull { it.date }, loaded.transactions.maxOfOrNull { it.date })
-        asOf = resolved
-        repository.rebuildNavHistoryIfNeeded(loaded, resolved)
-        storedNav = repository.loadNavHistory()
-        val thresholds = repository.loadThresholds().associateBy { it.assetId }
-        val counts = loaded.transactions.groupingBy { it.assetId }.eachCount()
-        return DashboardUiState(
-            loading = false,
-            empty = false,
-            range = _state.value.range,
-            report = getDashboard(loaded, _state.value.range, resolved, storedNav),
-            statusMessage = _state.value.statusMessage,
-            hasAlphaVantageKey = container.keys.alphaVantageKey() != null,
-            thresholds = thresholds,
-            transactionsByAsset = counts,
-        )
-    }
-
-    private fun resolveAsOf(lastMarket: LocalDate?, lastTx: LocalDate?): LocalDate {
-        val observed = listOfNotNull(lastMarket, lastTx).maxOrNull()
-        val todayDate = today()
-        return when {
-            observed == null -> todayDate
-            observed.isAfter(todayDate) -> observed
-            else -> todayDate
-        }
+        snapshot = session.snapshot
+        storedNav = session.storedNav
+        asOf = session.asOf
+        return state
     }
 
     companion object {

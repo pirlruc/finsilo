@@ -8,7 +8,7 @@ Do not keep a second issue list here.
 | --- | --- |
 | Locked RFC product decisions | [FS-DEC-001](issues.yml) |
 | Product leftovers still open | [FS-008](issues.yml) (typed JSON parsers); [FS-026](issues.yml) Trading 212 API. Closed: [FS-017](issues.yml)–[FS-025](issues.yml), [FS-027](issues.yml) same-day FIFO + PIN-wrapped SQLCipher. |
-| Phase 7 | [GATE-001](issues.yml) done (Kover 95/95 green; [limitations.md](limitations.md) LIM-COV closed). |
+| Phase 7 | [GATE-001](issues.yml) done (Kover 95/95 green; [limitations.md](limitations.md) LIM-COV closed). Follow-up: [GATE-003](issues.yml). |
 | Known limits not in the backlog | [docs/limitations.md](limitations.md) (open + closed-this-pass tables) |
 | Pack map (Kotlin/Android vs C++ vs Python) | [GATE-002](issues.yml) |
 

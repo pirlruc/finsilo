@@ -12,7 +12,10 @@ import com.pirlruc.finsilo.data.local.TargetAllocationEntity
 import com.pirlruc.finsilo.data.local.TransactionEntity
 import com.pirlruc.finsilo.data.local.WatchlistItemEntity
 import com.pirlruc.finsilo.data.local.WatchlistQuoteEntity
+import com.pirlruc.finsilo.data.local.replaceAll
+import com.pirlruc.finsilo.data.local.replaceExtras
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
+import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
@@ -62,7 +65,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     }
 
     override suspend fun write(snapshot: PortfolioSnapshot) {
-        dao.replaceAll(
+        database.replaceAll(
             assets = snapshot.assets.map(AssetEntity::from),
             transactions = snapshot.transactions.map(TransactionEntity::from),
             market = snapshot.marketData.map(DailyMarketDataEntity::from),
@@ -71,6 +74,23 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         )
         rebuildNavHistoryIfNeeded(snapshot)
     }
+
+    /** Full restore: ledger snapshot plus watchlist, templates, and price alerts. */
+    suspend fun restoreBackup(snapshot: PortfolioSnapshot, extras: LedgerBackupExtras) {
+        write(snapshot)
+        database.replaceExtras(
+            templates = extras.templates.map(LedgerTemplateEntity::from),
+            watchlistItems = extras.watchlist.items.map(WatchlistItemEntity::from),
+            watchlistQuotes = extras.watchlist.quotes.map(WatchlistQuoteEntity::from),
+            thresholds = extras.thresholds.map(PriceAlertThresholdEntity::from),
+        )
+    }
+
+    suspend fun loadBackupExtras(): LedgerBackupExtras = LedgerBackupExtras(
+        watchlist = loadWatchlist(),
+        templates = loadTemplates(),
+        thresholds = loadThresholds(),
+    )
 
     /**
      * Persist CSV import rows without wiping quotes that a concurrent sync may have written.
@@ -98,7 +118,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     suspend fun applyClear(selection: ClearSelection) {
         if (!selection.any) return
         if (selection.ledger) {
-            dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            database.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
             widgetNav?.write(null)
         }
         if (selection.watchlist) dao.clearWatchlist()

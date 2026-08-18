@@ -91,6 +91,7 @@ class DatabaseKeyStoreTest {
 
     @Test
     fun leftoverLegacyHexIsDroppedAfterWrappedUnlock() {
+        // Wraps already exist: leftover hex is stale, not the upgrade confirm screen.
         assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
         prefs.edit().putString("sqlcipher_passphrase", AppLockCrypto.toHex(ByteArray(32) { 2 })).commit()
         val reopened = DatabaseKeyStore(prefs)

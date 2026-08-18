@@ -1,7 +1,5 @@
 package com.pirlruc.finsilo.ui.settings
 
-import android.graphics.Paint
-import android.graphics.pdf.PdfDocument
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,7 +10,6 @@ import com.pirlruc.finsilo.domain.backup.LedgerBackupCodec
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.usecase.GetRealizedGainsUseCase
 import com.pirlruc.finsilo.domain.usecase.RealizedGainsCsv
-import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +25,7 @@ data class PortfolioToolsUiState(
     val status: String? = null,
     val error: String? = null,
     val busy: Boolean = false,
+    val confirmRestore: Boolean = false,
 )
 
 class PortfolioToolsViewModel(
@@ -37,6 +35,7 @@ class PortfolioToolsViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(PortfolioToolsUiState())
     val state: StateFlow<PortfolioToolsUiState> = _state.asStateFlow()
+    private var pendingRestore: LedgerBackupResult.Restored? = null
 
     fun setYear(value: String) = _state.update { it.copy(year = value.filter { ch -> ch.isDigit() }.take(4), error = null) }
 
@@ -60,7 +59,8 @@ class PortfolioToolsViewModel(
             _state.update { it.copy(busy = true, error = null, status = null) }
             runCatching {
                 val snapshot = repository.load()
-                withContext(Dispatchers.Default) { LedgerBackupCodec.encrypt(snapshot, recovery) }
+                val extras = repository.loadBackupExtras()
+                withContext(Dispatchers.Default) { LedgerBackupCodec.encrypt(snapshot, recovery, extras) }
             }.onSuccess { bytes ->
                 write(bytes)
                 _state.update { it.copy(busy = false, status = "Encrypted backup written. Keep the recovery code.") }
@@ -73,22 +73,47 @@ class PortfolioToolsViewModel(
     fun restoreBackup(bytes: ByteArray) {
         viewModelScope.launch {
             val recovery = _state.value.recovery
-            _state.update { it.copy(busy = true, error = null, status = null) }
+            if (!lock.verifyRecovery(recovery)) {
+                _state.update { it.copy(error = "Enter the current recovery code to restore.") }
+                return@launch
+            }
+            _state.update { it.copy(busy = true, error = null, status = null, confirmRestore = false) }
             val result = withContext(Dispatchers.Default) { LedgerBackupCodec.decrypt(bytes, recovery) }
             when (result) {
                 is LedgerBackupResult.Refused ->
                     _state.update { it.copy(busy = false, error = result.reason) }
                 is LedgerBackupResult.Restored -> {
-                    runCatching { repository.write(result.snapshot) }
-                        .onSuccess {
-                            _state.update { it.copy(busy = false, status = "Ledger restored from backup.") }
-                        }
-                        .onFailure { error ->
-                            _state.update { it.copy(busy = false, error = error.message ?: "Restore failed") }
-                        }
+                    pendingRestore = result
+                    _state.update { it.copy(busy = false, confirmRestore = true) }
                 }
             }
         }
+    }
+
+    fun confirmRestore() {
+        val pending = pendingRestore
+        if (pending == null) {
+            _state.update { it.copy(confirmRestore = false, error = "Choose a backup file first.") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, error = null, status = null) }
+            runCatching { repository.restoreBackup(pending.snapshot, pending.extras) }
+                .onSuccess {
+                    pendingRestore = null
+                    _state.update {
+                        it.copy(busy = false, confirmRestore = false, status = "Ledger, watchlist, templates, and alerts restored.")
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(busy = false, error = error.message ?: "Restore failed") }
+                }
+        }
+    }
+
+    fun cancelRestore() {
+        pendingRestore = null
+        _state.update { it.copy(confirmRestore = false) }
     }
 
     private fun exportTax(csv: Boolean, write: (ByteArray) -> Unit) {
@@ -121,39 +146,5 @@ class PortfolioToolsViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 PortfolioToolsViewModel(container.repository, container.lockStore) as T
         }
-    }
-}
-
-/** Printable PDF with the same FIFO figures as [RealizedGainsCsv]. */
-object RealizedGainsPdf {
-    fun write(report: com.pirlruc.finsilo.domain.model.RealizedGainsReport): ByteArray {
-        val document = PdfDocument()
-        val paint = Paint().apply { textSize = 10f }
-        val title = Paint().apply {
-            textSize = 14f
-            isFakeBoldText = true
-        }
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        var page = document.startPage(pageInfo)
-        var canvas = page.canvas
-        var y = 40f
-        canvas.drawText("Mais-valias FIFO ${report.year}", 40f, y, title)
-        y += 24f
-        val lines = RealizedGainsCsv.write(report).lineSequence()
-        for (line in lines) {
-            if (y > 800f) {
-                document.finishPage(page)
-                page = document.startPage(pageInfo)
-                canvas = page.canvas
-                y = 40f
-            }
-            canvas.drawText(line.take(110), 40f, y, paint)
-            y += 14f
-        }
-        document.finishPage(page)
-        val out = ByteArrayOutputStream()
-        document.writeTo(out)
-        document.close()
-        return out.toByteArray()
     }
 }
