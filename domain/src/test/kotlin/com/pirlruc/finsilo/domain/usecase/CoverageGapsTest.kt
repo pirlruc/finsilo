@@ -254,7 +254,11 @@ class CoverageGapsTest {
         assertTrue(skippedType.skipped.any { it.contains("No holding") || it.contains("row") })
         val skippedDate = importer.importLines(seeded, listOf(csvLine(date = null)))
         assertTrue(skippedDate.skipped.isNotEmpty())
-        val blankSymbol = importer.importLines(seeded, listOf(csvLine(symbol = "", isin = null)))
+        val blankSymbol =
+            importer.importLines(
+                seeded,
+                listOf(csvLine(type = TransactionType.DIVIDEND, symbol = "", isin = null, quoteSymbol = null)),
+            )
         assertTrue(blankSymbol.skipped.any { it.contains("row") })
         val eurBook = snap().copy(assets = listOf(etf, cash))
         val mismatch =

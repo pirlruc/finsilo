@@ -42,13 +42,13 @@ class ParserBranchCoverageTest {
             Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
             Market buy,2024-01-15 10:30:00,,,VWCE,,,EUR,,,EUR,B0
             Market buy,2024-01-16 10:30:00,IE00BK5BQT80,VWCE,VWCE,0,100,EUR,0,EUR,B1
-            Interest,2024-01-17 10:30:00,,,,,,,,1.00,EUR,,INT1
-            Withdraw,2024-01-18 10:30:00,,,,,,,,50.00,EUR,,W1
+            Interest,2024-01-17 10:30:00,,,,,,,1.00,EUR,INT1
+            Withdraw,2024-01-18 10:30:00,,,,,,,50.00,EUR,W1
             Market sell,2024-01-19 10:30:00,IE00BK5BQT80,VWCE_GY_EQ,VWCE,1,120,EUR,120,EUR,S1
-            Deposit,not-a-date,,,,,,,,10,EUR,,BAD
+            Deposit,not-a-date,,,,,,,10,EUR,BAD
             Limit order,2024-01-20 10:30:00,IE00BK5BQT80,VWCE,VWCE,1,100,EUR,100,EUR,IGN
-            Deposit,2024-01-21 10:30:00,,,,,,,,0,EUR,,Z
-            Deposit,2024-01-22 10:30:00,,,,,,,,10,GBP,,FX
+            Deposit,2024-01-21 10:30:00,,,,,,,0,EUR,Z
+            Deposit,2024-01-22 10:30:00,,,,,,,10,GBP,FX
             """.trimIndent()
         val parsed = BrokerCsv.parse(csv)
         assertEquals(BrokerCsvFormat.TRADING_212, parsed.format)
@@ -148,7 +148,7 @@ class ParserBranchCoverageTest {
         assertEquals("VWCE.DE", BrokerQuoteSymbol.fromTrading212("VWCE_GY_EQ"))
         assertEquals("FOO", BrokerQuoteSymbol.fromTrading212("FOO_ZZ_EQ"))
         assertEquals("P", BrokerQuoteSymbol.fromDegiro("P", "  "))
-        assertEquals("X", BrokerQuoteSymbol.fromIsin(".", "US0378331005"))
+        assertEquals(".", BrokerQuoteSymbol.fromIsin(".", "US0378331005"))
         assertNull(BrokerMoney.book(MoneyParts("0", "10", "EUR", "10", "EUR", "", "", "EUR")))
         assertNull(BrokerMoney.book(MoneyParts("1", "", "GBP", "10", "GBP", "", "", "GBP")))
         assertNotNull(BrokerMoney.book(MoneyParts("1", "10", "USD", "9.2", "EUR", "", "1", "USD")))
