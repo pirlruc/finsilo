@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed reader for Kotlin numeric gates (CI-022).
 
-CI on this public repo cannot clone the private analog submodule, so the
-committed copy at config/kotlin.profile.thresholds.yml is what jobs read.
-When docs/guardrails/kotlin/profile.thresholds.yml is present, every key must
-match that pin (no silent drift).
+Jobs always read config/kotlin.profile.thresholds.yml. When CI inits
+docs/guardrails with GUARDRAILS_READ_TOKEN, every analog key must match that
+copy (no silent drift). github-scaffold is not cloned in CI.
 """
 from __future__ import annotations
 

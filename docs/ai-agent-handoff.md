@@ -27,7 +27,7 @@ bash scripts/ci-local.sh
 bash scripts/issues-sync.sh --validate-only
 ```
 
-CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read `config/kotlin.profile.thresholds.yml` (consumer copy of the analog pin; LIM-SUB).
+CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read analog `docs/guardrails/kotlin/profile.thresholds.yml` after `scripts/ci-init-guardrails.sh` (`GUARDRAILS_READ_TOKEN`); otherwise the consumer copy `config/kotlin.profile.thresholds.yml`. Do not clone `.github/scaffold` in CI.
 
 Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Room **2.8.1 via kapt** (KSP 2.3 failed), compileSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. Vico 3.2.2 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
 
@@ -74,9 +74,9 @@ Product leftovers (do not block calling 1–6 “shipped” except as noted):
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
 - Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API. Closed this pass: backup [FS-017](issues.yml) (including v6 extras + confirm restore), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml).
 
-Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone leftover: [GATE-003](issues.yml) / [LIM-SUB](limitations.md) (CI-022). detekt `@Composable` complexity ignore is gone (GATE-003-T2).
+Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone and detekt `@Composable` ignore leftovers are [GATE-003](issues.yml) (done).
 
-Untracked limits (private analog clone, Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
+Untracked limits (Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
 Do not record a fake lowered-gate deviation.
 

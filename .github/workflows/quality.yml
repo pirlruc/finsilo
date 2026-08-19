@@ -33,6 +33,13 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          # Do not set submodules: recursive — that would also clone
+          # .github/scaffold, which CI does not need (templates are synced).
+
+      - name: Init guardrails analog
+        env:
+          GUARDRAILS_READ_TOKEN: ${{ secrets.GUARDRAILS_READ_TOKEN }}
+        run: bash scripts/ci-init-guardrails.sh
 
       - name: Set up JDK 21
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1

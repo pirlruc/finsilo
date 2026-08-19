@@ -1048,30 +1048,30 @@ milestones:
               - rg -n "GATE-AND-001|GATE-002|CI-009" docs/issues.yml
 
       - id: GATE-003
-        status: open
+        status: done
         title: Remaining Kotlin gate leftovers after first landing
         overview:
           problem: >-
-            First-landing CI cannot clone private analog (LIM-SUB / CI-022).
-            Workflows do not pass a PAT or `submodules: recursive`, and
-            GITHUB_TOKEN cannot read pirlruc/guardrails. GATE-002 already
-            decided gaps are open tasks or limitations.md — not a silent or
-            invented docs/guardrail-deviations.yml row.
+            First-landing CI did not pass GUARDRAILS_READ_TOKEN, so analog
+            never cloned even after the secret existed. Recursive submodule
+            checkout would also have pulled .github/scaffold, which CI does
+            not need. GATE-002 forbids inventing a CI-022 deviation.
           goal: >-
-            Keep deviations empty until Engineering Lead approval exists.
-            Either check out analog in CI with a read token, or record a dated
-            CI-022 deviation with approved_by. detekt @Composable complexity
-            ignore is already gone (GATE-003-T2).
+            Required jobs init docs/guardrails with GUARDRAILS_READ_TOKEN and
+            compare analog thresholds to the consumer copy. Do not clone
+            github-scaffold in CI. detekt @Composable complexity ignore is
+            gone (GATE-003-T2).
         architecture:
           target: GitHub Actions plus detekt config
           modules:
             - .github/workflows
+            - scripts/ci-init-guardrails.sh
             - config/detekt/detekt.yml
             - docs/limitations.md
-            - docs/guardrail-deviations.yml
         acceptance_criteria:
+          - quality, kover, and kdoc jobs run scripts/ci-init-guardrails.sh
+          - Only docs/guardrails is inited; .github/scaffold is not
           - No invented approved_by on a CI-022 deviation
-          - LIM-SUB remains until analog is cloned in CI or a dated deviation exists
           - detekt CyclomaticComplexMethod / LongMethod / LongParameterList do not ignore @Composable
         guardrail_refs:
           - CI-022
@@ -1079,16 +1079,16 @@ milestones:
           - KT-SEC-002
         tasks:
           - id: GATE-003-T1
-            status: open
+            status: done
             title: Clone analog in CI or record an EL-approved CI-022 deviation
             instructions:
               files:
                 - .github/workflows
-                - docs/guardrail-deviations.yml
+                - scripts/ci-init-guardrails.sh
                 - docs/limitations.md
             verification:
-              - Jobs read docs/guardrails/kotlin/profile.thresholds.yml or a dated CI-022 row exists
-              - approved_by is a real Engineering Lead, not invented
+              - Jobs read docs/guardrails/kotlin/profile.thresholds.yml when GUARDRAILS_READ_TOKEN is set
+              - git submodule update is not recursive
             guardrail_refs:
               - CI-022
           - id: GATE-003-T2
