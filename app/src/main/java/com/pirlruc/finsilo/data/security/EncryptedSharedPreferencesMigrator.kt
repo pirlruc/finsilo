@@ -15,25 +15,28 @@ import java.io.File
  * files. Do not open the legacy file as plaintext SharedPreferences — that would look like a wipe.
  */
 internal object EncryptedSharedPreferencesMigrator {
-    fun ensureMigrated(
-        context: Context,
-        sourceFileName: String,
-        dest: SharedPreferences,
-        aead: PrefsAead,
-    ) {
+    fun ensureMigrated(context: Context, sourceFileName: String, dest: SharedPreferences, aead: PrefsAead) {
         if (dest.contains(SecurePreferences.FORMAT_MARKER)) {
             deleteLegacyXml(context, sourceFileName)
             return
         }
-        writeSnapshot(dest, aead, readLegacySnapshot(context, sourceFileName))
-        dest.edit()
-            .putString(SecurePreferences.FORMAT_MARKER, SecurePreferences.FORMAT_VALUE)
-            .commit()
+        importSnapshot(dest, aead, readLegacySnapshot(context, sourceFileName))
         deleteLegacyXml(context, sourceFileName)
     }
 
+    internal fun importSnapshot(dest: SharedPreferences, aead: PrefsAead, snapshot: Map<String, Any?>) {
+        val editor = KeystoreAesGcmPreferences(dest, aead).edit()
+        for ((key, value) in snapshot) {
+            putLegacyValue(editor, key, value)
+        }
+        check(editor.commit()) { "Failed to write migrated secure preferences" }
+        dest.edit()
+            .putString(SecurePreferences.FORMAT_MARKER, SecurePreferences.FORMAT_VALUE)
+            .commit()
+    }
+
     @Suppress("DEPRECATION")
-    internal fun openLegacyEsp(context: Context, fileName: String): SharedPreferences {
+    private fun openLegacyEsp(context: Context, fileName: String): SharedPreferences {
         val masterKey =
             MasterKey.Builder(context)
                 .setKeyGenParameterSpec(
@@ -56,17 +59,13 @@ internal object EncryptedSharedPreferencesMigrator {
         )
     }
 
-    private fun readLegacySnapshot(context: Context, sourceFileName: String): Map<String, *> {
+    private fun readLegacySnapshot(context: Context, sourceFileName: String): Map<String, Any?> {
         if (!prefsXml(context, sourceFileName).exists()) return emptyMap()
-        return HashMap(openLegacyEsp(context, sourceFileName).all)
-    }
-
-    private fun writeSnapshot(dest: SharedPreferences, aead: PrefsAead, snapshot: Map<String, *>) {
-        val editor = KeystoreAesGcmPreferences(dest, aead).edit()
-        for ((key, value) in snapshot) {
-            putLegacyValue(editor, key, value)
+        val out = LinkedHashMap<String, Any?>()
+        for ((key, value) in openLegacyEsp(context, sourceFileName).all) {
+            out[key] = value
         }
-        check(editor.commit()) { "Failed to write migrated secure preferences" }
+        return out
     }
 
     private fun putLegacyValue(editor: SharedPreferences.Editor, key: String, value: Any?) {
@@ -88,6 +87,5 @@ internal object EncryptedSharedPreferencesMigrator {
         File("${xml.path}.bak").delete()
     }
 
-    internal fun prefsXml(context: Context, name: String): File =
-        File(context.applicationInfo.dataDir, "shared_prefs/$name.xml")
+    internal fun prefsXml(context: Context, name: String): File = File(context.applicationInfo.dataDir, "shared_prefs/$name.xml")
 }

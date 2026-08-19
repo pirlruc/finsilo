@@ -14,8 +14,7 @@ internal object SecurePreferences {
     internal const val FORMAT_MARKER = "_finsilo_aes_gcm"
     internal const val FORMAT_VALUE = "1"
 
-    fun open(context: Context, fileName: String): SharedPreferences =
-        open(context, fileName, AndroidKeystoreAesGcmAead())
+    fun open(context: Context, fileName: String): SharedPreferences = open(context, fileName, AndroidKeystoreAesGcmAead())
 
     internal fun open(context: Context, fileName: String, aead: PrefsAead): SharedPreferences {
         val dest = context.getSharedPreferences(storageName(fileName), Context.MODE_PRIVATE)

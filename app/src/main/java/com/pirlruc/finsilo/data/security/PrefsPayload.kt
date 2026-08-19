@@ -70,8 +70,7 @@ internal object PrefsPayload {
         }
     }
 
-    private fun typedNumber(type: Byte, size: Int): ByteBuffer =
-        ByteBuffer.allocate(size).order(order).put(type)
+    private fun typedNumber(type: Byte, size: Int): ByteBuffer = ByteBuffer.allocate(size).order(order).put(type)
 
     private fun number(plain: ByteArray, type: Byte, size: Int): ByteBuffer? {
         if (plain.size != size || plain[0] != type) return null

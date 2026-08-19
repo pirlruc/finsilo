@@ -6,10 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 
 /** [SharedPreferences] that stores values as Keystore AES-256-GCM blobs; key names stay plaintext. */
-internal class KeystoreAesGcmPreferences(
-    private val delegate: SharedPreferences,
-    private val aead: PrefsAead,
-) : SharedPreferences {
+internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences, private val aead: PrefsAead) : SharedPreferences {
     private val listeners =
         ConcurrentHashMap<SharedPreferences.OnSharedPreferenceChangeListener, SharedPreferences.OnSharedPreferenceChangeListener>()
 
@@ -87,17 +84,13 @@ internal class KeystoreAesGcmPreferences(
             return putEncoded(key, PrefsPayload.encodeStringSet(values))
         }
 
-        override fun putInt(key: String?, value: Int): SharedPreferences.Editor =
-            putEncoded(key, PrefsPayload.encodeInt(value))
+        override fun putInt(key: String?, value: Int): SharedPreferences.Editor = putEncoded(key, PrefsPayload.encodeInt(value))
 
-        override fun putLong(key: String?, value: Long): SharedPreferences.Editor =
-            putEncoded(key, PrefsPayload.encodeLong(value))
+        override fun putLong(key: String?, value: Long): SharedPreferences.Editor = putEncoded(key, PrefsPayload.encodeLong(value))
 
-        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor =
-            putEncoded(key, PrefsPayload.encodeFloat(value))
+        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = putEncoded(key, PrefsPayload.encodeFloat(value))
 
-        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor =
-            putEncoded(key, PrefsPayload.encodeBoolean(value))
+        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = putEncoded(key, PrefsPayload.encodeBoolean(value))
 
         override fun remove(key: String?): SharedPreferences.Editor {
             if (key.isNullOrEmpty() || key == SecurePreferences.FORMAT_MARKER) return this

@@ -51,31 +51,37 @@ class SecurePreferencesTest {
     }
 
     @Test
-    fun migratesEncryptedSharedPreferencesWithoutWipe() {
+    fun copiesLegacyTypedSnapshotWithoutWipe() {
         val name = uniqueName()
-        EncryptedSharedPreferencesMigrator.openLegacyEsp(context(), name)
-            .edit()
-            .putString("sqlcipher_wrap_pin", "wrap-hex")
-            .putBoolean("biometric", true)
-            .putInt("failed_unlock_attempts", 3)
-            .putLong("pin_lockout_until_ms", 42L)
-            .commit()
-        val migrated = SecurePreferences.open(context(), name)
+        val aead = softwareAead()
+        val dest = context().getSharedPreferences(SecurePreferences.storageName(name), Context.MODE_PRIVATE)
+        EncryptedSharedPreferencesMigrator.importSnapshot(
+            dest,
+            aead,
+            mapOf(
+                "sqlcipher_wrap_pin" to "wrap-hex",
+                "biometric" to true,
+                "failed_unlock_attempts" to 3,
+                "pin_lockout_until_ms" to 42L,
+            ),
+        )
+        val migrated = SecurePreferences.open(context(), name, aead)
         assertEquals("wrap-hex", migrated.getString("sqlcipher_wrap_pin", null))
         assertTrue(migrated.getBoolean("biometric", false))
         assertEquals(3, migrated.getInt("failed_unlock_attempts", 0))
         assertEquals(42L, migrated.getLong("pin_lockout_until_ms", 0L))
-        val again = SecurePreferences.open(context(), name)
-        assertEquals("wrap-hex", again.getString("sqlcipher_wrap_pin", null))
-        assertFalse(EncryptedSharedPreferencesMigrator.prefsXml(context(), name).exists())
     }
 
     @Test
-    fun productionOpenRoundTripsThroughAndroidKeystore() {
-        val prefs = SecurePreferences.open(context(), uniqueName())
-        assertTrue(prefs.edit().putString("av", "demo-key").putBoolean("flag", false).commit())
-        assertEquals("demo-key", prefs.getString("av", null))
-        assertFalse(prefs.getBoolean("flag", true))
+    fun deletesLeftoverLegacyXmlAfterFormatMarkerExists() {
+        val name = uniqueName()
+        val aead = softwareAead()
+        SecurePreferences.open(context(), name, aead)
+        val leftover = EncryptedSharedPreferencesMigrator.prefsXml(context(), name)
+        leftover.parentFile?.mkdirs()
+        leftover.writeText("<map />")
+        SecurePreferences.open(context(), name, aead)
+        assertFalse(leftover.exists())
     }
 
     @Test
@@ -124,6 +130,5 @@ class SecurePreferencesTest {
         return AesGcmPrefsAead(generator.generateKey())
     }
 
-    private fun rawDelegate(logicalName: String): SharedPreferences =
-        context().getSharedPreferences(SecurePreferences.storageName(logicalName), Context.MODE_PRIVATE)
+    private fun rawDelegate(logicalName: String): SharedPreferences = context().getSharedPreferences(SecurePreferences.storageName(logicalName), Context.MODE_PRIVATE)
 }

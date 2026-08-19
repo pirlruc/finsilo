@@ -86,11 +86,9 @@ internal object AndroidPrefsKeystore {
 }
 
 internal class AndroidKeystoreAesGcmAead : PrefsAead {
-    private val inner by lazy { AesGcmPrefsAead(AndroidPrefsKeystore.getOrCreateKey()) }
+    private val inner = AesGcmPrefsAead(AndroidPrefsKeystore.getOrCreateKey())
 
-    override fun seal(associatedData: ByteArray, plaintext: ByteArray): ByteArray =
-        inner.seal(associatedData, plaintext)
+    override fun seal(associatedData: ByteArray, plaintext: ByteArray): ByteArray = inner.seal(associatedData, plaintext)
 
-    override fun open(associatedData: ByteArray, blob: ByteArray): ByteArray? =
-        inner.open(associatedData, blob)
+    override fun open(associatedData: ByteArray, blob: ByteArray): ByteArray? = inner.open(associatedData, blob)
 }
