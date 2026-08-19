@@ -9,13 +9,17 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 
+internal fun validateMarketGet(request: Request) {
+    if (request.method != "GET") {
+        throw IOException("FinSilo allows GET only; refused ${request.method} ${request.url}")
+    }
+    MarketHttpsPolicy.requireHttpsUrl(request.url.toString())
+}
+
 class GetOnlyInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (request.method != "GET") {
-            throw IOException("FinSilo allows GET only; refused ${request.method} ${request.url}")
-        }
-        MarketHttpsPolicy.requireHttpsUrl(request.url.toString())
+        validateMarketGet(request)
         return chain.proceed(request)
     }
 }
@@ -32,7 +36,7 @@ class HttpGetClient(private val client: OkHttpClient = marketHttpClient()) {
         MarketHttpsPolicy.requireHttpsUrl(url)
         val request = Request.Builder().url(url).get().build()
         client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body.string()
             if (!response.isSuccessful) {
                 throw IOException("HTTP ${response.code} for $url")
             }

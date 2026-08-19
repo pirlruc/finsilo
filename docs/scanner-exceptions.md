@@ -27,9 +27,9 @@ CI fail bar (CI-005: High/Critical). They do not mute a known vuln in FinSilo so
 | --- | --- | --- | --- |
 | semgrep | `--exclude .github/scaffold --exclude docs/guardrails` | Analog pins are other repos’ samples, not FinSilo. | Stop vendoring analog docs (not planned). |
 | semgrep | `--severity ERROR` | CI-005 / KT-SEC-002: warning-level community rules are noisy; ERROR fails the job. | `semgrep login` + org pack (LIM-SG). |
-| CodeQL | `paths-ignore`: analog dirs, `**/build/**`, `**/generated/**` | Same analog pin; generated/kapt SQL is not authored. | N/A |
+| CodeQL | `paths-ignore`: analog dirs, `**/build/**`, `**/generated/**` | Same analog pin; generated/KSP SQL is not authored. | N/A |
 | CodeQL / MobSF / OSV | `fail-on-sarif-severity.py --min-severity high` | CI-005: High/Critical fail; medium is printed. | Lower the fail bar only with a recorded deviation. |
-| MobSF mobsfscan | Scan `app/src/main` and `domain/src/main` only | Tests, build, analog pins, and kapt output are not the app. Full MobSF APK Docker is not in CI. | Run the MobSF container in a Docker-capable job. |
+| MobSF mobsfscan | Scan `app/src/main` and `domain/src/main` only | Tests, build, analog pins, and KSP output are not the app. Full MobSF APK Docker is not in CI. | Run the MobSF container in a Docker-capable job. |
 | OSV Scanner | CycloneDX `includeConfigs` runtime classpaths; `skipConfigs: (?i).*test.*` | Test-only libs (Robolectric, etc.) are not shipped. First unfiltered BOM flagged Netty/Jackson/BouncyCastle from the test graph. | Ship those libraries (we do not). |
 | OSV Scanner | Gradle BOM instead of APK Syft | Dex APK has almost no Maven coordinates; OSV needs the resolved Gradle graph. | N/A; Syft still uploads an APK SBOM (LIM-SBOM). |
 
