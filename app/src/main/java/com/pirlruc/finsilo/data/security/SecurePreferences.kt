@@ -2,33 +2,26 @@ package com.pirlruc.finsilo.data.security
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 
-/** EncryptedSharedPreferences backed by the default Android Keystore master key. */
+/**
+ * Keystore AES-256-GCM encrypted [SharedPreferences] for SQLCipher wraps, the app lock, and
+ * widget NAV.
+ *
+ * Values are sealed with [AndroidPrefsKeystore.ALIAS], not the deprecated EncryptedSharedPreferences
+ * / MasterKey APIs. Existing Tink files (`fileName`) are copied once into [`storageName`] and deleted.
+ */
 internal object SecurePreferences {
-    fun open(context: Context, fileName: String): SharedPreferences {
-        val masterKey =
-            MasterKey.Builder(context)
-                .setKeyGenParameterSpec(
-                    KeyGenParameterSpec.Builder(
-                        MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                    )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setKeySize(256)
-                        .build(),
-                )
-                .build()
-        return EncryptedSharedPreferences.create(
-            context,
-            fileName,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+    internal const val FORMAT_MARKER = "_finsilo_aes_gcm"
+    internal const val FORMAT_VALUE = "1"
+
+    fun open(context: Context, fileName: String): SharedPreferences =
+        open(context, fileName, AndroidKeystoreAesGcmAead())
+
+    internal fun open(context: Context, fileName: String, aead: PrefsAead): SharedPreferences {
+        val dest = context.getSharedPreferences(storageName(fileName), Context.MODE_PRIVATE)
+        EncryptedSharedPreferencesMigrator.ensureMigrated(context, fileName, dest, aead)
+        return KeystoreAesGcmPreferences(dest, aead)
     }
+
+    internal fun storageName(fileName: String): String = "${fileName}_ks"
 }

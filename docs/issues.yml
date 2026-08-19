@@ -1562,3 +1562,49 @@ milestones:
               - ./gradlew :app:testDebugUnitTest
               - Existing installs migrate or re-key without a silent wipe
 
+      - id: FS-028
+        status: done
+        title: Replace deprecated EncryptedSharedPreferences with Keystore AES-GCM
+        overview:
+          problem: >-
+            security-crypto 1.1.0 deprecates EncryptedSharedPreferences and
+            MasterKey. Android's replacement sketch is plaintext SharedPreferences
+            plus a Keystore key, which is not acceptable for SQLCipher wraps, PIN
+            hashes, or the Alpha Vantage key. Leaving the deprecated APIs in the
+            production path keeps a finance app on a removal track.
+          goal: >-
+            Seal preference values with KeyGenerator + AndroidKeyStore AES-256-GCM.
+            Keep a synchronous SharedPreferences API. Migrate existing Tink files
+            once without wiping wraps or PIN material. Confine deprecated APIs to
+            that migrator; do not store secrets in plaintext prefs.
+        architecture:
+          target: SecurePreferences wrapper plus one-shot ESP migrator
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/security
+        acceptance_criteria:
+          - Production reads/writes do not call EncryptedSharedPreferences.create
+          - Values on disk are not plaintext; Keystore alias is not the Tink master key
+          - Existing EncryptedSharedPreferences files migrate without a silent wipe
+        guardrail_refs:
+          - KT-TEST-001
+          - KT-SEC-001
+        tasks:
+          - id: FS-028-T1
+            status: done
+            title: Keystore AES-GCM SharedPreferences wrapper
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - XML dumps of the prefs file do not contain wrapped passphrase hex
+          - id: FS-028-T2
+            status: done
+            title: One-shot EncryptedSharedPreferences migration
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security/EncryptedSharedPreferencesMigrator.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Legacy Tink files copy into {name}_ks then delete; no silent wipe
+

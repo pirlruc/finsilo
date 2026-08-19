@@ -11,7 +11,7 @@ import java.time.LocalDate
 /**
  * Last stored EUR NAV for the home-screen widget. Never calls a market API.
  *
- * Values are written with EncryptedSharedPreferences (Keystore AES-256-GCM).
+ * Values are written with Keystore AES-256-GCM ([SecurePreferences]).
  * If Keystore prefs cannot be opened, reads return null and writes are no-ops
  * so a disk dump never falls back to plaintext. The widget can still render
  * without the app PIN; the ledger itself is PIN-wrapped (FS-027-T2).
