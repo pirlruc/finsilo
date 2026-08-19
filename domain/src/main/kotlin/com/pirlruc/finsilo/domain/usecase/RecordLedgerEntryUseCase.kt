@@ -87,7 +87,8 @@ class RecordLedgerEntryUseCase(
     ): FundedBook {
         if (!fundBuyWithDeposit || request.type != TransactionType.BUY) return FundedBook(snapshot, null)
         val deposit = CashFunder(ledger).depositFor(snapshot, request, asset) ?: return FundedBook(snapshot, null)
-        val recorded = invoke(snapshot, deposit) as LedgerEntryResult.Accepted
+        val recorded = invoke(snapshot, deposit)
+        if (recorded !is LedgerEntryResult.Accepted) return FundedBook(snapshot, null)
         return FundedBook(withAccepted(snapshot, recorded), recorded)
     }
 

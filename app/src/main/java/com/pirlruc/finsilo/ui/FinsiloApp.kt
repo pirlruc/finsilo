@@ -39,7 +39,7 @@ private enum class AppScreen {
 fun FinsiloApp(container: AppContainer) {
     val lock: LockViewModel = viewModel(factory = LockViewModel.factory(container))
     AppLockGate(lock) {
-        RequestNotificationPermission(onPickerBusy = lock::setExternalUiActive)
+        RequestNotificationPermission()
         UnlockedApp(container, lock)
     }
 }
@@ -100,19 +100,14 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
 }
 
 @Composable
-private fun RequestNotificationPermission(onPickerBusy: (Boolean) -> Unit) {
+private fun RequestNotificationPermission() {
     if (Build.VERSION.SDK_INT < 33) return
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        onPickerBusy(false)
-    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
         val granted =
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
                 PackageManager.PERMISSION_GRANTED
-        if (!granted) {
-            onPickerBusy(true)
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        if (!granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }

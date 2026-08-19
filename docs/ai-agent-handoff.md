@@ -17,7 +17,7 @@ Product phases **1–6** are implemented. Guardrails (Phase 7): quality (includi
 | Module | Path | Notes |
 | --- | --- | --- |
 | domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, broker CSV import, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`, `QuoteCurrency` (USD feeds × FX → EUR), `AppLockCrypto`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard (split screens, holdings list, dual-currency quotes), ledger form (templates + manual close; **buys auto-fund a same-day cash deposit when cash is short**), PIN/biometric lock with recovery code (**overlay relock, process lifecycle**), settings (targets, tax CSV/PDF, encrypted backup), watchlist, NAV home-screen widget, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts (**full pie for a single 100% slice**), encrypted Room v6 (schema exported, including thresholds, templates, watchlist, `nav_history`, `ledger_sequence`), OkHttp GET-only feed, WorkManager 23:00 one-shot reschedule + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| app | `app/` | Compose dashboard (split screens, holdings list, dual-currency quotes), ledger form (templates + manual close; **buys auto-fund a same-day cash deposit when cash is short**), PIN/biometric lock with recovery code (**overlay relock, process lifecycle**), settings (targets, tax CSV/PDF, encrypted backup), watchlist, NAV home-screen widget, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts (**full pie for a single 100% slice**), encrypted Room v6 (schema exported, including thresholds, templates, watchlist, `nav_history`, `ledger_sequence`), OkHttp GET-only feed, WorkManager 23:00 one-shot reschedule + notifications, sample seeder. Single-row ledger writes go through `saveLedgerEntry`; funded buys persist via `persistImport` so deposit+buy stay one Room transaction without extra repository methods (KT-CPLX-002). |
 
 ## How to run checks
 
@@ -124,4 +124,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-19 (FS-029 lock overlay, funded buys, full single-slice pie)*
+*Last updated: 2026-08-19 (FS-029 review: persistImport for funded buys, no permission-dialog lock bypass)*

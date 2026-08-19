@@ -31,7 +31,6 @@ import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
 import com.pirlruc.finsilo.domain.usecase.BackfillLedgerSequenceUseCase
-import com.pirlruc.finsilo.domain.usecase.LedgerEntryResult
 import com.pirlruc.finsilo.domain.usecase.RebuildNavHistoryUseCase
 import java.time.LocalDate
 
@@ -94,8 +93,9 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     )
 
     /**
-     * Persist CSV import rows without wiping quotes that a concurrent sync may have written.
-     * [write] is a full snapshot replace and is reserved for sample load/clear.
+     * Persist new ledger rows (CSV import or a funded buy) without wiping quotes
+     * that a concurrent sync may have written. [write] is a full snapshot replace
+     * and is reserved for sample load/clear.
      */
     suspend fun persistImport(before: PortfolioSnapshot, after: PortfolioSnapshot) {
         val newAssets = after.assets.filter { incoming -> before.assets.none { it.id == incoming.id } }
@@ -146,30 +146,12 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     }
 
     override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
-        saveAcceptedRows(
-            assets = listOfNotNull(asset),
-            transactions = listOf(transaction),
-            fxRate = fxRate,
+        dao.insertLedgerEntry(
+            asset = asset?.let(AssetEntity::from),
+            transaction = TransactionEntity.from(transaction),
+            fx = fxRate?.let(CurrencyRateEntity::from),
         )
-    }
-
-    /** Persist a buy and its optional same-day funding deposit in one Room transaction. */
-    suspend fun saveAccepted(result: LedgerEntryResult.Accepted) {
-        saveAcceptedRows(
-            assets = listOfNotNull(result.fundingCashAsset, result.asset.takeIf { result.createdAsset }),
-            transactions = listOfNotNull(result.fundingDeposit, result.transaction),
-            fxRate = result.fxRate,
-        )
-    }
-
-    private suspend fun saveAcceptedRows(assets: List<Asset>, transactions: List<Transaction>, fxRate: CurrencyRate?) {
-        dao.insertImported(
-            assets.map(AssetEntity::from),
-            transactions.map(TransactionEntity::from),
-            listOfNotNull(fxRate?.let(CurrencyRateEntity::from)),
-        )
-        val changedFrom = transactions.minOfOrNull { it.date } ?: fxRate?.date
-        rebuildNavHistoryIfNeeded(load(), changedFrom = changedFrom)
+        rebuildNavHistoryIfNeeded(load(), changedFrom = transaction.date)
     }
 
     suspend fun upsertQuotes(market: List<DailyMarketData>, fx: List<CurrencyRate>) {
