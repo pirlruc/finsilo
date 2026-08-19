@@ -65,6 +65,13 @@ internal fun CashMovementFields(state: LedgerUiState, onQuantity: (String) -> Un
 
 @Composable
 internal fun TradeAmountFields(state: LedgerUiState, onQuantity: (String) -> Unit, onPrice: (String) -> Unit, onFees: (String) -> Unit) {
+    if (state.type == TransactionType.BUY) {
+        Text(
+            "Uninvested cash: ${state.cashEur ?: "—"} EUR. A matching cash deposit is recorded when this buy needs more.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     if (state.remainingQty != null) {
         Text(
             remainingHint(state),

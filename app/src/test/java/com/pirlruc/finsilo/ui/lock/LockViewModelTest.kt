@@ -32,6 +32,16 @@ class LockViewModelTest {
     }
 
     @Test
+    fun emptyPinDoesNotUnlockOrCountAsFailure() {
+        val store = FakeAppLock()
+        val viewModel = LockViewModel(store, dispatcher, { 1L })
+        viewModel.unlockWithPin()
+        assertFalse(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.error!!.contains("4–8"))
+        assertEquals(0, store.failedUnlockAttempts())
+    }
+
+    @Test
     fun fiveFailedPinsStartLockoutThenCorrectPinWorksAfterCooldown() {
         val store = FakeAppLock()
         var now = 1_000_000L

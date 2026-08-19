@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.ui.ledger
 
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.usecase.LedgerEntryResult
 import com.pirlruc.finsilo.domain.usecase.ManualQuoteResult
 import com.pirlruc.finsilo.domain.usecase.RecordLedgerEntryUseCase
@@ -51,9 +52,9 @@ internal object LedgerSaveActions {
                 busy.copy(saving = false, error = "Fill date, quantity, and price with valid numbers."),
             )
         }
-        return when (val result = record(snapshot, request)) {
+        return when (val result = record(snapshot, request, fundBuyWithDeposit = request.type == TransactionType.BUY)) {
             is LedgerEntryResult.Rejected -> LedgerSaveOutcome.StateOnly(busy.copy(saving = false, error = result.reason))
-            is LedgerEntryResult.Accepted -> writeAccepted(repository, busy, result)
+            is LedgerEntryResult.Accepted -> writeAccepted(repository, snapshot, busy, result)
         }
     }
 
@@ -76,18 +77,34 @@ internal object LedgerSaveActions {
 
     private suspend fun writeAccepted(
         repository: RoomPortfolioRepository,
+        snapshot: PortfolioSnapshot,
         state: LedgerUiState,
         result: LedgerEntryResult.Accepted,
     ): LedgerSaveOutcome = runCatching {
-        repository.saveLedgerEntry(
-            asset = result.asset.takeIf { result.createdAsset },
-            transaction = result.transaction,
-            fxRate = result.fxRate,
-        )
+        repository.persistImport(snapshot, withAccepted(snapshot, result))
     }.fold(
-        onSuccess = { LedgerSaveOutcome.Posted("Saved ${result.transaction.type.name.lowercase()}") },
+        onSuccess = { LedgerSaveOutcome.Posted(postedStatus(result)) },
         onFailure = { error ->
             LedgerSaveOutcome.StateOnly(state.copy(saving = false, error = error.message ?: "Could not save"))
         },
     )
+
+    private fun withAccepted(snapshot: PortfolioSnapshot, result: LedgerEntryResult.Accepted): PortfolioSnapshot {
+        val extraAssets = listOfNotNull(result.fundingCashAsset, result.asset.takeIf { result.createdAsset })
+        val extraTx = listOfNotNull(result.fundingDeposit, result.transaction)
+        val fx = result.fxRate?.let { rate ->
+            if (snapshot.fxRates.any { it.date == rate.date }) snapshot.fxRates else snapshot.fxRates + rate
+        } ?: snapshot.fxRates
+        return snapshot.copy(
+            assets = snapshot.assets + extraAssets,
+            transactions = snapshot.transactions + extraTx,
+            fxRates = fx,
+        )
+    }
+
+    private fun postedStatus(result: LedgerEntryResult.Accepted): String {
+        val deposit = result.fundingDeposit ?: return "Saved ${result.transaction.type.name.lowercase()}"
+        val euros = deposit.notionalEur.stripTrailingZeros().toPlainString()
+        return "Saved buy and a matching $euros EUR cash deposit."
+    }
 }

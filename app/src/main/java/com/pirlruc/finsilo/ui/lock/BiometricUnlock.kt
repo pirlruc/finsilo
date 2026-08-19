@@ -15,43 +15,30 @@ internal fun biometricAvailable(activity: FragmentActivity): Boolean {
 }
 
 @Composable
-internal fun rememberHostActivity(): FragmentActivity = LocalActivity.current as FragmentActivity
+internal fun rememberHostActivity(): FragmentActivity? = LocalActivity.current as? FragmentActivity
 
 @Composable
 internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) -> Unit, onClosed: () -> Unit): () -> Unit {
     val activity = rememberHostActivity()
-    val executor = remember { ContextCompat.getMainExecutor(activity) }
-    val prompt = remember(onSuccess, onError, onClosed) {
-        BiometricPrompt(
-            activity,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    onClosed()
-                    if (!BiometricSessionCipher.confirm(result)) {
-                        onError("Biometric unlock failed")
-                        return
-                    }
-                    onSuccess()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    onClosed()
-                    if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
-                        errorCode != BiometricPrompt.ERROR_USER_CANCELED
-                    ) {
-                        onError(errString.toString())
-                    }
-                }
-            },
-        )
+    val executor = remember(activity) { activity?.let { ContextCompat.getMainExecutor(it) } }
+    val prompt = remember(activity, executor, onSuccess, onError, onClosed) {
+        if (activity == null || executor == null) {
+            null
+        } else {
+            BiometricPrompt(activity, executor, biometricCallback(onSuccess, onError, onClosed))
+        }
     }
     return launchPrompt@{
+        val host = prompt
+        if (host == null) {
+            onError("Unlock is unavailable.")
+            return@launchPrompt
+        }
         val crypto = runCatching { BiometricSessionCipher.cryptoObject() }.getOrElse { error ->
             onError(error.message ?: "Biometric unlock failed")
             return@launchPrompt
         }
-        prompt.authenticate(
+        host.authenticate(
             BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Unlock FinSilo")
                 .setNegativeButtonText("Use PIN")
@@ -59,5 +46,29 @@ internal fun rememberBiometricPrompt(onSuccess: () -> Unit, onError: (String) ->
                 .build(),
             crypto,
         )
+    }
+}
+
+private fun biometricCallback(
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit,
+    onClosed: () -> Unit,
+): BiometricPrompt.AuthenticationCallback = object : BiometricPrompt.AuthenticationCallback() {
+    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+        onClosed()
+        if (!BiometricSessionCipher.confirm(result)) {
+            onError("Biometric unlock failed")
+            return
+        }
+        onSuccess()
+    }
+
+    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+        onClosed()
+        if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+            errorCode != BiometricPrompt.ERROR_USER_CANCELED
+        ) {
+            onError(errString.toString())
+        }
     }
 }

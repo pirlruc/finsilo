@@ -1,4 +1,4 @@
-package com.pirlruc.finsilo.domain.importcsv
+package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.Currency
@@ -8,11 +8,16 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
-import com.pirlruc.finsilo.domain.usecase.LedgerEntryRequest
 import java.math.BigDecimal
 
-/** Inserts a same-day cash deposit when a CSV buy would otherwise fail the cash guard. */
-internal class ImportCashFunder(private val ledger: PositionLedger = PositionLedger()) {
+/**
+ * Same-day cash deposit that closes a buy's cash gap.
+ *
+ * Used by CSV import and by manual ledger saves so a purchase can be booked
+ * without a separate deposit step. The deposit still exists as a ledger row
+ * (O3 cash guard holds after the pair is applied).
+ */
+class CashFunder(private val ledger: PositionLedger = PositionLedger()) {
     fun depositFor(snapshot: PortfolioSnapshot, request: LedgerEntryRequest, asset: Asset): LedgerEntryRequest? {
         if (request.type != TransactionType.BUY) return null
         val rate = executionRate(snapshot, request, asset) ?: return null

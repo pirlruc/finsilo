@@ -181,6 +181,112 @@ class RecordLedgerEntryUseCaseTest {
     }
 
     @Test
+    fun buyWithoutCashRecordsMatchingDepositWhenFundingEnabled() {
+        val ids = ArrayDeque(listOf("asset-etf", "tx-deposit", "tx-buy"))
+        val recorder = RecordLedgerEntryUseCase(newId = { ids.removeFirst() })
+        val result =
+            recorder(
+                PortfolioSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()),
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("2"),
+                    unitPriceNative = bd("50"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+                fundBuyWithDeposit = true,
+            ) as LedgerEntryResult.Accepted
+        assertEquals(TransactionType.BUY, result.transaction.type)
+        assertEquals("tx-buy", result.transaction.id)
+        val deposit = result.fundingDeposit
+        assertTrue(deposit != null)
+        assertEquals(TransactionType.DEPOSIT_CASH, deposit!!.type)
+        assertEquals("tx-deposit", deposit.id)
+        assertEquals(0, bd("100").compareTo(deposit.quantity))
+        assertEquals(RecordLedgerEntryUseCase.CASH_ASSET_ID, result.fundingCashAsset?.id)
+        assertTrue(result.createdAsset)
+        assertTrue(result.transaction.sequence > deposit.sequence)
+    }
+
+    @Test
+    fun fundedBuyOnlyDepositsTheCashGap() {
+        val ids = ArrayDeque(listOf("asset-etf", "tx-deposit", "tx-buy"))
+        val recorder = RecordLedgerEntryUseCase(newId = { ids.removeFirst() })
+        val result =
+            recorder(
+                cashOnly(bd("40")),
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("100"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+                fundBuyWithDeposit = true,
+            ) as LedgerEntryResult.Accepted
+        assertEquals(0, bd("60").compareTo(result.fundingDeposit!!.quantity))
+        assertEquals(null, result.fundingCashAsset)
+    }
+
+    @Test
+    fun fundedBuyIsNoOpWhenCashAlreadyCoversCost() {
+        val result =
+            useCase(
+                cashOnly(bd("500")),
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("1"),
+                    unitPriceNative = bd("100"),
+                    feesEur = BigDecimal.ZERO,
+                    newAsset = NewAssetDraft("VWCE.DE", "All-World", AssetType.ETF, Currency.EUR),
+                ),
+                fundBuyWithDeposit = true,
+            ) as LedgerEntryResult.Accepted
+        assertEquals(null, result.fundingDeposit)
+        assertEquals(TransactionType.BUY, result.transaction.type)
+    }
+
+    @Test
+    fun fundingFlagOnWithdrawalDoesNotInventADeposit() {
+        val result =
+            useCase(
+                cashOnly(bd("50")),
+                LedgerEntryRequest(
+                    type = TransactionType.WITHDRAWAL,
+                    date = asOf,
+                    quantity = bd("10"),
+                    unitPriceNative = BigDecimal.ONE,
+                    feesEur = BigDecimal.ZERO,
+                ),
+                fundBuyWithDeposit = true,
+            ) as LedgerEntryResult.Accepted
+        assertEquals(TransactionType.WITHDRAWAL, result.transaction.type)
+        assertEquals(null, result.fundingDeposit)
+    }
+
+    @Test
+    fun fundedBuyOfCashInstrumentIsStillRejected() {
+        val result =
+            useCase(
+                cashOnly(bd("1")),
+                LedgerEntryRequest(
+                    type = TransactionType.BUY,
+                    date = asOf,
+                    quantity = bd("10"),
+                    unitPriceNative = BigDecimal.ONE,
+                    feesEur = BigDecimal.ZERO,
+                    existingAssetId = cash.id,
+                ),
+                fundBuyWithDeposit = true,
+            )
+        assertTrue(result is LedgerEntryResult.Rejected)
+        assertTrue((result as LedgerEntryResult.Rejected).reason.contains("Deposit"))
+    }
+
+    @Test
     fun sameDayBuyIgnoresLaterRankedWithdrawalWhenCheckingCash() {
         val snapshot =
             cashOnly(bd("10000")).copy(

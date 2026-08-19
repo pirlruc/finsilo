@@ -7,12 +7,12 @@ import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 /** Extra dashboard footnotes that are not valuation failures. */
 object DashboardCopy {
     const val CSV_TWR: String =
-        "CSV import funded some buys with same-day cash deposits, so TWR treats those buys as internal and may not split."
+        "Some buys share a date with a cash deposit, so TWR treats those buys as internal and may not split."
 
     const val SAMPLE_CROSS: String =
         "Sample prices are synthetic. AAPL may show a demo golden cross that live sync would not invent."
 
-    /** Warnings for imported cash top-ups and the synthetic sample book. */
+    /** Warnings for same-day cash top-ups that fund buys, and the synthetic sample book. */
     fun extras(snapshot: PortfolioSnapshot): List<String> {
         val extra = ArrayList<String>(2)
         if (csvFundedBuys(snapshot)) extra += CSV_TWR
@@ -20,7 +20,7 @@ object DashboardCopy {
         return extra
     }
 
-    /** True when a BUY shares a calendar date with a cash deposit (the CSV cash-guard pattern). */
+    /** True when a BUY shares a calendar date with a cash deposit (manual or CSV funding). */
     fun csvFundedBuys(snapshot: PortfolioSnapshot): Boolean {
         val depositDates =
             snapshot.transactions.filter { it.type == TransactionType.DEPOSIT_CASH }.map { it.date }.toHashSet()

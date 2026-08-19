@@ -368,6 +368,7 @@ class LockViewModel(
     }
 
     private fun authenticatePin(pin: String): String? {
+        if (!AppLockCrypto.pinOk(pin)) return "Enter a 4–8 digit PIN."
         lockoutError()?.let { return it }
         if (!store.verifyPin(pin)) {
             store.recordFailedUnlock(nowMs())

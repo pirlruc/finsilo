@@ -93,8 +93,9 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     )
 
     /**
-     * Persist CSV import rows without wiping quotes that a concurrent sync may have written.
-     * [write] is a full snapshot replace and is reserved for sample load/clear.
+     * Persist new ledger rows (CSV import or a funded buy) without wiping quotes
+     * that a concurrent sync may have written. [write] is a full snapshot replace
+     * and is reserved for sample load/clear.
      */
     suspend fun persistImport(before: PortfolioSnapshot, after: PortfolioSnapshot) {
         val newAssets = after.assets.filter { incoming -> before.assets.none { it.id == incoming.id } }

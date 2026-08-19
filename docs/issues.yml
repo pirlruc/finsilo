@@ -1599,3 +1599,70 @@ milestones:
               - ./gradlew :app:testDebugUnitTest
               - XML dumps of the prefs file do not contain wrapped passphrase hex
 
+      - id: FS-029
+        status: done
+        title: Keep session UI across lock, fund buys, and fill the allocation pie
+        overview:
+          problem: >-
+            Relock used the activity ON_STOP, so a notification-permission
+            dialog unregistered the Activity Result launcher and crashed, and
+            leaving the dashboard (or the app) discarded an in-progress ledger
+            form. Manual buys still required a separate cash deposit. A single
+            100% allocation slice rendered as a gapped donut.
+          goal: >-
+            Relock on process background, overlay the PIN screen without
+            disposing the unlocked UI, auto-insert a same-day cash deposit when
+            a buy exceeds uninvested cash, and draw a full pie for a single
+            slice. Do not reopen FS-DEC-001: the cash guard still holds after
+            the deposit+buy pair; TWR still treats same-day funded buys as
+            internal.
+        architecture:
+          target: App lock overlay, funded ledger writes, allocation pie
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui/lock
+            - app/src/main/java/com/pirlruc/finsilo/ui/ledger
+            - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/CashFunder.kt
+        acceptance_criteria:
+          - Empty PIN does not unlock, crash, or count as a failed attempt
+          - Relock overlays the PIN screen; ledger form fields survive
+          - A buy that exceeds cash persists a same-day DEPOSIT_CASH for the gap
+          - One 100% allocation slice is a full disk (no inner hole, no spacing)
+        guardrail_refs:
+          - KT-TEST-001
+          - KT-SEC-001
+        tasks:
+          - id: FS-029-T1
+            status: done
+            title: Overlay lock on process background and keep ledger drafts
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/AppLockGate.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/LockViewModel.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/FinsiloApp.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger/LedgerEntryScreen.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - Empty PIN shows a validation error and does not increment lockout
+          - id: FS-029-T2
+            status: done
+            title: Fund manual buys with a matching cash deposit
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/CashFunder.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RecordLedgerEntryUseCase.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/ledger/LedgerSaveActions.kt
+            verification:
+              - RecordLedgerEntryUseCaseTest.buyWithoutCashRecordsMatchingDepositWhenFundingEnabled
+              - RecordLedgerEntryUseCaseTest.fundedBuyOnlyDepositsTheCashGap
+          - id: FS-029-T3
+            status: done
+            title: Draw a complete pie for a single allocation slice
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardAllocation.kt
+            verification:
+              - AllocationPieSpecTest.singleSliceIsAFullDisk
+              - AllocationPieSpecTest.multipleSlicesKeepDonutGaps
+
