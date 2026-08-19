@@ -39,7 +39,7 @@ private enum class AppScreen {
 fun FinsiloApp(container: AppContainer) {
     val lock: LockViewModel = viewModel(factory = LockViewModel.factory(container))
     AppLockGate(lock) {
-        RequestNotificationPermission()
+        RequestNotificationPermission(onPickerBusy = lock::setExternalUiActive)
         UnlockedApp(container, lock)
     }
 }
@@ -49,6 +49,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.DASHBOARD) }
     val dashboard: DashboardViewModel = viewModel(factory = DashboardViewModel.factory(container))
     val importer: BrokerImportViewModel = viewModel(factory = BrokerImportViewModel.factory(container))
+    val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
     BackHandler(enabled = screen != AppScreen.DASHBOARD) {
         screen = AppScreen.DASHBOARD
         dashboard.refresh()
@@ -58,13 +59,15 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
             DashboardRoute(
                 viewModel = dashboard,
                 importer = importer,
-                onAddTransaction = { screen = AppScreen.LEDGER },
+                onAddTransaction = {
+                    ledger.prepare()
+                    screen = AppScreen.LEDGER
+                },
                 onOpenSettings = { screen = AppScreen.SETTINGS },
                 onOpenWatchlist = { screen = AppScreen.WATCHLIST },
                 onPickerBusy = lock::setExternalUiActive,
             )
-        AppScreen.LEDGER -> {
-            val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
+        AppScreen.LEDGER ->
             LedgerEntryRoute(
                 viewModel = ledger,
                 onClose = {
@@ -72,7 +75,6 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                     dashboard.refresh()
                 },
             )
-        }
         AppScreen.SETTINGS -> {
             val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
             TargetSettingsRoute(
@@ -98,14 +100,19 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
 }
 
 @Composable
-private fun RequestNotificationPermission() {
+private fun RequestNotificationPermission(onPickerBusy: (Boolean) -> Unit) {
     if (Build.VERSION.SDK_INT < 33) return
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        onPickerBusy(false)
+    }
     LaunchedEffect(Unit) {
         val granted =
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
                 PackageManager.PERMISSION_GRANTED
-        if (!granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (!granted) {
+            onPickerBusy(true)
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 }

@@ -12,10 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 
 @Composable
 fun UnlockScreen(state: LockUiState, onPin: (String) -> Unit, onUnlock: () -> Unit, onBiometric: () -> Unit, onForgot: () -> Unit) {
     val enabled = !state.working
+    val canUnlock = enabled && AppLockCrypto.pinOk(state.pin)
     LockScreenColumn {
         FinSiloBrand()
         Text("Unlock the silo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -24,10 +26,10 @@ fun UnlockScreen(state: LockUiState, onPin: (String) -> Unit, onUnlock: () -> Un
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        PinSecretField(state.pin, onPin, "PIN", enabled, ImeAction.Done, onUnlock)
+        PinSecretField(state.pin, onPin, "PIN", enabled, ImeAction.Done, onDone = { if (canUnlock) onUnlock() })
         LockError(state.error)
         LockWorkingIndicator(state.working)
-        Button(onClick = onUnlock, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Unlock") }
+        Button(onClick = onUnlock, enabled = canUnlock, modifier = Modifier.fillMaxWidth()) { Text("Unlock") }
         if (state.biometric && state.biometricAvailable) {
             Button(onClick = onBiometric, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text("Use biometrics") }
         }

@@ -39,8 +39,16 @@ data class LedgerEntryRequest(
 /** Validation result for a ledger write. Persistence is the caller's job. */
 sealed interface LedgerEntryResult {
     /** Accepted ledger row ready to persist. */
-    data class Accepted(val asset: Asset, val createdAsset: Boolean, val transaction: Transaction, val fxRate: CurrencyRate?) :
-        LedgerEntryResult
+    data class Accepted(
+        val asset: Asset,
+        val createdAsset: Boolean,
+        val transaction: Transaction,
+        val fxRate: CurrencyRate?,
+        /** Same-day cash deposit that funded [transaction] when the buy exceeded cash. */
+        val fundingDeposit: Transaction? = null,
+        /** New cash instrument created for [fundingDeposit], if the book had none. */
+        val fundingCashAsset: Asset? = null,
+    ) : LedgerEntryResult
 
     /** Why the row was refused. */
     data class Rejected(val reason: String) : LedgerEntryResult
@@ -54,11 +62,43 @@ class RecordLedgerEntryUseCase(
     private val ledger: PositionLedger = PositionLedger(),
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) {
-    operator fun invoke(snapshot: PortfolioSnapshot, request: LedgerEntryRequest): LedgerEntryResult {
+    operator fun invoke(snapshot: PortfolioSnapshot, request: LedgerEntryRequest, fundBuyWithDeposit: Boolean = false): LedgerEntryResult {
         val amountError = validateAmounts(request)
         if (amountError != null) return amountError
         val resolved = resolveAsset(snapshot, request) ?: return missingAsset(request)
-        return acceptResolved(snapshot, request, resolved)
+        return recordResolved(snapshot, request, resolved, fundBuyWithDeposit)
+    }
+
+    private fun recordResolved(
+        snapshot: PortfolioSnapshot,
+        request: LedgerEntryRequest,
+        resolved: Pair<Asset, Boolean>,
+        fundBuyWithDeposit: Boolean,
+    ): LedgerEntryResult {
+        val funded = fundIfNeeded(snapshot, request, resolved.first, fundBuyWithDeposit)
+        return attachFunding(acceptResolved(funded.snapshot, request, resolved), funded.deposit)
+    }
+
+    private fun fundIfNeeded(
+        snapshot: PortfolioSnapshot,
+        request: LedgerEntryRequest,
+        asset: Asset,
+        fundBuyWithDeposit: Boolean,
+    ): FundedBook {
+        if (!fundBuyWithDeposit || request.type != TransactionType.BUY) return FundedBook(snapshot, null)
+        val deposit = CashFunder(ledger).depositFor(snapshot, request, asset) ?: return FundedBook(snapshot, null)
+        val recorded = invoke(snapshot, deposit) as LedgerEntryResult.Accepted
+        return FundedBook(withAccepted(snapshot, recorded), recorded)
+    }
+
+    private fun attachFunding(result: LedgerEntryResult, funding: LedgerEntryResult.Accepted?): LedgerEntryResult {
+        if (funding == null || result !is LedgerEntryResult.Accepted) return result
+        return result.copy(fundingDeposit = funding.transaction, fundingCashAsset = funding.asset.takeIf { funding.createdAsset })
+    }
+
+    private fun withAccepted(snapshot: PortfolioSnapshot, result: LedgerEntryResult.Accepted): PortfolioSnapshot {
+        val assets = if (result.createdAsset) snapshot.assets + result.asset else snapshot.assets
+        return snapshot.copy(assets = assets, transactions = snapshot.transactions + result.transaction)
     }
 
     private fun acceptResolved(
@@ -254,6 +294,8 @@ class RecordLedgerEntryUseCase(
         const val CASH_ASSET_ID: String = "asset-cash"
     }
 }
+
+private data class FundedBook(val snapshot: PortfolioSnapshot, val deposit: LedgerEntryResult.Accepted?)
 
 /** Parse an ISO-8601 calendar date, or null if the text is not a date. */
 fun parseDate(raw: String): LocalDate? = runCatching { LocalDate.parse(raw.trim()) }.getOrNull()

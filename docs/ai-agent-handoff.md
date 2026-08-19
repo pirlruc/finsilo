@@ -17,7 +17,7 @@ Product phases **1–6** are implemented. Guardrails (Phase 7): quality (includi
 | Module | Path | Notes |
 | --- | --- | --- |
 | domain | `domain/` | JVM. FIFO ledger, valuator, history, TWR, YOC, signals, alerts, free-API parsers, broker CSV import, `RecordLedgerEntryUseCase`, `SaveTargetAllocationUseCase`, `RebuildNavHistoryUseCase`, `QuoteCurrency` (USD feeds × FX → EUR), `AppLockCrypto`. `Asset.locallyValued` covers CT/deposit and unlisted PPR. No Android APIs. |
-| app | `app/` | Compose dashboard (split screens, holdings list, dual-currency quotes), ledger form (templates + manual close), PIN/biometric lock with recovery code, settings (targets, tax CSV/PDF, encrypted backup), watchlist, NAV home-screen widget, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts, encrypted Room v6 (schema exported, including thresholds, templates, watchlist, `nav_history`, `ledger_sequence`), OkHttp GET-only feed, WorkManager 23:00 one-shot reschedule + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
+| app | `app/` | Compose dashboard (split screens, holdings list, dual-currency quotes), ledger form (templates + manual close; **buys auto-fund a same-day cash deposit when cash is short**), PIN/biometric lock with recovery code (**overlay relock, process lifecycle**), settings (targets, tax CSV/PDF, encrypted backup), watchlist, NAV home-screen widget, **broker CSV import** (T212 / DEGIRO / Revolut), Vico charts (**full pie for a single 100% slice**), encrypted Room v6 (schema exported, including thresholds, templates, watchlist, `nav_history`, `ledger_sequence`), OkHttp GET-only feed, WorkManager 23:00 one-shot reschedule + notifications, sample seeder. Ledger writes go through `saveLedgerEntry`. |
 
 ## How to run checks
 
@@ -97,7 +97,7 @@ The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is comput
 ## Security
 
 - SQLCipher wraps, optional Alpha Vantage key, PIN hashes, and widget NAV in Keystore AES-256-GCM SharedPreferences (`SecurePreferences`).
-- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks on `ON_STOP` (skipped while the biometric prompt is showing).
+- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks when the **process** goes to the background (`ProcessLifecycleOwner` `ON_STOP`; skipped while the biometric prompt or an external picker is showing). Relock overlays the PIN screen so in-progress ledger fields are kept. An empty Unlock tap does not count as a failed attempt.
 - SQLCipher passphrase parsing uses the same hex decoder as the lock (corrupt prefs fail closed; they do not throw `NumberFormatException`).
 - Room v2→v4 additive schema changes are `AutoMigration` (no `execSQL` in `src/main`). Scanner scope filters are listed in [`docs/scanner-exceptions.md`](scanner-exceptions.md); there are no finding-level ignores.
 - `FLAG_SECURE` and `filterTouchesWhenObscured` on the main activity (no screenshots of the ledger/PIN; ignore overlay taps).
@@ -124,4 +124,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-19 (FS-028 Keystore AES-GCM prefs; no ESP migrator)*
+*Last updated: 2026-08-19 (FS-029 lock overlay, funded buys, full single-slice pie)*

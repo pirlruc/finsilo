@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
+import com.pirlruc.finsilo.domain.usecase.CashFunder
 import com.pirlruc.finsilo.domain.usecase.LedgerEntryRequest
 import com.pirlruc.finsilo.domain.usecase.LedgerEntryResult
 import com.pirlruc.finsilo.domain.usecase.NewAssetDraft
@@ -28,7 +29,7 @@ class ImportBrokerCsvUseCase internal constructor(private val applyLedger: (Port
         { snapshot, request -> record(snapshot, request) },
     )
 
-    private val funder = ImportCashFunder()
+    private val funder = CashFunder()
 
     operator fun invoke(snapshot: PortfolioSnapshot, csvTexts: List<String>): ImportBrokerCsvResult {
         val parsed = BrokerCsv.parseAll(csvTexts)
@@ -46,7 +47,7 @@ class ImportBrokerCsvUseCase internal constructor(private val applyLedger: (Port
 private class ImportWalk(
     initial: PortfolioSnapshot,
     private val applyLedger: (PortfolioSnapshot, LedgerEntryRequest) -> LedgerEntryResult,
-    private val funder: ImportCashFunder,
+    private val funder: CashFunder,
 ) {
     private var snapshot = initial
     private var accepted = 0

@@ -13,7 +13,7 @@ This repository currently delivers product phases **1–6**. Phase **7** wires t
 - Settings for `target_allocation` weights (must sum to 100) and lock/recovery rotation.
 - On-device EUR valuation (FIFO cost basis), allocation by asset class, reconstructed NAV history, TWR, and dual YOC.
 - Jetpack Compose dashboard:
-  - Donut chart of current allocation by investment type (Vico).
+  - Donut chart of current allocation by investment type (Vico); a single 100% slice is a full pie.
   - Line chart of portfolio NAV in EUR with 1M / 3M / YTD / All ranges (Vico).
   - TWR, yield on cost (TTM and last payment × frequency), ratings, and SMA 50/200.
 - Optional **Sync** using free APIs. An Alpha Vantage key is stored on-device when you have one; Frankfurter (including FX history), Stooq, and CoinGecko work without a key.

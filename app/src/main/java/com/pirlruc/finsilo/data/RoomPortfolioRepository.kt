@@ -31,6 +31,7 @@ import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
 import com.pirlruc.finsilo.domain.usecase.BackfillLedgerSequenceUseCase
+import com.pirlruc.finsilo.domain.usecase.LedgerEntryResult
 import com.pirlruc.finsilo.domain.usecase.RebuildNavHistoryUseCase
 import java.time.LocalDate
 
@@ -145,12 +146,30 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     }
 
     override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
-        dao.insertLedgerEntry(
-            asset = asset?.let(AssetEntity::from),
-            transaction = TransactionEntity.from(transaction),
-            fx = fxRate?.let(CurrencyRateEntity::from),
+        saveAcceptedRows(
+            assets = listOfNotNull(asset),
+            transactions = listOf(transaction),
+            fxRate = fxRate,
         )
-        rebuildNavHistoryIfNeeded(load(), changedFrom = transaction.date)
+    }
+
+    /** Persist a buy and its optional same-day funding deposit in one Room transaction. */
+    suspend fun saveAccepted(result: LedgerEntryResult.Accepted) {
+        saveAcceptedRows(
+            assets = listOfNotNull(result.fundingCashAsset, result.asset.takeIf { result.createdAsset }),
+            transactions = listOfNotNull(result.fundingDeposit, result.transaction),
+            fxRate = result.fxRate,
+        )
+    }
+
+    private suspend fun saveAcceptedRows(assets: List<Asset>, transactions: List<Transaction>, fxRate: CurrencyRate?) {
+        dao.insertImported(
+            assets.map(AssetEntity::from),
+            transactions.map(TransactionEntity::from),
+            listOfNotNull(fxRate?.let(CurrencyRateEntity::from)),
+        )
+        val changedFrom = transactions.minOfOrNull { it.date } ?: fxRate?.date
+        rebuildNavHistoryIfNeeded(load(), changedFrom = changedFrom)
     }
 
     suspend fun upsertQuotes(market: List<DailyMarketData>, fx: List<CurrencyRate>) {

@@ -66,6 +66,10 @@ private fun AllocationBody(slices: List<AllocationSlice>) {
     slices.forEach { slice -> AllocationLegendRow(slice) }
 }
 
+internal fun allocationPieSpacingDp(sliceCount: Int): Int = if (sliceCount <= 1) 0 else 4
+
+internal fun allocationPieInnerHole(sliceCount: Int): Boolean = sliceCount > 1
+
 @Composable
 internal fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = Modifier) {
     val modelProducer = remember { PieChartModelProducer() }
@@ -78,12 +82,13 @@ internal fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = M
         slices.map { slice ->
             PieChart.Slice(fill = Fill(slice.assetType.chartColor()))
         }
+    val hole = allocationPieInnerHole(slices.size)
     PieChartHost(
         chart =
         rememberPieChart(
             sliceProvider = PieChart.SliceProvider.series(sliceStyles),
-            innerSize = PieSize.Inner.fixed(72.dp),
-            spacing = 4.dp,
+            innerSize = if (hole) PieSize.Inner.fixed(72.dp) else PieSize.Inner.Zero,
+            spacing = allocationPieSpacingDp(slices.size).dp,
             valueFormatter = PieValueFormatter { _, _, _ -> "" },
         ),
         modelProducer = modelProducer,
