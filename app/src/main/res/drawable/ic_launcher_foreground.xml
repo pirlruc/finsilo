@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Grain-gold conical roof (silo). Kept inside the 72dp adaptive safe zone. -->
+    <path
+        android:fillColor="#E4B75A"
+        android:pathData="M54,24 L76,46 L32,46 Z" />
+    <path
+        android:fillColor="#F3D48A"
+        android:pathData="M51,22 h6 v5 h-6z" />
+    <!-- Celadon cylinder body -->
+    <path
+        android:fillColor="#7ED4B5"
+        android:pathData="M38,46 h32 v40 c0,4 -5,7 -10,7 h-12 c-5,0 -10,-3 -10,-7 z" />
+    <!-- Structural rings -->
+    <path
+        android:fillColor="#0F4F3D"
+        android:pathData="M38,58 h32 v2.4 h-32z" />
+    <path
+        android:fillColor="#0F4F3D"
+        android:pathData="M38,70 h32 v2.4 h-32z" />
+    <!-- Door / grain chute -->
+    <path
+        android:fillColor="#E4B75A"
+        android:pathData="M49,80 h10 v13 h-10z" />
+</vector>

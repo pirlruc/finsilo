@@ -1,0 +1,36 @@
+# Which repos to sync and what to bootstrap them with.
+#
+# Read by issues-sync-all.sh, issues-resync-all.sh, and setup-issue-scaffold.sh
+# (via scripts/*.sh wrappers that call .github/scaffold/scripts/).
+#
+# Milestone `name` values must match docs/issues.yml exactly. Create them with
+# bash scripts/setup-issue-scaffold.sh before the first issues-sync.
+
+targets:
+  - repo: pirlruc/finsilo
+    yaml: docs/issues.yml
+
+labels:
+  - { name: epic, color: "5319E7", description: "Decision record" }
+  - { name: task, color: "0E8A16", description: "Unit of work under an epic" }
+  - { name: ai-architect, color: "7057FF", description: "Architecture or planning" }
+  - { name: ai-implementer, color: "1D76DB", description: "Implementation" }
+  - { name: ai-reviewer, color: "ededed", description: "Review or triage" }
+
+milestones:
+  - name: Phase 1 — Foundation
+    description: Encrypted Room/SQLCipher, schema migrations
+  - name: Phase 2 — Data entry
+    description: Ledger forms, targets, FIFO/cash guards, PPR identity
+  - name: Phase 3 — Market APIs
+    description: Free GET-only quotes, FX honesty, parsers, Alpha Vantage quota
+  - name: Phase 4 — Calc engine
+    description: FIFO remainder, cash policy, TWR/NAV cache
+  - name: Phase 5 — Notifications
+    description: Rating, cross, and allocation-drift notifications
+  - name: Phase 6 — Dashboard
+    description: Charts, sample honesty, live signals
+  - name: Phase 7 — Guardrails
+    description: Kotlin/Android quality, coverage, security, Android lint
+  - name: Tooling — Analog & methodology
+    description: Guardrails, github-scaffold, github-issue-adr

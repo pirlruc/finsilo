@@ -1,0 +1,49 @@
+package com.pirlruc.finsilo.domain.portfolio
+
+import com.pirlruc.finsilo.domain.model.Currency
+import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
+
+/** EUR arithmetic with a shared [MathContext]. */
+object MoneyMath {
+    val CONTEXT: MathContext = MathContext(16, RoundingMode.HALF_EVEN)
+    const val SCALE: Int = 8
+    val HUNDRED: BigDecimal = BigDecimal("100")
+    val ZERO: BigDecimal = BigDecimal.ZERO.setScale(SCALE)
+
+    fun bd(value: String): BigDecimal = BigDecimal(value)
+
+    fun bd(value: Int): BigDecimal = BigDecimal.valueOf(value.toLong())
+
+    fun plus(a: BigDecimal, b: BigDecimal): BigDecimal = a.add(b, CONTEXT)
+
+    fun minus(a: BigDecimal, b: BigDecimal): BigDecimal = a.subtract(b, CONTEXT)
+
+    fun times(a: BigDecimal, b: BigDecimal): BigDecimal = a.multiply(b, CONTEXT)
+
+    fun div(a: BigDecimal, b: BigDecimal): BigDecimal {
+        require(b.signum() != 0) { "Division by zero" }
+        return a.divide(b, SCALE, RoundingMode.HALF_EVEN)
+    }
+
+    fun max(a: BigDecimal, b: BigDecimal): BigDecimal = a.max(b)
+
+    fun min(a: BigDecimal, b: BigDecimal): BigDecimal = a.min(b)
+
+    fun percentOf(part: BigDecimal, total: BigDecimal): BigDecimal {
+        if (total.signum() == 0) return ZERO
+        return div(times(part, HUNDRED), total)
+    }
+
+    /**
+     * Convert a native amount to EUR.
+     *
+     * [eurPerUsd] is EUR per 1 USD (e.g. 0.92 means 1 USD = 0.92 EUR).
+     * USD amounts become `native * eurPerUsd`. EUR amounts are unchanged.
+     */
+    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUsd: BigDecimal): BigDecimal = when (currency) {
+        Currency.EUR -> amountNative
+        Currency.USD -> times(amountNative, eurPerUsd)
+    }
+}

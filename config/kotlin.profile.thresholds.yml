@@ -1,0 +1,11 @@
+# Consumer copy of docs/guardrails/kotlin/profile.thresholds.yml (submodule pin 1.3.0).
+# CI inits docs/guardrails with GUARDRAILS_READ_TOKEN (not GITHUB_TOKEN). When the
+# analog tree is present, scripts/read_kotlin_threshold.py requires every key to match.
+# .github/scaffold is not cloned in CI.
+
+statement_coverage: 95          # KT-TEST-002
+branch_coverage: 95             # KT-TEST-002
+doc_coverage: 95                # KT-DOC-001
+max_cyclomatic_complexity: 10   # KT-CPLX-001
+min_maintainability_index: 40   # KT-CPLX-002
+pr_size_soft_limit_lines: 500   # KT-DELIV-001

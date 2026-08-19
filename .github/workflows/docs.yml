@@ -1,0 +1,44 @@
+name: docs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  kdoc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Init guardrails analog
+        env:
+          GUARDRAILS_READ_TOKEN: ${{ secrets.GUARDRAILS_READ_TOKEN }}
+        run: bash scripts/ci-init-guardrails.sh
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Read doc coverage gate
+        run: python3 scripts/read_kotlin_threshold.py doc_coverage
+
+      - name: Generate Dokka HTML
+        run: ./gradlew :domain:dokkaGenerate --stacktrace
+
+      - name: Enforce KDoc coverage
+        run: python3 scripts/check-kdoc-coverage.py

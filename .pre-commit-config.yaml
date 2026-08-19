@@ -1,0 +1,7 @@
+# Pre-commit hooks for KT-SEC-003 local secret scanning.
+# CI still runs scripts/run-gitleaks.sh. Dependabot covers this ecosystem (SC-DEP-001).
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
