@@ -29,7 +29,7 @@ bash scripts/issues-sync.sh --validate-only
 
 CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read analog `docs/guardrails/kotlin/profile.thresholds.yml` after `scripts/ci-init-guardrails.sh` (`GUARDRAILS_READ_TOKEN`); otherwise the consumer copy `config/kotlin.profile.thresholds.yml`. Do not clone `.github/scaffold` in CI.
 
-Toolchain notes that already bit this repo: AGP **9.3.1** (built-in Kotlin — do not apply `org.jetbrains.kotlin.android`), Kotlin **2.4.10**, Room **2.8.4 via KSP 2.3.11**, Gradle **9.7.0**, compileSdk **37**, targetSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. OkHttp **5.4.0** (`Response.body` is non-null; do not implement `Interceptor.Chain` in tests). JUnit 6 needs `junit-platform-launcher` on `testRuntimeOnly`. `security-crypto` 1.1.0 deprecates `EncryptedSharedPreferences` (still used). Vico 3.2.3 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
+Toolchain notes that already bit this repo: AGP **9.3.1** (built-in Kotlin — do not apply `org.jetbrains.kotlin.android`), Kotlin **2.4.10**, Room **2.8.4 via KSP 2.3.11**, Gradle **9.7.0**, compileSdk **37**, targetSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. OkHttp **5.4.0** (`Response.body` is non-null; do not implement `Interceptor.Chain` in tests). JUnit 6 needs `junit-platform-launcher` on `testRuntimeOnly`. Prefs use Keystore AES-256-GCM (`com.pirlruc.finsilo.prefs_aes256_gcm`); do not add `security-crypto` / EncryptedSharedPreferences. Robolectric’s JVM has no `AndroidKeyStore` provider — unit tests inject a software AES-GCM AEAD; production `open()` constructs the Keystore AEAD eagerly so the widget still fail-closes. Vico 3.2.3 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
 
 ## Analog pins (TOOL-001 / O14)
 
@@ -72,7 +72,7 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API. Closed this pass: backup [FS-017](issues.yml) (v6 extras, confirm restore, new-phone wrapping key), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml).
+- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API. Closed this pass: backup [FS-017](issues.yml) (v6 extras, confirm restore, new-phone wrapping key), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml), Keystore AES-GCM prefs [FS-028](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml).
 
 Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone and detekt `@Composable` ignore leftovers are [GATE-003](issues.yml) (done).
 
@@ -96,7 +96,7 @@ The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is comput
 
 ## Security
 
-- SQLCipher passphrase and optional Alpha Vantage key in EncryptedSharedPreferences / Android Keystore.
+- SQLCipher wraps, optional Alpha Vantage key, PIN hashes, and widget NAV in Keystore AES-256-GCM SharedPreferences (`SecurePreferences`).
 - First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks on `ON_STOP` (skipped while the biometric prompt is showing).
 - SQLCipher passphrase parsing uses the same hex decoder as the lock (corrupt prefs fail closed; they do not throw `NumberFormatException`).
 - Room v2→v4 additive schema changes are `AutoMigration` (no `execSQL` in `src/main`). Scanner scope filters are listed in [`docs/scanner-exceptions.md`](scanner-exceptions.md); there are no finding-level ignores.
@@ -124,4 +124,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-19 (Dependabot AGP 9 / KSP / OkHttp 5 CI fix)*
+*Last updated: 2026-08-19 (FS-028 Keystore AES-GCM prefs; no ESP migrator)*
