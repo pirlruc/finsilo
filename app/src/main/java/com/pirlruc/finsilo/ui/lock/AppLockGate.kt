@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -145,5 +145,4 @@ private fun LockScrim(content: @Composable () -> Unit) {
     }
 }
 
-private fun hiddenFromA11y(unlocked: Boolean): Modifier =
-    if (unlocked) Modifier else Modifier.semantics { invisibleToUser() }
+private fun hiddenFromA11y(unlocked: Boolean): Modifier = if (unlocked) Modifier else Modifier.semantics { hideFromAccessibility() }
