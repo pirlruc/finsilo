@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import javax.crypto.KeyGenerator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,58 +35,20 @@ class SecurePreferencesTest {
         assertEquals(4, prefs.getInt("attempts", 0))
         assertEquals(99L, prefs.getLong("until", 0L))
         assertTrue(prefs.contains("wrap"))
-        assertFalse(prefs.contains(SecurePreferences.FORMAT_MARKER))
     }
 
     @Test
     fun xmlDoesNotContainPlaintextValues() {
         val name = uniqueName()
-        val aead = softwareAead()
-        val prefs = SecurePreferences.open(context(), name, aead)
+        val prefs = SecurePreferences.open(context(), name, softwareAead())
         prefs.edit().putString("sqlcipher_wrap_pin", "wrap-hex-secret").commit()
-        val xml = EncryptedSharedPreferencesMigrator.prefsXml(context(), SecurePreferences.storageName(name))
-        val text = xml.readText()
-        assertTrue(text.contains(SecurePreferences.FORMAT_MARKER))
-        assertFalse(text.contains("wrap-hex-secret"))
+        val xml = File(context().applicationInfo.dataDir, "shared_prefs/$name.xml")
+        assertFalse(xml.readText().contains("wrap-hex-secret"))
         assertNotEquals("wrap-hex-secret", rawDelegate(name).getString("sqlcipher_wrap_pin", null))
     }
 
     @Test
-    fun copiesLegacyTypedSnapshotWithoutWipe() {
-        val name = uniqueName()
-        val aead = softwareAead()
-        val dest = context().getSharedPreferences(SecurePreferences.storageName(name), Context.MODE_PRIVATE)
-        EncryptedSharedPreferencesMigrator.importSnapshot(
-            dest,
-            aead,
-            mapOf(
-                "sqlcipher_wrap_pin" to "wrap-hex",
-                "biometric" to true,
-                "failed_unlock_attempts" to 3,
-                "pin_lockout_until_ms" to 42L,
-            ),
-        )
-        val migrated = SecurePreferences.open(context(), name, aead)
-        assertEquals("wrap-hex", migrated.getString("sqlcipher_wrap_pin", null))
-        assertTrue(migrated.getBoolean("biometric", false))
-        assertEquals(3, migrated.getInt("failed_unlock_attempts", 0))
-        assertEquals(42L, migrated.getLong("pin_lockout_until_ms", 0L))
-    }
-
-    @Test
-    fun deletesLeftoverLegacyXmlAfterFormatMarkerExists() {
-        val name = uniqueName()
-        val aead = softwareAead()
-        SecurePreferences.open(context(), name, aead)
-        val leftover = EncryptedSharedPreferencesMigrator.prefsXml(context(), name)
-        leftover.parentFile?.mkdirs()
-        leftover.writeText("<map />")
-        SecurePreferences.open(context(), name, aead)
-        assertFalse(leftover.exists())
-    }
-
-    @Test
-    fun clearWipesUserKeysAndKeepsFormat() {
+    fun clearWipesUserKeys() {
         val name = uniqueName()
         val aead = softwareAead()
         val prefs = SecurePreferences.open(context(), name, aead)
@@ -93,11 +56,7 @@ class SecurePreferencesTest {
         prefs.edit().clear().commit()
         assertNull(prefs.getString("wrap", null))
         assertFalse(prefs.contains("wrap"))
-        val reopened = SecurePreferences.open(context(), name, aead)
-        assertNull(reopened.getString("wrap", null))
-        assertTrue(
-            rawDelegate(name).contains(SecurePreferences.FORMAT_MARKER),
-        )
+        assertNull(SecurePreferences.open(context(), name, aead).getString("wrap", null))
     }
 
     @Test
@@ -130,5 +89,5 @@ class SecurePreferencesTest {
         return AesGcmPrefsAead(generator.generateKey())
     }
 
-    private fun rawDelegate(logicalName: String): SharedPreferences = context().getSharedPreferences(SecurePreferences.storageName(logicalName), Context.MODE_PRIVATE)
+    private fun rawDelegate(logicalName: String): SharedPreferences = context().getSharedPreferences(logicalName, Context.MODE_PRIVATE)
 }

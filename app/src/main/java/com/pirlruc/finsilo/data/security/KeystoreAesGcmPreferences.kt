@@ -13,7 +13,6 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
     override fun getAll(): MutableMap<String, *> {
         val out = LinkedHashMap<String, Any?>()
         for (key in delegate.all.keys) {
-            if (key == SecurePreferences.FORMAT_MARKER) continue
             readValue(key)?.let { out[key] = it }
         }
         return out
@@ -33,7 +32,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
     override fun getBoolean(key: String?, defValue: Boolean): Boolean = typed(key, defValue, PrefsPayload::asBoolean)
 
     override fun contains(key: String?): Boolean {
-        if (key.isNullOrEmpty() || key == SecurePreferences.FORMAT_MARKER) return false
+        if (key.isNullOrEmpty()) return false
         return delegate.contains(key)
     }
 
@@ -65,7 +64,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
     }
 
     private fun plainOrNull(key: String?): ByteArray? {
-        if (key.isNullOrEmpty() || key == SecurePreferences.FORMAT_MARKER) return null
+        if (key.isNullOrEmpty()) return null
         val stored = delegate.getString(key, null) ?: return null
         val blob = runCatching { Base64.decode(stored, Base64.NO_WRAP) }.getOrNull() ?: return null
         return aead.open(key.toByteArray(StandardCharsets.UTF_8), blob)
@@ -93,14 +92,13 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
         override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = putEncoded(key, PrefsPayload.encodeBoolean(value))
 
         override fun remove(key: String?): SharedPreferences.Editor {
-            if (key.isNullOrEmpty() || key == SecurePreferences.FORMAT_MARKER) return this
+            if (key.isNullOrEmpty()) return this
             inner.remove(key)
             return this
         }
 
         override fun clear(): SharedPreferences.Editor {
             inner.clear()
-            inner.putString(SecurePreferences.FORMAT_MARKER, SecurePreferences.FORMAT_VALUE)
             return this
         }
 
@@ -111,7 +109,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
         }
 
         private fun putEncoded(key: String?, plain: ByteArray): SharedPreferences.Editor {
-            if (key.isNullOrEmpty() || key == SecurePreferences.FORMAT_MARKER) return this
+            if (key.isNullOrEmpty()) return this
             val sealed = aead.seal(key.toByteArray(StandardCharsets.UTF_8), plain)
             inner.putString(key, Base64.encodeToString(sealed, Base64.NO_WRAP))
             return this
