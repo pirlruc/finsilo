@@ -1115,10 +1115,11 @@ milestones:
             of app entry (PIN/recovery code) but not yet of the holdings file.
           goal: >-
             Export an encrypted backup the user can store offline, and restore
-            it onto a new install after unlocking with the existing PIN/recovery
-            flow. Restore confirms before overwrite and includes Room v6
-            watchlist, templates, and price alerts. Do not add a cloud account.
-            Do not reopen FS-DEC-001.
+            it onto a new install after unlocking. The backup wrapping key is
+            the recovery code used at export and may differ from this install’s
+            lock recovery. Restore confirms before overwrite and includes Room
+            v6 watchlist, templates, and price alerts. Do not add a cloud
+            account. Do not reopen FS-DEC-001.
         architecture:
           target: Encrypted Room database plus AppLockStore
           modules:
@@ -1127,7 +1128,7 @@ milestones:
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/backup
         acceptance_criteria:
           - User can export a backup file that is not plaintext SQLite
-          - Restore requires the current app lock (PIN, biometrics, or recovery code)
+          - Restore is behind the unlocked session; the typed code is the backup wrapping key and may differ from this install’s lock recovery
           - Restore confirms before overwriting live data
           - Watchlist, templates, and price alerts round-trip with the ledger
           - Sample-only installs are not a substitute for this backup
@@ -1161,9 +1162,20 @@ milestones:
                 - app/src/main/java/com/pirlruc/finsilo/ui/settings
                 - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
             verification:
-              - Restore calls verifyRecovery and requires an explicit confirm
+              - Restore requires an explicit confirm
               - Watchlist, templates, and thresholds round-trip
               - ./gradlew :domain:test :app:testDebugUnitTest
+          - id: FS-017-T4
+            status: done
+            title: Restore a backup wrapped with a different recovery than this lock
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings/PortfolioToolsViewModel.kt
+                - app/src/test/java/com/pirlruc/finsilo/ui/settings/PortfolioToolsViewModelRestoreGuardTest.kt
+            verification:
+              - Lock recovery A, backup wrapped with B, restore with B reaches confirm
+              - Export still calls verifyRecovery
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.settings.PortfolioToolsViewModelRestoreGuardTest
 
       - id: FS-018
         status: done

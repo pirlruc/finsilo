@@ -113,14 +113,17 @@ private fun BackupExportCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Encrypted backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "Not plaintext SQLite. Encrypt with the current recovery code so a new phone can restore after unlock. Restore asks before overwriting the live ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
+                "Not plaintext SQLite. Export wraps the file with this install’s recovery code. " +
+                    "After unlock on a new phone, type the code from the backup — it can differ " +
+                    "from this phone’s lock recovery. Restore asks before overwriting the live " +
+                    "ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
                 state.recovery,
                 actions.onRecovery,
-                label = { Text("Recovery code") },
+                label = { Text("Backup recovery code") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),

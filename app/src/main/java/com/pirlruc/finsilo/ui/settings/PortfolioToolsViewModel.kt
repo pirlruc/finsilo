@@ -11,6 +11,7 @@ import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.usecase.GetRealizedGainsUseCase
 import com.pirlruc.finsilo.domain.usecase.RealizedGainsCsv
 import java.time.LocalDate
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,7 @@ class PortfolioToolsViewModel(
     private val repository: RoomPortfolioRepository,
     private val lock: AppLockRepository,
     private val gains: GetRealizedGainsUseCase = GetRealizedGainsUseCase(),
+    private val cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PortfolioToolsUiState())
     val state: StateFlow<PortfolioToolsUiState> = _state.asStateFlow()
@@ -60,7 +62,7 @@ class PortfolioToolsViewModel(
             runCatching {
                 val snapshot = repository.load()
                 val extras = repository.loadBackupExtras()
-                withContext(Dispatchers.Default) { LedgerBackupCodec.encrypt(snapshot, recovery, extras) }
+                withContext(cryptoDispatcher) { LedgerBackupCodec.encrypt(snapshot, recovery, extras) }
             }.onSuccess { bytes ->
                 write(bytes)
                 _state.update { it.copy(busy = false, status = "Encrypted backup written. Keep the recovery code.") }
@@ -73,12 +75,13 @@ class PortfolioToolsViewModel(
     fun restoreBackup(bytes: ByteArray) {
         viewModelScope.launch {
             val recovery = _state.value.recovery
-            if (!lock.verifyRecovery(recovery)) {
-                _state.update { it.copy(error = "Enter the current recovery code to restore.") }
+            if (recovery.isBlank()) {
+                _state.update { it.copy(error = "Enter the backup recovery code to decrypt.") }
                 return@launch
             }
+            pendingRestore = null
             _state.update { it.copy(busy = true, error = null, status = null, confirmRestore = false) }
-            val result = withContext(Dispatchers.Default) { LedgerBackupCodec.decrypt(bytes, recovery) }
+            val result = withContext(cryptoDispatcher) { LedgerBackupCodec.decrypt(bytes, recovery) }
             when (result) {
                 is LedgerBackupResult.Refused ->
                     _state.update { it.copy(busy = false, error = result.reason) }
