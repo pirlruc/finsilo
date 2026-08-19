@@ -16,8 +16,9 @@ internal interface PrefsAead {
 }
 
 /**
- * AES-256-GCM with a length-prefixed IV and AAD.
+ * AES-256-GCM with a length-prefixed IV.
  *
+ * Associated data is bound with `Cipher.updateAAD` and is not stored in the blob.
  * Wire format: `ivLen (1 byte) || iv || ciphertext+tag`.
  */
 internal class AesGcmPrefsAead(private val key: SecretKey) : PrefsAead {

@@ -38,6 +38,15 @@ class SecurePreferencesTest {
     }
 
     @Test
+    fun roundTripsFloatAndStringSet() {
+        val prefs = SecurePreferences.open(context(), uniqueName(), softwareAead())
+        val symbols = mutableSetOf("VWCE", "AAPL")
+        assertTrue(prefs.edit().putFloat("weight", 1.5f).putStringSet("symbols", symbols).commit())
+        assertEquals(1.5f, prefs.getFloat("weight", 0f), 0f)
+        assertEquals(symbols, prefs.getStringSet("symbols", null))
+    }
+
+    @Test
     fun xmlDoesNotContainPlaintextValues() {
         val name = uniqueName()
         val prefs = SecurePreferences.open(context(), name, softwareAead())
@@ -75,8 +84,32 @@ class SecurePreferencesTest {
         val prefs = SecurePreferences.open(context(), name, softwareAead())
         prefs.edit().putString("wrap", "secret").commit()
         rawDelegate(name).edit().putString("wrap", "AAAA").commit()
+        assertTrue(prefs.contains("wrap"))
         assertNull(prefs.getString("wrap", null))
         assertEquals("fallback", prefs.getString("wrap", "fallback"))
+    }
+
+    @Test
+    fun nonStringStoredValueFailsClosed() {
+        val name = uniqueName()
+        val prefs = SecurePreferences.open(context(), name, softwareAead())
+        rawDelegate(name).edit().putInt("wrap", 1).commit()
+        assertTrue(prefs.contains("wrap"))
+        assertNull(prefs.getString("wrap", null))
+    }
+
+    @Test
+    fun duplicateListenerRegistrationIsIdempotent() {
+        val prefs = SecurePreferences.open(context(), uniqueName(), softwareAead())
+        var count = 0
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> count += 1 }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        prefs.edit().putString("wrap", "secret").commit()
+        assertEquals(1, count)
+        prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        prefs.edit().putString("wrap", "again").commit()
+        assertEquals(1, count)
     }
 
     private fun context(): Application = ApplicationProvider.getApplicationContext()

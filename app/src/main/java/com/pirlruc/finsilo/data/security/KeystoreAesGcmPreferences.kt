@@ -33,6 +33,8 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
 
     override fun contains(key: String?): Boolean {
         if (key.isNullOrEmpty()) return false
+        // Presence only. AppLockStore.isSetup() must stay true if lock material exists but
+        // cannot be decrypted, rather than looking like a first launch.
         return delegate.contains(key)
     }
 
@@ -44,7 +46,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
             SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
                 listener.onSharedPreferenceChanged(this, changed)
             }
-        listeners[listener] = bridge
+        if (listeners.putIfAbsent(listener, bridge) != null) return
         delegate.registerOnSharedPreferenceChangeListener(bridge)
     }
 
@@ -65,7 +67,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
 
     private fun plainOrNull(key: String?): ByteArray? {
         if (key.isNullOrEmpty()) return null
-        val stored = delegate.getString(key, null) ?: return null
+        val stored = runCatching { delegate.getString(key, null) }.getOrNull() ?: return null
         val blob = runCatching { Base64.decode(stored, Base64.NO_WRAP) }.getOrNull() ?: return null
         return aead.open(key.toByteArray(StandardCharsets.UTF_8), blob)
     }
