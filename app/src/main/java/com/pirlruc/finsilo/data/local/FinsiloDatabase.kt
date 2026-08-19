@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Encrypted Room database (SQLCipher). Schema JSON is exported under `app/schemas`.
  *
  * Additive changes from v2 onward are Room [AutoMigration]s so the generated
- * `ALTER`/`CREATE` SQL lives in kapt output (`build/`), not in scanned source.
+ * `ALTER`/`CREATE` SQL lives in KSP output (`build/`), not in scanned source.
  * v1 had no exported schema; [MIGRATION_1_2] is an empty version bump.
  */
 @Database(

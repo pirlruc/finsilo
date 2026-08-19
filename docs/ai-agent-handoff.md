@@ -29,7 +29,7 @@ bash scripts/issues-sync.sh --validate-only
 
 CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read analog `docs/guardrails/kotlin/profile.thresholds.yml` after `scripts/ci-init-guardrails.sh` (`GUARDRAILS_READ_TOKEN`); otherwise the consumer copy `config/kotlin.profile.thresholds.yml`. Do not clone `.github/scaffold` in CI.
 
-Toolchain notes that already bit this repo: AGP **8.10.0**, Kotlin **2.3.0**, Room **2.8.1 via kapt** (KSP 2.3 failed), compileSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. Vico 3.2.2 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
+Toolchain notes that already bit this repo: AGP **9.3.1** (built-in Kotlin — do not apply `org.jetbrains.kotlin.android`), Kotlin **2.4.10**, Room **2.8.4 via KSP 2.3.11**, Gradle **9.7.0**, compileSdk **37**, targetSdk **36**, minSdk **26**. Do not set `jvmToolchain(17)` on this image (JDK 21 only); target 17 via `compilerOptions`. OkHttp **5.4.0** (`Response.body` is non-null; do not implement `Interceptor.Chain` in tests). JUnit 6 needs `junit-platform-launcher` on `testRuntimeOnly`. `security-crypto` 1.1.0 deprecates `EncryptedSharedPreferences` (still used). Vico 3.2.3 pie API is `pieSeries { series(...) }`. ktlint uses `android_studio` via `.editorconfig`. detekt `CyclomaticComplexMethod` max is 10 (`threshold: 11`).
 
 ## Analog pins (TOOL-001 / O14)
 
@@ -124,4 +124,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-18 (scanner exceptions + lock/import hardening)*
+*Last updated: 2026-08-19 (Dependabot AGP 9 / KSP / OkHttp 5 CI fix)*
