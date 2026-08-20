@@ -12,29 +12,28 @@ from read_kotlin_threshold import read_threshold  # noqa: E402
 
 DETEKT = ROOT / "config" / "detekt" / "detekt.yml"
 RULE = re.compile(
-    r"CyclomaticComplexMethod:\s*\n(?:[ \t]+.+\n)*?[ \t]+threshold:\s*(\d+)",
+    r"CyclomaticComplexMethod:\s*\n(?:[ \t]+.+\n)*?[ \t]+allowedComplexity:\s*(\d+)",
     re.MULTILINE,
 )
 
 
 def main() -> int:
     allowed = read_threshold("max_cyclomatic_complexity")
-    # detekt fails when complexity >= threshold, so threshold is exclusive of the allowed max.
-    expected = allowed + 1
+    # detekt 2.x reports when complexity > allowedComplexity (inclusive max).
     text = DETEKT.read_text(encoding="utf-8")
     match = RULE.search(text)
     if match is None:
-        print(f"Missing CyclomaticComplexMethod.threshold in {DETEKT}", file=sys.stderr)
+        print(f"Missing CyclomaticComplexMethod.allowedComplexity in {DETEKT}", file=sys.stderr)
         return 1
     actual = int(match.group(1))
-    if actual != expected:
+    if actual != allowed:
         print(
-            f"detekt CyclomaticComplexMethod.threshold={actual} but profile "
-            f"max_cyclomatic_complexity={allowed} requires threshold={expected} (exclusive)",
+            f"detekt CyclomaticComplexMethod.allowedComplexity={actual} but profile "
+            f"max_cyclomatic_complexity={allowed}",
             file=sys.stderr,
         )
         return 1
-    print(f"detekt complexity gate: max {allowed} (threshold {actual})")
+    print(f"detekt complexity gate: max {allowed} (allowedComplexity {actual})")
     return 0
 
 

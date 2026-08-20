@@ -1103,6 +1103,54 @@ milestones:
             guardrail_refs:
               - KT-CPLX-001
 
+      - id: GATE-004
+        status: done
+        title: Clear Gradle 9 ReportingExtension deprecation from detekt
+        overview:
+          problem: >-
+            Gradle 9.1 deprecated ReportingExtension.file(String). detekt
+            1.23.8 calls it from DetektPlugin.apply, so Android Studio and
+            Gradle warn on every sync. There is no 1.23.9.
+          goal: >-
+            Apply detekt 2.x (`dev.detekt`) which sets reportsDir from
+            getBaseDirectory().dir("detekt"). Keep KT-CPLX-001 at max 10 and
+            fail on Warning+ so the old maxIssues: 0 gate is not weakened.
+        architecture:
+          target: detekt Gradle plugin plus YAML config
+          modules:
+            - gradle/libs.versions.toml
+            - app/build.gradle.kts
+            - domain/build.gradle.kts
+            - config/detekt/detekt.yml
+            - scripts/check-detekt-complexity.py
+        acceptance_criteria:
+          - Plugin id is dev.detekt; io.gitlab.arturbosch.detekt is gone
+          - reportsDir uses ReportingExtension.baseDirectory.dir("detekt")
+          - CyclomaticComplexMethod.allowedComplexity matches max_cyclomatic_complexity
+          - ./gradlew :app:detekt :domain:detekt does not emit ReportingExtension.file
+        guardrail_refs:
+          - KT-CPLX-001
+          - KT-BUILD-002
+          - CI-009
+        tasks:
+          - id: GATE-004-T1
+            status: done
+            title: Migrate detekt 1.23.8 to 2.x Gradle plugin
+            instructions:
+              files:
+                - gradle/libs.versions.toml
+                - app/build.gradle.kts
+                - domain/build.gradle.kts
+                - config/detekt/detekt.yml
+                - scripts/check-detekt-complexity.py
+            verification:
+              - python3 scripts/check-detekt-complexity.py
+              - ./gradlew :domain:detekt :app:detekt
+              - Gradle output has no ReportingExtension.file deprecation
+            guardrail_refs:
+              - KT-CPLX-001
+              - CI-009
+
   - name: Backlog — next product value
     epics:
       - id: FS-017
