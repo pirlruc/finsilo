@@ -50,15 +50,14 @@ class PositionLedger {
         for (tx in ordered(transactions)) {
             when (tx.type) {
                 TransactionType.BUY -> lots.addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur), tx.date))
-                TransactionType.SELL -> {
-                    consumeFifo(lots, tx.quantity)
-                    Unit
-                }
+                TransactionType.SELL -> consumeFifo(lots, tx.quantity)
                 TransactionType.DEPOSIT_CASH,
                 TransactionType.WITHDRAWAL,
                 TransactionType.DIVIDEND,
                 TransactionType.INTEREST,
-                -> Unit
+                -> {
+                    // Cash and income do not open or close FIFO lots.
+                }
             }
         }
         val qty = lots.fold(ZERO) { acc, lot -> plus(acc, lot.quantity) }
