@@ -115,8 +115,17 @@ ktlint {
 }
 
 detekt {
-    buildUponDefaultConfig = true
-    allRules = false
+    buildUponDefaultConfig.set(true)
+    allRules.set(false)
+    // Preserve 1.x maxIssues: 0 (fail on Warning+, not only Error).
+    failOnSeverity.set(dev.detekt.gradle.extensions.FailOnSeverity.Warning)
     config.setFrom(rootProject.files("config/detekt/detekt.yml"))
     source.setFrom("src/main/java")
+    reportsDir.set(
+        extensions.getByType<org.gradle.api.reporting.ReportingExtension>().baseDirectory.dir("detekt"),
+    )
+}
+
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
+    jvmTarget.set("17")
 }

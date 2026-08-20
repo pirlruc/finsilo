@@ -1,19 +1,17 @@
-build:
-  maxIssues: 0
-
 complexity:
-  # KT-CPLX-001. Fail above 10 (threshold is exclusive of the allowed max).
+  # KT-CPLX-001. detekt 2.x reports when complexity > allowedComplexity, so
+  # allowedComplexity is the inclusive max (profile max_cyclomatic_complexity).
   # Composable is not ignored: UI complexity is gated here, not only by SEI MI.
   CyclomaticComplexMethod:
     active: true
-    threshold: 11
+    allowedComplexity: 10
   LongMethod:
     active: true
-    threshold: 80
+    allowedLines: 80
   LongParameterList:
     active: true
-    constructorThreshold: 12
-    functionThreshold: 8
+    allowedConstructorParameters: 12
+    allowedFunctionParameters: 8
   TooManyFunctions:
     active: false
   ComplexCondition:
