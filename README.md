@@ -10,11 +10,11 @@ Requires **Android 8** or later. This is a personal tool, not tax advice or a br
 2. Write down the **recovery code**. It resets the PIN; it cannot reconstruct the PIN. Copy is allowed; the clipboard is cleared after 60 seconds if it still holds the code.
 3. After a cold start you can unlock with biometrics when enrolled. **Use PIN** if biometrics fail or after you add a new fingerprint/face (then confirm once so the ledger key can be wrapped again).
 
-The app re-locks when you leave it. A document picker or the biometric prompt will not count as leaving.
+The app shows the PIN screen when you leave it. A document picker or the biometric prompt will not count as leaving. If it stays in the background for **15 minutes**, the database key is wiped and you unlock into a fresh session. Coming back to the PIN screen before that keeps the open ledger in memory.
 
 ## Daily use
 
-- **Dashboard** — allocation pie, NAV history, TWR, yield on cost, ratings, and SMA 50/200 from stored closes.
+- **Dashboard** — allocation pie, NAV history for the selected chip (1M / 3M / YTD / All), TWR, yield on cost, ratings, and SMA 50/200 from stored closes.
 - **Add a transaction** — Buy, Sell, Deposit, Withdrawal, Dividend, Interest. Sells above remaining FIFO quantity and withdrawals above cash are refused. A buy that needs more cash than you have books a same-day deposit first. Unlisted PPR interest stays in NAV. Selling CT, a deposit, or unlisted PPR is a redemption.
 - **ISIN / quote symbol** — optional on the instrument. Changing the quote symbol drops that holding’s stored daily bars and refetches on the next sync.
 - **Watchlist** — followed symbols only. They never change FIFO, TWR, or the pie.
@@ -27,6 +27,8 @@ A **synthetic sample portfolio** is on the empty dashboard so you can review cha
 Sync is optional. Without a key, Frankfurter (EUR/USD, including history), Stooq (many EU listings and gold), and CoinGecko (crypto) still work.
 
 An **Alpha Vantage** key (free tier is about 25 calls/day) lives under the dashboard menu **Alpha Vantage key**. It stays on-device and is used for US names, ratings, some commodities, and as a fallback. The app skips symbols that already have today’s close and requests the rest oldest-first so one key is not wasted on fresh names.
+
+Stored daily closes start at each holding’s first buy. Charts that need fewer points step to every 2nd, 3rd, … day instead of deleting older dates. The dashboard only reads quotes for the selected chip (plus the latest close per name).
 
 New mark-to-market buys and watchlist adds are checked against the feed first. Deposit, CT, and unlisted PPR are valued locally and are not probed.
 
@@ -59,7 +61,7 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 
 ## Privacy
 
-- Ledger is SQLCipher. PIN, recovery, and optional biometrics wrap the database key. Preference secrets use Keystore AES-GCM.
+- Ledger is SQLCipher. PIN, recovery, and optional biometrics wrap the database key. Leaving the app shows PIN immediately; after 15 minutes in the background the in-memory key is wiped. Preference secrets use Keystore AES-GCM.
 - Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`), except while a system file picker is open.
 - No cloud backup of the database (`allowBackup=false`).
 - Network is HTTPS GET only to Frankfurter, Alpha Vantage, CoinGecko, and Stooq.

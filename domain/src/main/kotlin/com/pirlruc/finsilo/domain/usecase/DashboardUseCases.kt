@@ -1,10 +1,12 @@
 package com.pirlruc.finsilo.domain.usecase
 
+import com.pirlruc.finsilo.domain.market.HistoryPeriodicity
 import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.HistoryReport
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.startDate
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
 
@@ -25,7 +27,7 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
         if (firstTx == null) {
             return HistoryReport(range = range, from = asOf, to = asOf, points = emptyList())
         }
-        val from = rangeStart(range, asOf, firstTx)
+        val from = range.startDate(asOf, firstTx)
         val to = asOf
         if (from.isAfter(to)) {
             return HistoryReport(range = range, from = from, to = to, points = emptyList())
@@ -36,17 +38,22 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
             } else {
                 walk(snapshot, from, to)
             }
-        return HistoryReport(range = range, from = from, to = to, points = downsample(dense, to))
+        return HistoryReport(range = range, from = from, to = to, points = HistoryPeriodicity.thin(dense, maxPoints, dense.lastOrNull()))
     }
 
     private fun covers(stored: List<NavPoint>, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): Boolean {
         if (!rangeCovered(stored, from, to)) return false
-        val atFrom = stored.find { it.date == from }
-        val atTo = stored.find { it.date == to }
-        if (atFrom == null || atTo == null) return false
-        if (atFrom.valueEur.compareTo(valuator.totalNavEur(snapshot, from)) != 0) return false
-        return atTo.valueEur.compareTo(valuator.totalNavEur(snapshot, to)) == 0
+        val atFrom = stored.find { it.date == from } ?: return false
+        val atTo = stored.find { it.date == to } ?: return false
+        return matchesStored(snapshot, from, atFrom) && matchesStored(snapshot, to, atTo)
     }
+
+    private fun matchesStored(snapshot: PortfolioSnapshot, date: LocalDate, point: NavPoint): Boolean {
+        if (!canValue(snapshot, date)) return true
+        return point.valueEur.compareTo(valuator.totalNavEur(snapshot, date)) == 0
+    }
+
+    private fun canValue(snapshot: PortfolioSnapshot, date: LocalDate): Boolean = snapshot.marketData.any { !it.date.isAfter(date) }
 
     private fun rangeCovered(stored: List<NavPoint>, from: LocalDate, to: LocalDate): Boolean {
         if (stored.isEmpty()) return false
@@ -69,27 +76,5 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
             date = date.plusDays(1)
         }
         return points
-    }
-
-    private fun downsample(dense: List<NavPoint>, to: LocalDate): List<NavPoint> {
-        if (dense.size <= maxPoints) return dense
-        val step = (dense.size + maxPoints - 1) / maxPoints
-        val points = dense.filterIndexed { index, _ -> index % step == 0 }.toMutableList()
-        val last = dense.last()
-        if (points.last().date != to) {
-            points += last
-        }
-        return points
-    }
-
-    private fun rangeStart(range: HistoryRange, asOf: LocalDate, firstTx: LocalDate): LocalDate {
-        val candidate =
-            when (range) {
-                HistoryRange.ONE_MONTH -> asOf.minusMonths(1)
-                HistoryRange.THREE_MONTHS -> asOf.minusMonths(3)
-                HistoryRange.YTD -> LocalDate.of(asOf.year, 1, 1)
-                HistoryRange.ALL -> firstTx
-            }
-        return maxOf(candidate, firstTx)
     }
 }

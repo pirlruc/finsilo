@@ -7,13 +7,10 @@ import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.HistoryRange
-import com.pirlruc.finsilo.domain.model.NavPoint
-import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
-import com.pirlruc.finsilo.domain.usecase.GetPortfolioHistoryUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
 import java.time.LocalDate
 import kotlinx.coroutines.Job
@@ -32,9 +29,6 @@ class DashboardViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(DashboardUiState())
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
-    private var snapshot: PortfolioSnapshot? = null
-    private var storedNav: List<NavPoint> = emptyList()
-    private var asOf: LocalDate? = null
     private var refreshJob: Job? = null
 
     init {
@@ -57,16 +51,8 @@ class DashboardViewModel(
 
     fun setRange(range: HistoryRange) {
         if (range == _state.value.range) return
-        val snap = snapshot
-        val date = asOf
-        val report = _state.value.report
-        if (snap == null || date == null || report == null) {
-            _state.update { it.copy(range = range) }
-            refresh()
-            return
-        }
-        val history = GetPortfolioHistoryUseCase()(snap, range, date, storedNav)
-        _state.update { it.copy(range = range, report = report.copy(history = history)) }
+        _state.update { it.copy(range = range) }
+        refresh()
     }
 
     fun loadSample() {
@@ -103,9 +89,6 @@ class DashboardViewModel(
         viewModelScope.launch {
             runCatching { DashboardMutations.applyClear(repository, selection) }
                 .onSuccess {
-                    snapshot = null
-                    storedNav = emptyList()
-                    asOf = null
                     _state.update { it.copy(confirmClear = false) }
                     refresh()
                 }
@@ -167,21 +150,14 @@ class DashboardViewModel(
         }
     }
 
-    private suspend fun loadDashboard(): DashboardUiState {
-        val (session, state) =
-            DashboardLoader.load(
-                repository = repository,
-                getDashboard = getDashboard,
-                range = _state.value.range,
-                statusMessage = _state.value.statusMessage,
-                hasKey = container.keys.alphaVantageKey() != null,
-                today = today(),
-            )
-        snapshot = session.snapshot
-        storedNav = session.storedNav
-        asOf = session.asOf
-        return state
-    }
+    private suspend fun loadDashboard(): DashboardUiState = DashboardLoader.load(
+        repository = repository,
+        getDashboard = getDashboard,
+        range = _state.value.range,
+        statusMessage = _state.value.statusMessage,
+        hasKey = container.keys.alphaVantageKey() != null,
+        today = today(),
+    )
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = dashboardViewModelFactory(container)

@@ -17,6 +17,7 @@ import com.pirlruc.finsilo.domain.usecase.ProbeMarketQuoteUseCase
 import com.pirlruc.finsilo.domain.usecase.QuoteProbeResult
 import com.pirlruc.finsilo.domain.usecase.RecordLedgerEntryUseCase
 import com.pirlruc.finsilo.domain.usecase.RecordManualQuoteUseCase
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -141,7 +142,8 @@ class LedgerEntryViewModel(
                 is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
                 is LedgerSaveOutcome.Posted -> {
                     if (bars.isNotEmpty()) {
-                        runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars), emptyList()) }
+                        val from = runCatching { LocalDate.parse(_state.value.date) }.getOrNull()
+                        runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars, from), emptyList()) }
                     }
                     resetFormFields(outcome.status)
                     onSaved()

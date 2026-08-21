@@ -2,13 +2,9 @@ package com.pirlruc.finsilo.ui.dashboard
 
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.model.HistoryRange
-import com.pirlruc.finsilo.domain.model.NavPoint
-import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import java.time.LocalDate
-
-internal data class DashboardSession(val snapshot: PortfolioSnapshot, val storedNav: List<NavPoint>, val asOf: LocalDate?)
 
 internal object DashboardLoader {
     suspend fun load(
@@ -18,19 +14,17 @@ internal object DashboardLoader {
         statusMessage: String?,
         hasKey: Boolean,
         today: LocalDate,
-    ): Pair<DashboardSession, DashboardUiState> {
-        val loaded = repository.load()
+    ): DashboardUiState {
+        val loaded = repository.loadForDashboard(range, today)
         if (loaded.isEmpty) {
-            return DashboardSession(loaded, emptyList(), null) to
-                DashboardUiState(
-                    loading = false,
-                    empty = true,
-                    range = range,
-                    hasAlphaVantageKey = hasKey,
-                )
+            return DashboardUiState(
+                loading = false,
+                empty = true,
+                range = range,
+                hasAlphaVantageKey = hasKey,
+            )
         }
         val resolved = resolveAsOf(loaded.marketData.maxOfOrNull { it.date }, loaded.transactions.maxOfOrNull { it.date }, today)
-        repository.rebuildNavHistoryIfNeeded(loaded, resolved)
         val storedNav = repository.loadNavHistory()
         val thresholds = repository.loadThresholds().associateBy { it.assetId }
         val ratingPrefs =
@@ -38,19 +32,17 @@ internal object DashboardLoader {
                 .filter { it.scope == RatingAlertScope.HOLDING }
                 .associateBy { it.targetId }
         val counts = loaded.transactions.groupingBy { it.assetId }.eachCount()
-        val state =
-            DashboardUiState(
-                loading = false,
-                empty = false,
-                range = range,
-                report = getDashboard(loaded, range, resolved, storedNav),
-                statusMessage = statusMessage,
-                hasAlphaVantageKey = hasKey,
-                thresholds = thresholds,
-                ratingPrefs = ratingPrefs,
-                transactionsByAsset = counts,
-            )
-        return DashboardSession(loaded, storedNav, resolved) to state
+        return DashboardUiState(
+            loading = false,
+            empty = false,
+            range = range,
+            report = getDashboard(loaded, range, resolved, storedNav),
+            statusMessage = statusMessage,
+            hasAlphaVantageKey = hasKey,
+            thresholds = thresholds,
+            ratingPrefs = ratingPrefs,
+            transactionsByAsset = counts,
+        )
     }
 
     fun resolveAsOf(lastMarket: LocalDate?, lastTx: LocalDate?, today: LocalDate): LocalDate {

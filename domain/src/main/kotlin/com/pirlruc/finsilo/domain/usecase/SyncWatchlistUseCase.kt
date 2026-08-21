@@ -75,9 +75,8 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
         stored: List<DailyMarketData>,
         rating: AnalystRating,
     ): List<DailyMarketData> {
-        val from = (history.size - MAX_BARS).coerceAtLeast(0)
         val storedByDate = stored.associateBy { it.date }
-        return (from until history.size).map { index ->
+        return history.indices.map { index ->
             val bar = history[index]
             val closes = history.subList(0, index + 1).map { it.closeNative }
             val isLatest = index == history.lastIndex
@@ -118,7 +117,6 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
     }
 
     companion object {
-        private const val MAX_BARS: Int = 400
         private const val OVERVIEW_MAX_AGE_DAYS: Long = 7
     }
 }

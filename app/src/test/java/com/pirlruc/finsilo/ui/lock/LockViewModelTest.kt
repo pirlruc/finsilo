@@ -6,6 +6,7 @@ import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -246,6 +247,72 @@ class LockViewModelTest {
         assertFalse(store.biometricEnabled())
     }
 
+    @Test
+    fun backgroundLocksImmediatelyAndEvictsAfterGrace() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys()
+        var evicted = 0
+        val viewModel =
+            LockViewModel(
+                FakeAppLock(),
+                dispatcher,
+                { 1L },
+                keys,
+                {},
+                {
+                    evicted += 1
+                    keys.evictSession()
+                },
+                1_000,
+            )
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.onAppBackgrounded()
+        assertFalse(viewModel.state.value.unlocked)
+        assertTrue(keys.sessionOpen)
+        assertEquals(0, evicted)
+        main.scheduler.advanceTimeBy(999)
+        main.scheduler.runCurrent()
+        assertEquals(0, evicted)
+        main.scheduler.advanceTimeBy(1)
+        main.scheduler.runCurrent()
+        assertEquals(1, evicted)
+        assertTrue(viewModel.state.value.sessionEvicted)
+        assertFalse(keys.sessionOpen)
+    }
+
+    @Test
+    fun foregroundBeforeGraceKeepsTheSession() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys()
+        var evicted = 0
+        val viewModel =
+            LockViewModel(
+                FakeAppLock(),
+                dispatcher,
+                { 1L },
+                keys,
+                {},
+                {
+                    evicted += 1
+                    keys.evictSession()
+                },
+                1_000,
+            )
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.onAppBackgrounded()
+        main.scheduler.advanceTimeBy(500)
+        main.scheduler.runCurrent()
+        viewModel.onAppForegrounded()
+        main.scheduler.advanceTimeBy(5_000)
+        main.scheduler.runCurrent()
+        assertEquals(0, evicted)
+        assertFalse(viewModel.state.value.sessionEvicted)
+        assertTrue(keys.sessionOpen)
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()
@@ -381,5 +448,11 @@ private class FakeLedgerKeys(
         sessionOpen = true
         sessionKey = ByteArray(32)
         return true
+    }
+
+    override fun evictSession() {
+        sessionOpen = false
+        sessionKey?.fill(0)
+        sessionKey = null
     }
 }

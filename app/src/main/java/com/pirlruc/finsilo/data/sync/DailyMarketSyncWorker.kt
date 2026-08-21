@@ -9,6 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.pirlruc.finsilo.FinsiloApplication
+import com.pirlruc.finsilo.domain.market.QuoteMerge
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
@@ -43,8 +44,12 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
         val watch = container.repository.loadWatchlist()
         val watched = SyncWatchlistUseCase(container.marketFeed)(watch, asOf, prefs)
         container.repository.replaceWatchlistQuotes(watched.quotes)
-        val updated = container.repository.load()
-        val alerts = GetPortfolioAlertsUseCase()(updated, asOf, container.repository.loadWatchlist(), prefs) +
+        val updated =
+            snapshot.copy(
+                marketData = QuoteMerge.market(snapshot.marketData, synced.marketData),
+                fxRates = QuoteMerge.fx(snapshot.fxRates, synced.fxRates),
+            )
+        val alerts = GetPortfolioAlertsUseCase()(updated, asOf, watch.copy(quotes = watched.quotes), prefs) +
             GetPriceThresholdAlertsUseCase()(updated, container.repository.loadThresholds(), asOf)
         PortfolioAlertNotifier(applicationContext).publish(alerts)
         schedule(applicationContext)

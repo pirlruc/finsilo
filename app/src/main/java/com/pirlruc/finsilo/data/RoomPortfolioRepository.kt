@@ -18,9 +18,11 @@ import com.pirlruc.finsilo.data.local.replaceAll
 import com.pirlruc.finsilo.data.local.replaceExtras
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
+import com.pirlruc.finsilo.domain.market.QuoteMerge
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
@@ -31,6 +33,7 @@ import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.WatchlistItem
 import com.pirlruc.finsilo.domain.model.WatchlistSnapshot
+import com.pirlruc.finsilo.domain.model.startDate
 import com.pirlruc.finsilo.domain.repository.LedgerWriteRepository
 import com.pirlruc.finsilo.domain.repository.PortfolioReadRepository
 import com.pirlruc.finsilo.domain.repository.SamplePortfolioWriter
@@ -48,6 +51,28 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
 
     override suspend fun load(): PortfolioSnapshot {
         val snapshot = rawLoad()
+        return withBackfilledSequences(snapshot)
+    }
+
+    /** Ledger plus quotes from the dashboard window (and the latest bar per asset). */
+    suspend fun loadForDashboard(range: HistoryRange, asOf: LocalDate): PortfolioSnapshot {
+        val transactions = dao.getTransactions().map { it.toDomain() }
+        val firstTx = transactions.minOfOrNull { it.date } ?: asOf
+        val from = range.startDate(asOf, firstTx)
+        val ranged = dao.getMarketDataFrom(from).map { it.toDomain() }
+        val latest = dao.getLatestMarketData().map { it.toDomain() }
+        return withBackfilledSequences(
+            PortfolioSnapshot(
+                assets = dao.getAssets().map { it.toDomain() },
+                transactions = transactions,
+                marketData = QuoteMerge.plusLatest(ranged, latest),
+                fxRates = dao.getFxRates().map { it.toDomain() },
+                targets = dao.getTargets().map { it.toDomain() },
+            ),
+        )
+    }
+
+    private suspend fun withBackfilledSequences(snapshot: PortfolioSnapshot): PortfolioSnapshot {
         val filled = backfillSequence(snapshot.transactions)
         if (sameSequences(snapshot.transactions, filled)) return snapshot
         dao.insertTransactions(filled.map(TransactionEntity::from))

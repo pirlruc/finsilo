@@ -51,6 +51,16 @@ class DashboardUseCasesTest {
     }
 
     @Test
+    fun storedNavIsTrustedWhenQuotesDoNotCoverFrom() {
+        val snapshot = snapshotWithBuy(LocalDate.of(2026, 1, 1))
+        val stored = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf).points
+        val partial = snapshot.copy(marketData = snapshot.marketData.filter { !it.date.isBefore(asOf.minusMonths(1)) })
+        val fromStored = GetPortfolioHistoryUseCase(maxPoints = 1000)(partial, HistoryRange.ALL, asOf, stored)
+        assertEquals(stored.first().date, fromStored.points.first().date)
+        assertEquals(0, stored.first().valueEur.compareTo(fromStored.points.first().valueEur))
+    }
+
+    @Test
     fun goldenCrossMatchesRfcInequality() {
         assertEquals(
             TechnicalCross.GOLDEN,

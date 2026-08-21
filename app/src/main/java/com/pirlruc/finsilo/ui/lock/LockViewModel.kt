@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,6 +47,7 @@ data class LockUiState(
     val working: Boolean = false,
     val pinFallback: Boolean = false,
     val pendingBiometricSeal: Boolean = false,
+    val sessionEvicted: Boolean = false,
 )
 
 class LockViewModel(
@@ -53,6 +56,8 @@ class LockViewModel(
     private val nowMs: () -> Long = { System.currentTimeMillis() },
     private val keys: LedgerKeySession? = null,
     private val openLedger: () -> Unit = {},
+    private val evictLedger: () -> Unit = {},
+    private val sessionGraceMs: Long = SESSION_GRACE_MS,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LockUiState(setupComplete = store.isSetup(), biometric = store.biometricEnabled()))
     val state: StateFlow<LockUiState> = _state.asStateFlow()
@@ -67,6 +72,8 @@ class LockViewModel(
     private var pendingUpgradePin: String? = null
 
     private val inFlight = AtomicBoolean(false)
+
+    private var evictJob: Job? = null
 
     init {
         if (!_state.value.setupComplete) {
@@ -108,17 +115,44 @@ class LockViewModel(
     fun onAppBackgrounded() {
         if (biometricPromptActive || externalUiDepth > 0) return
         val current = _state.value
-        if (!current.setupComplete || !current.unlocked) return
-        _state.update {
-            it.copy(
-                unlocked = false,
-                pin = "",
-                pinConfirm = "",
-                pendingSensitiveAction = null,
-                error = null,
-                pinFallback = false,
-            )
+        if (!current.setupComplete) return
+        if (current.unlocked) {
+            _state.update {
+                it.copy(
+                    unlocked = false,
+                    pin = "",
+                    pinConfirm = "",
+                    pendingSensitiveAction = null,
+                    error = null,
+                    pinFallback = false,
+                )
+            }
         }
+        if (keys?.isSessionOpen() == true) scheduleSessionEviction()
+    }
+
+    fun onAppForegrounded() {
+        retainSessionTimer()
+    }
+
+    private fun retainSessionTimer() {
+        evictJob?.cancel()
+        evictJob = null
+    }
+
+    private fun scheduleSessionEviction() {
+        retainSessionTimer()
+        evictJob =
+            viewModelScope.launch {
+                delay(sessionGraceMs)
+                evictLedger()
+                _state.update { it.copy(sessionEvicted = true) }
+            }
+    }
+
+    private fun sessionRetained() {
+        retainSessionTimer()
+        _state.update { it.copy(sessionEvicted = false) }
     }
 
     fun completeSetup() {
@@ -137,6 +171,7 @@ class LockViewModel(
         runLockAction {
             store.clearUnlockFailures()
             openLedger()
+            sessionRetained()
             _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
         }
     }
@@ -153,6 +188,7 @@ class LockViewModel(
         }
         store.clearUnlockFailures()
         openLedger()
+        sessionRetained()
         _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
     }
 
@@ -244,6 +280,7 @@ class LockViewModel(
             return
         }
         if (!unwrapLedgerForPin(pin)) return
+        sessionRetained()
         val needsSeal = store.biometricEnabled() && keys?.biometricWrapBlob() == null
         _state.update {
             it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null, pendingBiometricSeal = needsSeal)
@@ -282,6 +319,7 @@ class LockViewModel(
         }
         if (!persistSetup(current)) return
         openLedger()
+        sessionRetained()
         _state.update {
             it.copy(
                 setupComplete = true,
@@ -323,6 +361,7 @@ class LockViewModel(
         }
         store.clearUnlockFailures()
         openLedger()
+        sessionRetained()
         _state.update { it.copy(unlocked = true, recovering = false, pin = "", pinConfirm = "", error = null) }
     }
 
@@ -364,6 +403,7 @@ class LockViewModel(
         }
         pendingUpgradePin = null
         openLedger()
+        sessionRetained()
         _state.update {
             it.copy(wrapUpgradeRequired = false, unlocked = true, upgradeRecoveryConfirm = false, error = null)
         }
@@ -473,12 +513,15 @@ class LockViewModel(
     }
 
     companion object {
+        const val SESSION_GRACE_MS: Long = 15 * 60 * 1000L
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = LockViewModel(
                 store = container.lockStore,
                 keys = container.keys,
                 openLedger = container::openLedger,
+                evictLedger = container::closeLedger,
             ) as T
         }
     }

@@ -25,7 +25,7 @@ class GetDashboardUseCase {
             allocation = GetAllocationUseCase(valuator)(snapshot, asOf),
             history = GetPortfolioHistoryUseCase(valuator)(snapshot, range, asOf, storedNav),
             signals = GetMarketSignalsUseCase()(snapshot, asOf),
-            twr = GetTimeWeightedReturnUseCase()(snapshot, asOf),
+            twr = GetTimeWeightedReturnUseCase()(snapshot, asOf, storedNav),
             yoc = GetYocUseCase()(snapshot, asOf),
             warnings = warnings,
         )

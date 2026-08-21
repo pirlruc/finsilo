@@ -11,7 +11,8 @@ import java.security.SecureRandom
  * such as the Alpha Vantage key.
  *
  * The unwrapped 32-byte database key stays in process memory after a successful
- * PIN, recovery, or biometric unwrap. UI re-lock does not evict it.
+ * PIN, recovery, or biometric unwrap. Overlay lock does not evict it; [evictSession]
+ * wipes it after the hybrid background grace.
  */
 interface LedgerKeySession {
     fun isSessionOpen(): Boolean
@@ -37,6 +38,8 @@ interface LedgerKeySession {
     fun biometricWrapBlob(): ByteArray?
 
     fun persistBiometricWrap(blob: ByteArray?): Boolean
+
+    fun evictSession()
 }
 
 class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
@@ -53,6 +56,11 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
 
     override fun isSessionOpen(): Boolean = session != null
+
+    override fun evictSession() {
+        session?.fill(0)
+        session = null
+    }
 
     override fun sessionKeyOrNull(): ByteArray? = session?.copyOf()
 

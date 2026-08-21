@@ -346,6 +346,21 @@ class QuoteAlertsAndProbeTest {
         assertTrue(failed.failures.any { it.contains("rating down") })
     }
 
+    @Test
+    fun watchlistSyncKeepsALongDailySeries() {
+        val item = WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)
+        val history = (0..500).map { offset -> PriceBar(asOf.minusDays(500L - offset), BigDecimal("10")) }
+        val feed =
+            object : MarketFeed {
+                override suspend fun eurPerUsd() = BigDecimal.ONE
+                override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate) = emptyList<CurrencyRate>()
+                override suspend fun dailyHistory(asset: Asset, asOf: LocalDate) = history
+                override suspend fun analystRating(asset: Asset) = AnalystRating.NONE
+            }
+        val result = runBlocking { SyncWatchlistUseCase(feed)(WatchlistSnapshot(listOf(item)), asOf) }
+        assertEquals(501, result.quotes.size)
+    }
+
     private fun signal(previous: AnalystRating, current: AnalystRating) = MarketSignal(
         asset = apple,
         asOf = asOf,

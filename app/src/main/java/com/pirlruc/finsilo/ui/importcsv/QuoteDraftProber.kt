@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.ui.importcsv
 
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.importcsv.ImportSymbolDraft
+import com.pirlruc.finsilo.domain.market.HoldingHistory
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.market.QuoteSeed
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
@@ -32,7 +33,8 @@ internal class QuoteDraftProber(private val feed: MarketFeed, private val today:
             val stored = bars[draft.key].orEmpty()
             if (stored.isEmpty()) return@forEach
             val asset = matchingAsset(snapshot, draft) ?: return@forEach
-            repository.upsertQuotes(QuoteSeed.fromBars(asset.id, stored), emptyList())
+            val from = HoldingHistory.firstHeldOn(snapshot.transactions, asset.id)
+            repository.upsertQuotes(QuoteSeed.fromBars(asset.id, stored, from), emptyList())
         }
     }
 

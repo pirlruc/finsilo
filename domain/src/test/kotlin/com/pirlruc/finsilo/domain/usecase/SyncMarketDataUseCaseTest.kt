@@ -9,6 +9,8 @@ import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceBar
+import com.pirlruc.finsilo.domain.model.Transaction
+import com.pirlruc.finsilo.domain.model.TransactionType
 import java.math.BigDecimal
 import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -156,12 +158,47 @@ class SyncMarketDataUseCaseTest {
         assertTrue(result.marketData.isEmpty())
     }
 
+    @Test
+    fun barsBeforeFirstBuyAreDroppedAndLongSeriesIsUncapped() {
+        val buy = asOf.minusDays(500)
+        val history = (0..600).map { offset -> PriceBar(asOf.minusDays(600L - offset), BigDecimal("200")) }
+        val feed = RecordingFeed(history = mapOf(apple.id to history))
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(apple),
+                transactions = listOf(buy(apple.id, buy)),
+                marketData = emptyList(),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val result =
+            kotlinx.coroutines.runBlocking {
+                SyncMarketDataUseCase(feed)(snapshot, asOf)
+            }
+        assertTrue(result.marketData.none { it.date.isBefore(buy) })
+        assertEquals(501, result.marketData.size)
+        assertEquals(buy, result.marketData.minOf { it.date })
+        assertEquals(asOf, result.marketData.maxOf { it.date })
+    }
+
     private fun snap(asset: Asset, market: List<DailyMarketData> = emptyList()) = PortfolioSnapshot(
         assets = listOf(asset),
         transactions = emptyList(),
         marketData = market,
         fxRates = emptyList(),
         targets = emptyList(),
+    )
+
+    private fun buy(assetId: String, date: LocalDate) = Transaction(
+        id = "b",
+        assetId = assetId,
+        date = date,
+        type = TransactionType.BUY,
+        quantity = BigDecimal.ONE,
+        unitPriceNative = BigDecimal.TEN,
+        exchangeRateAtExecution = BigDecimal.ONE,
+        unitPriceEur = BigDecimal.TEN,
+        feesEur = BigDecimal.ZERO,
     )
 
     private class RecordingFeed(private val history: Map<String, List<PriceBar>>) : MarketFeed {

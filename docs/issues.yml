@@ -1777,65 +1777,73 @@ milestones:
               - ./gradlew :app:testDebugUnitTest :app:lintDebug
 
       - id: FS-031
-        status: open
-        title: Bound market-history growth and optional session eviction
+        status: done
+        title: Persist first-purchase history, range dashboard loads, and hybrid lock
         overview:
           problem: >-
-            Each sync writes at most 400 bars per asset but never deletes older
-            rows, so daily_market_data and full-snapshot loads grow for the life
-            of the book. UI relock leaves the SQLCipher session key in process
-            memory so background sync can still run. Those are scaling and
-            threat-model leftovers after FS-030, not blockers for the quote
-            probe / biometric wrap slice.
+            Sync wrote at most 400 bars per asset and never deleted older rows,
+            so loads grew without matching first-purchase history. The dashboard
+            always materialized every market row even when the NAV chip was 1M.
+            UI relock left the SQLCipher key in RAM so night sync could run;
+            immediate eviction would skip that sync. Product choice after FS-030.
           goal: >-
-            After quote upsert, keep a rolling window of stored bars per asset.
-            Split hot read paths so dashboard/sync do not always materialize
-            every market row. Document or implement process-background eviction
-            of the SQLCipher session (close Room) as an explicit lock-policy
-            decision — do not silently change overlay-relock behaviour.
+            Persist daily closes from each holding’s first purchase (BUY, else
+            first lot date). Do not drop a trailing date/count window. If a
+            series must be thinned for a chart or working set, increase step
+            (every 2nd, 3rd, … day) instead of deleting a date range. Ratings
+            and SMA stay on stored daily bars. Dashboard reads NAV and market
+            rows for the selected chip (1M / 3M / YTD / All). Lock is hybrid:
+            overlay PIN immediately; after 15 minutes still in the background,
+            close Room and wipe the session key. Returning to the PIN screen
+            before that keeps the session. Night sync no-ops once evicted.
         architecture:
-          target: Rolling bar prune, narrower repository reads, lock-policy eviction
+          target: First-purchase daily history, range-scoped dashboard reads, 15-minute hybrid eviction
           modules:
             - app/src/main/java/com/pirlruc/finsilo/data
             - app/src/main/java/com/pirlruc/finsilo/data/security
+            - app/src/main/java/com/pirlruc/finsilo/ui/lock
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
         acceptance_criteria:
-          - Stored bars per asset stay near the sync write window after upsert
-          - Dashboard/sync no longer require loading unused historical bars on every call
-          - Session-key eviction on UI relock is an explicit product choice with tests
+          - Sync/probe persist bars on/after first purchase; pre-purchase feed rows are not stored; no 400-bar cap
+          - NAV downsample (and any future thin) uses a step, not a sliding date/count delete of stored dailies
+          - Dashboard load uses market/NAV rows from the selected HistoryRange (All still from first lot)
+          - Daily sync does not triple-load the full snapshot
+          - Overlay lock is immediate; SQLCipher session evicts after 15 minutes in the background unless the process returns first
         guardrail_refs:
           - KT-CPLX-002
           - KT-SEC-001
         tasks:
           - id: FS-031-T1
-            status: open
-            title: Prune daily_market_data to a rolling window on upsert
+            status: done
+            title: Persist daily closes from first purchase without a count window
             instructions:
               files:
-                - app/src/main/java/com/pirlruc/finsilo/data/local
                 - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market
             verification:
-              - ./gradlew :app:testDebugUnitTest
-              - Old dates for an asset are gone after a sliding-window upsert
+              - ./gradlew :domain:test
+              - Bars before first BUY are not stored; a long series is not capped at 400
           - id: FS-031-T2
-            status: open
-            title: Narrow portfolio reads used by dashboard and daily sync
+            status: done
+            title: Load dashboard NAV and quotes for the selected range
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
                 - app/src/main/java/com/pirlruc/finsilo/data/sync
             verification:
               - ./gradlew :app:testDebugUnitTest
-              - Daily sync does not triple-load the full snapshot
+              - Changing 1M/3M/YTD/All reloads that window; sync does not triple-load
           - id: FS-031-T3
-            status: open
-            title: Decide SQLCipher session eviction on UI relock
+            status: done
+            title: Hybrid SQLCipher eviction after 15 minutes in the background
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/security
                 - app/src/main/java/com/pirlruc/finsilo/ui/lock
+                - app/src/main/java/com/pirlruc/finsilo/FinsiloApplication.kt
             verification:
-              - ./gradlew :app:testDebugUnitTest
-              - Behaviour matches the Epic decision (keep session vs close Room)
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - Overlay lock on background; session still open if foregrounded before 15 minutes; key wiped after grace
 
 

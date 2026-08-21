@@ -25,7 +25,9 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     AutoBiometricPrompt(state, prompt)
     var sessionReady by remember { mutableStateOf(false) }
     SideEffect {
-        if (state.setupComplete && state.unlocked && !state.wrapUpgradeRequired) {
+        if (state.sessionEvicted) {
+            sessionReady = false
+        } else if (state.setupComplete && state.unlocked && !state.wrapUpgradeRequired) {
             sessionReady = true
         }
     }
@@ -45,8 +47,10 @@ private fun RelockOnProcessStop(viewModel: LockViewModel) {
     DisposableEffect(owner, viewModel) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) {
-                    viewModel.onAppBackgrounded()
+                when (event) {
+                    Lifecycle.Event.ON_STOP -> viewModel.onAppBackgrounded()
+                    Lifecycle.Event.ON_START -> viewModel.onAppForegrounded()
+                    else -> Unit
                 }
             }
         owner.lifecycle.addObserver(observer)

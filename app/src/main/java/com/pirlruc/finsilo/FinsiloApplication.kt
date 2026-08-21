@@ -54,6 +54,15 @@ class AppContainer(val application: Application) {
         portfolioRepository = RoomPortfolioRepository(db, widgetNav)
     }
 
+    @Synchronized
+    fun closeLedger() {
+        val db = database
+        database = null
+        portfolioRepository = null
+        db?.close()
+        keys.evictSession()
+    }
+
     companion object {
         private const val DB_NAME = "finsilo.db"
     }

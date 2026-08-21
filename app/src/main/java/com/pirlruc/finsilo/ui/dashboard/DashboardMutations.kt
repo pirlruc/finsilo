@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.ui.dashboard
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
+import com.pirlruc.finsilo.domain.market.QuoteMerge
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
@@ -74,9 +75,13 @@ internal object DashboardMutations {
         val watch = repository.loadWatchlist()
         val watched = SyncWatchlistUseCase(container.marketFeed)(watch, today, prefs)
         repository.replaceWatchlistQuotes(watched.quotes)
-        val updated = repository.load()
+        val updated =
+            loaded.copy(
+                marketData = QuoteMerge.market(loaded.marketData, result.marketData),
+                fxRates = QuoteMerge.fx(loaded.fxRates, result.fxRates),
+            )
         val alerts =
-            GetPortfolioAlertsUseCase()(updated, today, repository.loadWatchlist(), prefs) +
+            GetPortfolioAlertsUseCase()(updated, today, watch.copy(quotes = watched.quotes), prefs) +
                 GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), today)
         notify(alerts)
         val skipped = result.failures.size + watched.failures.size

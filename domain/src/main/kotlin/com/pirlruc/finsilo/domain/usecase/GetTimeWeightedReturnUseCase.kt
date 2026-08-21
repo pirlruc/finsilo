@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.usecase
 
+import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
@@ -27,19 +28,23 @@ class GetTimeWeightedReturnUseCase(
     private val valuator: PortfolioValuator = PortfolioValuator(),
     private val ledger: PositionLedger = PositionLedger(),
 ) {
-    operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): TwrReport {
+    operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate, storedNav: List<NavPoint> = emptyList()): TwrReport {
         val ordered = ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
         if (ordered.isEmpty()) {
             return TwrReport(asOf = asOf, twrPercent = ZERO, subPeriods = emptyList())
         }
-        val walk = TwrWalk(snapshot, asOf)
+        val walk = TwrWalk(snapshot, asOf, storedNav.associateBy { it.date })
         for (tx in ordered) {
             walk.apply(tx)
         }
         return walk.finish()
     }
 
-    private inner class TwrWalk(private val snapshot: PortfolioSnapshot, private val asOf: LocalDate) {
+    private inner class TwrWalk(
+        private val snapshot: PortfolioSnapshot,
+        private val asOf: LocalDate,
+        private val storedByDate: Map<LocalDate, NavPoint>,
+    ) {
         private val assetsById = snapshot.assets.associateBy { it.id }
         private val seen = ArrayList<Transaction>()
         private val periods = ArrayList<TwrSubPeriod>()
@@ -105,7 +110,7 @@ class GetTimeWeightedReturnUseCase(
         }
 
         private fun navWith(txs: List<Transaction>, date: LocalDate): BigDecimal =
-            valuator.totalNavEur(snapshot.copy(transactions = txs), date)
+            storedByDate[date]?.valueEur ?: valuator.totalNavEur(snapshot.copy(transactions = txs), date)
     }
 
     private fun splitReason(tx: Transaction, cashBefore: BigDecimal): TwrSplit? = when (tx.type) {

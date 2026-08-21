@@ -10,7 +10,9 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
+import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.RatingAlertScope
@@ -346,5 +348,70 @@ class RoomPortfolioRepositoryTest {
         assertEquals("Cash", repository.loadTemplates().single().label)
         assertEquals(0, BigDecimal("12").compareTo(checkNotNull(repository.loadThresholds().single().eurLevel)))
         assertEquals(setOf(AnalystRating.SELL), repository.loadRatingAlerts().single().levels)
+    }
+
+    @Test
+    fun dashboardLoadOmitsBarsBeforeSelectedRange() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val etf =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        val old = LocalDate.of(2020, 1, 2)
+        val inRange = asOf.minusDays(5)
+        repository.write(
+            PortfolioSnapshot(
+                assets = listOf(cash, etf),
+                transactions =
+                listOf(
+                    Transaction(
+                        id = "tx-deposit",
+                        assetId = cash.id,
+                        date = old,
+                        type = TransactionType.DEPOSIT_CASH,
+                        quantity = BigDecimal("1000"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                    Transaction(
+                        id = "tx-buy",
+                        assetId = etf.id,
+                        date = old,
+                        type = TransactionType.BUY,
+                        quantity = BigDecimal.TEN,
+                        unitPriceNative = BigDecimal.TEN,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.TEN,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                ),
+                marketData =
+                listOf(
+                    DailyMarketData(etf.id, old, BigDecimal("50")),
+                    DailyMarketData(etf.id, inRange, BigDecimal("110")),
+                    DailyMarketData(etf.id, asOf, BigDecimal("111")),
+                ),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            ),
+        )
+        val loaded = repository.loadForDashboard(HistoryRange.ONE_MONTH, asOf)
+        assertTrue(loaded.marketData.none { it.date.year == 2020 })
+        assertTrue(loaded.marketData.any { it.date == inRange })
+        assertTrue(repository.load().marketData.any { it.date.year == 2020 })
     }
 }
