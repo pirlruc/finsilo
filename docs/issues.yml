@@ -1719,7 +1719,7 @@ milestones:
   - name: Phase 8 — Quotes, lock, and alerts
     epics:
       - id: FS-030
-        status: open
+        status: done
         title: Quote probe, biometric key wrap, rating prefs, and backup export
         overview:
           problem: >-
@@ -1761,7 +1761,7 @@ milestones:
           - KT-CPLX-001
         tasks:
           - id: FS-030-T1
-            status: open
+            status: done
             title: Recovery copy, quote probe, AV skip-fresh, backup export, biometric wrap, rating prefs
             instructions:
               files:

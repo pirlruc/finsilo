@@ -63,9 +63,11 @@ class PortfolioToolsViewModel(
                 return@launch
             }
             runCatching {
-                val snapshot = repository.load()
-                val extras = repository.loadBackupExtras()
-                withContext(cryptoDispatcher) { LedgerBackupCodec.encrypt(snapshot, recovery, extras) }
+                withContext(cryptoDispatcher) {
+                    val snapshot = repository.load()
+                    val extras = repository.loadBackupExtras()
+                    LedgerBackupCodec.encrypt(snapshot, recovery, extras)
+                }
             }.onSuccess { bytes ->
                 _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName) }
             }.onFailure { error ->

@@ -44,6 +44,8 @@ class PortfolioToolsViewModelRestoreGuardTest {
         database =
             Room.inMemoryDatabaseBuilder(context, FinsiloDatabase::class.java)
                 .allowMainThreadQueries()
+                .setQueryExecutor { it.run() }
+                .setTransactionExecutor { it.run() }
                 .build()
     }
 
