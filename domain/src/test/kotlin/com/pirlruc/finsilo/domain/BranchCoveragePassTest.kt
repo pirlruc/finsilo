@@ -403,8 +403,8 @@ class HistoryRebuildSyncBranchCoverageTest {
     fun historyCoversMismatchAndDownsample() {
         val snapshot = snap()
         val rebuilt = RebuildNavHistoryUseCase()(snapshot, asOf, null, emptyList())
-        val history = GetPortfolioHistoryUseCase(maxPoints = 3)(snapshot, HistoryRange.ALL, asOf, rebuilt.points)
-        assertTrue(history.points.size <= 4)
+        val history = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, rebuilt.points)
+        assertEquals(asOf, history.points.last().date)
         val missingFrom = rebuilt.points.filter { it.date != start }
         val fromStore = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, missingFrom)
         assertEquals(rebuilt.points.size, fromStore.points.size)
@@ -713,9 +713,9 @@ class HistoryRebuildSyncBranchCoverageTest {
         assertFalse(unchanged.copy(previousRating = null).ratingChanged)
         assertFalse(unchanged.copy(rating = AnalystRating.NONE, previousRating = AnalystRating.BUY).ratingChanged)
         assertTrue(unchanged.copy(previousRating = AnalystRating.HOLD).ratingChanged)
-        val tinyHistory = GetPortfolioHistoryUseCase(maxPoints = 1000)(snap(), HistoryRange.ALL, asOf)
+        val tinyHistory = GetPortfolioHistoryUseCase()(snap(), HistoryRange.ALL, asOf)
         assertEquals(snap().transactions.minOf { it.date }, tinyHistory.from)
-        val droppedLast = GetPortfolioHistoryUseCase(maxPoints = 2)(snap(), HistoryRange.ALL, asOf)
+        val droppedLast = GetPortfolioHistoryUseCase()(snap(), HistoryRange.ALL, asOf)
         assertEquals(asOf, droppedLast.points.last().date)
         val fp = RebuildNavHistoryUseCase()(snap(), asOf, null, emptyList())
         val mismatch = RebuildNavHistoryUseCase()(snap(), asOf, "nope", fp.points)

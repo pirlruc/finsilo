@@ -1787,17 +1787,18 @@ milestones:
             UI relock left the SQLCipher key in RAM so night sync could run;
             immediate eviction would skip that sync. Product choice after FS-030.
           goal: >-
-            Persist daily closes from each holding’s first purchase (BUY, else
-            first lot date). Do not drop a trailing date/count window. If a
-            series must be thinned for a chart or working set, increase step
-            (every 2nd, 3rd, … day) instead of deleting a date range. Ratings
-            and SMA stay on stored daily bars. Dashboard reads NAV and market
+            Persist every daily close from each holding’s first purchase (BUY, else
+            first lot date). Do not prune or step stored bars, and do not thin the
+            NAV chart: one holding is about 0.06–0.1 MB per year in SQLite (TEXT
+            dates and BigDecimal closes), so a 20-name book held 10 years is tens
+            of MB, not a reason to drop dailies. SMA-200 and NAV rebuild need
+            consecutive stored closes. Dashboard reads NAV and market
             rows for the selected chip (1M / 3M / YTD / All). Lock is hybrid:
             overlay PIN immediately; after 15 minutes still in the background,
             close Room and wipe the session key. Returning to the PIN screen
             before that keeps the session. Night sync no-ops once evicted.
         architecture:
-          target: First-purchase daily history, range-scoped dashboard reads, 15-minute hybrid eviction
+          target: Full first-purchase daily history, range-scoped dashboard reads, 15-minute hybrid eviction
           modules:
             - app/src/main/java/com/pirlruc/finsilo/data
             - app/src/main/java/com/pirlruc/finsilo/data/security
@@ -1805,7 +1806,8 @@ milestones:
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
         acceptance_criteria:
           - Sync/probe persist bars on/after first purchase; pre-purchase feed rows are not stored; no 400-bar cap
-          - NAV downsample (and any future thin) uses a step, not a sliding date/count delete of stored dailies
+          - Stored dailies are never deleted or stepped by date, count, or chart cap (size is not material; SMA/NAV need consecutive closes)
+          - NAV chart draws every daily in the selected range; it does not increase periodicity after a year
           - Dashboard load uses market/NAV rows from the selected HistoryRange (All still from first lot)
           - Daily sync does not triple-load the full snapshot
           - Overlay lock is immediate; SQLCipher session evicts after 15 minutes in the background unless the process returns first

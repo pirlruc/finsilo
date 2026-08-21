@@ -28,7 +28,7 @@ Sync is optional. Without a key, Frankfurter (EUR/USD, including history), Stooq
 
 An **Alpha Vantage** key (free tier is about 25 calls/day) lives under the dashboard menu **Alpha Vantage key**. It stays on-device and is used for US names, ratings, some commodities, and as a fallback. The app skips symbols that already have today’s close and requests the rest oldest-first so one key is not wasted on fresh names.
 
-Stored daily closes start at each holding’s first buy. Charts that need fewer points step to every 2nd, 3rd, … day instead of deleting older dates. The dashboard only reads quotes for the selected chip (plus the latest close per name).
+Stored daily closes start at each holding’s first buy and stay daily for the whole holding life (a decade of quotes is a few megabytes, so the file is not pruned and the NAV chart is not stepped). The dashboard only reads quotes for the selected chip (plus the latest close per name).
 
 New mark-to-market buys and watchlist adds are checked against the feed first. Deposit, CT, and unlisted PPR are valued locally and are not probed.
 

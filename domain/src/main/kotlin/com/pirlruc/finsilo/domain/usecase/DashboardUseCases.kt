@@ -1,6 +1,5 @@
 package com.pirlruc.finsilo.domain.usecase
 
-import com.pirlruc.finsilo.domain.market.HistoryPeriodicity
 import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.HistoryReport
@@ -15,8 +14,8 @@ class GetAllocationUseCase(private val valuator: PortfolioValuator = PortfolioVa
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport = valuator.allocation(snapshot, asOf)
 }
 
-/** Dense daily NAV walk, optionally fed from persisted [storedNav], then downsampled. */
-class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = PortfolioValuator(), private val maxPoints: Int = 180) {
+/** Dense daily NAV walk, optionally fed from persisted [storedNav]. Every calendar day in the range is kept. */
+class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = PortfolioValuator()) {
     operator fun invoke(
         snapshot: PortfolioSnapshot,
         range: HistoryRange,
@@ -38,7 +37,7 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
             } else {
                 walk(snapshot, from, to)
             }
-        return HistoryReport(range = range, from = from, to = to, points = HistoryPeriodicity.thin(dense, maxPoints, dense.lastOrNull()))
+        return HistoryReport(range = range, from = from, to = to, points = dense)
     }
 
     private fun covers(stored: List<NavPoint>, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): Boolean {

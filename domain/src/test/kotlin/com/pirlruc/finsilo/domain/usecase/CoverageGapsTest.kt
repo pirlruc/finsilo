@@ -51,7 +51,7 @@ class CoverageGapsTest {
         val month = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ONE_MONTH, asOf, padded)
         assertTrue(month.points.none { it.date.isBefore(month.from) })
         assertTrue(month.points.none { it.date.isAfter(month.to) })
-        val sampled = GetPortfolioHistoryUseCase(maxPoints = 6)(snapshot, HistoryRange.ALL, asOf)
+        val sampled = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf)
         assertEquals(asOf, sampled.points.last().date)
         val holeFrom = rebuilt.points.filter { it.date != month.from }.reversed()
         val walkedHole = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ONE_MONTH, asOf, holeFrom)

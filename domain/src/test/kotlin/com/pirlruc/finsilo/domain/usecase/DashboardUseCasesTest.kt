@@ -44,37 +44,41 @@ class DashboardUseCasesTest {
     }
 
     @Test
-    fun historyDownsamplesWhenTheWindowExceedsMaxPoints() {
-        val snapshot = snapshotWithBuy(LocalDate.of(2026, 1, 1))
-        val report = GetPortfolioHistoryUseCase(maxPoints = 10)(snapshot, HistoryRange.ALL, asOf)
-        assertTrue(report.points.size <= 12, "expected downsample, got ${report.points.size}")
+    fun historyKeepsEveryDailyFromFirstPurchase() {
+        val buy = LocalDate.of(2024, 1, 1)
+        val snapshot = snapshotWithBuy(buy)
+        val report = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf)
+        assertEquals(asOf.toEpochDay() - buy.toEpochDay() + 1, report.points.size.toLong())
+        assertEquals(buy, report.points.first().date)
         assertEquals(asOf, report.points.last().date)
+        val ytd = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.YTD, asOf)
+        assertEquals(ytd.to.toEpochDay() - ytd.from.toEpochDay() + 1, ytd.points.size.toLong())
     }
 
     @Test
     fun storedNavIsTrustedWhenQuotesDoNotCoverFrom() {
         val snapshot = snapshotWithBuy(LocalDate.of(2026, 1, 1))
-        val stored = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf).points
+        val stored = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf).points
         val partial = snapshot.copy(marketData = snapshot.marketData.filter { !it.date.isBefore(asOf.minusMonths(1)) })
-        val fromStored = GetPortfolioHistoryUseCase(maxPoints = 1000)(partial, HistoryRange.ALL, asOf, stored)
+        val fromStored = GetPortfolioHistoryUseCase()(partial, HistoryRange.ALL, asOf, stored)
         assertEquals(stored.first().date, fromStored.points.first().date)
         assertEquals(0, stored.first().valueEur.compareTo(fromStored.points.first().valueEur))
         val wrongTo = stored.map { point ->
             if (point.date == asOf) point.copy(valueEur = point.valueEur.add(bd("1"))) else point
         }
-        val walked = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, wrongTo)
+        val walked = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, wrongTo)
         assertEquals(0, stored.last().valueEur.compareTo(walked.points.last().valueEur))
         val wrongFrom = stored.map { point ->
             if (point.date == snapshot.transactions.minOf { it.date }) point.copy(valueEur = point.valueEur.add(bd("1"))) else point
         }
-        val walkedFrom = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, wrongFrom)
+        val walkedFrom = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, wrongFrom)
         assertEquals(0, stored.first().valueEur.compareTo(walkedFrom.points.first().valueEur))
         val missingFrom =
             listOf(NavPoint(stored.first().date.minusDays(1), stored.first().valueEur)) + stored.drop(1)
-        val walkedMissingFrom = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, missingFrom)
+        val walkedMissingFrom = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, missingFrom)
         assertEquals(stored.first().date, walkedMissingFrom.points.first().date)
         val missingTo = stored.dropLast(1) + listOf(NavPoint(asOf.plusDays(1), stored.last().valueEur))
-        val walkedMissingTo = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, missingTo)
+        val walkedMissingTo = GetPortfolioHistoryUseCase()(snapshot, HistoryRange.ALL, asOf, missingTo)
         assertEquals(asOf, walkedMissingTo.points.last().date)
     }
 

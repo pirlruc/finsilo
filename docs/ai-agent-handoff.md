@@ -76,7 +76,7 @@ Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 FS-030 follow-up in this branch: rating alerts ignore `NONE` priors; overlapping pickers keep `FLAG_SECURE` until depth 0; tax/backup CreateDocument writes tax CSV/PDF even when no backup name is pending; restore/quote HTTP bodies are size-capped; quote probes use compact AV/Stooq/CoinGecko windows and reuse a ticker cache on CSV review.
 
-FS-031 in this branch: daily closes from first purchase (no 400-bar cap; charts thin by step); dashboard loads the selected HistoryRange; hybrid lock evicts SQLCipher after 15 minutes in the background.
+FS-031 in this branch: daily closes from first purchase are stored in full (about 0.06–0.1 MB/holding/year; not pruned or stepped — tens of MB for a 20-name decade is not material, and SMA-200/NAV need consecutive dailies). Charts draw every daily in the selected range; dashboard loads the selected HistoryRange; hybrid lock evicts SQLCipher after 15 minutes in the background.
 
 Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone and detekt `@Composable` ignore leftovers are [GATE-003](issues.yml) (done). Gradle 9 `ReportingExtension.file` deprecation is [GATE-004](issues.yml) (done; detekt 2.x).
 
@@ -96,7 +96,7 @@ Untracked limits (Semgrep registry, signing/release, emulator/SQLCipher, AV quot
 | Unlisted PPR | Local NAV (buy + interest); skipped on sync | — |
 | Listed PPR | `quoteSymbol` / exchange suffix; routed like an ETF | — |
 
-Sync skips names whose last stored bar date is already `asOf` and requests the rest oldest-first (never-quoted first) so one Alpha Vantage key is not wasted on fresh symbols. Watchlist `OVERVIEW` runs when the effective rating-alert set is non-empty (defaults are Buy / Strong Buy). Holding daily bars persist from the first BUY (else first lot date); there is no 400-bar cap. Dashboard reads only the selected `HistoryRange` window plus the latest bar per asset. Charts thin by increasing step, not by deleting a date window.
+Sync skips names whose last stored bar date is already `asOf` and requests the rest oldest-first (never-quoted first) so one Alpha Vantage key is not wasted on fresh symbols. Watchlist `OVERVIEW` runs when the effective rating-alert set is non-empty (defaults are Buy / Strong Buy). Holding daily bars persist from the first BUY (else first lot date) and are not pruned (about 0.06–0.1 MB per holding per year). Dashboard reads only the selected `HistoryRange` window plus the latest bar per asset. Charts draw every daily in that window.
 
 The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is computed locally in `SyncMarketDataUseCase`. Quotes use `Asset.feedSymbol`. USD feeds (CoinGecko, AV US/commodities, Stooq XAU) stay USD and convert with stored EUR-per-USD even when the instrument is booked in EUR (`QuoteCurrency`). Execution FX on a USD trade does **not** overwrite `currency_history` when that date already has a row ([FS-014](issues.yml)). Empty FX history omits USD-quoted holdings from NAV and surfaces a dashboard warning ([FS-005](issues.yml)).
 
@@ -130,4 +130,4 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-21 (FS-031: first-purchase history, range dashboard loads, hybrid 15-minute session eviction)*
+*Last updated: 2026-08-21 (FS-031: full daily quotes from first buy; charts stay daily)*

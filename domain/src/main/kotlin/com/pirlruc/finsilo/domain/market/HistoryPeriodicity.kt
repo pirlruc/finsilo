@@ -1,8 +1,11 @@
 package com.pirlruc.finsilo.domain.market
 
 /**
- * Thins a time series by increasing step (every 2nd, 3rd, … point) instead of
- * dropping a date/count window. Stored daily bars are never deleted this way.
+ * Optional step increase for a chart working set. Not used on stored quotes or
+ * the NAV chart: one holding is about 0.06–0.1 MB per year of daily closes
+ * (TEXT dates and BigDecimal prices), so a 20-name book held 10 years is tens
+ * of MB. SMA-200 and NAV rebuild need consecutive dailies, and a decade of
+ * NAV points is a few thousand samples — not a reason to drop or step bars.
  */
 object HistoryPeriodicity {
     fun <T> thin(values: List<T>, maxPoints: Int, keepLast: T?): List<T> {
