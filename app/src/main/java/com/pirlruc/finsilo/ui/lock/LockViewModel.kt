@@ -113,20 +113,10 @@ class LockViewModel(
     }
 
     fun onAppBackgrounded() {
-        if (biometricPromptActive || externalUiDepth > 0) return
         val current = _state.value
         if (!current.setupComplete) return
-        if (current.unlocked) {
-            _state.update {
-                it.copy(
-                    unlocked = false,
-                    pin = "",
-                    pinConfirm = "",
-                    pendingSensitiveAction = null,
-                    error = null,
-                    pinFallback = false,
-                )
-            }
+        if (!overlaySuppressed() && current.unlocked) {
+            _state.update { overlayLock(it) }
         }
         if (keys?.isSessionOpen() == true) scheduleSessionEviction()
     }
@@ -140,13 +130,24 @@ class LockViewModel(
         evictJob = null
     }
 
+    private fun overlaySuppressed(): Boolean = biometricPromptActive || externalUiDepth > 0
+
+    private fun overlayLock(state: LockUiState): LockUiState = state.copy(
+        unlocked = false,
+        pin = "",
+        pinConfirm = "",
+        pendingSensitiveAction = null,
+        error = null,
+        pinFallback = false,
+    )
+
     private fun scheduleSessionEviction() {
         retainSessionTimer()
         evictJob =
             viewModelScope.launch {
                 delay(sessionGraceMs)
                 evictLedger()
-                _state.update { it.copy(sessionEvicted = true) }
+                _state.update { overlayLock(it).copy(sessionEvicted = true) }
             }
     }
 

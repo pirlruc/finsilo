@@ -282,6 +282,44 @@ class LockViewModelTest {
     }
 
     @Test
+    fun backgroundDuringBiometricPromptStillEvictsAfterGrace() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys()
+        var evicted = 0
+        val viewModel = lockingViewModel(keys) { evicted += 1 }
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.setBiometricPromptActive(true)
+        viewModel.onAppBackgrounded()
+        assertTrue(viewModel.state.value.unlocked)
+        assertTrue(keys.sessionOpen)
+        main.scheduler.advanceTimeBy(1_000)
+        main.scheduler.runCurrent()
+        assertEquals(1, evicted)
+        assertFalse(keys.sessionOpen)
+        assertFalse(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.sessionEvicted)
+    }
+
+    @Test
+    fun backgroundDuringFilePickerStillEvictsAfterGrace() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys()
+        var evicted = 0
+        val viewModel = lockingViewModel(keys) { evicted += 1 }
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.setExternalUiActive(true)
+        viewModel.onAppBackgrounded()
+        assertTrue(viewModel.state.value.unlocked)
+        main.scheduler.advanceTimeBy(1_000)
+        main.scheduler.runCurrent()
+        assertEquals(1, evicted)
+        assertFalse(viewModel.state.value.unlocked)
+        assertFalse(keys.sessionOpen)
+    }
+
+    @Test
     fun foregroundBeforeGraceKeepsTheSession() {
         val main = StandardTestDispatcher()
         Dispatchers.setMain(main)
@@ -312,6 +350,19 @@ class LockViewModelTest {
         assertTrue(keys.sessionOpen)
         assertFalse(viewModel.state.value.unlocked)
     }
+
+    private fun lockingViewModel(keys: FakeLedgerKeys, onEvict: () -> Unit): LockViewModel = LockViewModel(
+        FakeAppLock(),
+        dispatcher,
+        { 1L },
+        keys,
+        {},
+        {
+            onEvict()
+            keys.evictSession()
+        },
+        1_000,
+    )
 
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)

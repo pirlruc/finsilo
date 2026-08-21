@@ -25,7 +25,14 @@ interface PortfolioDao {
     @Query("SELECT * FROM daily_market_data WHERE date >= :from")
     suspend fun getMarketDataFrom(from: LocalDate): List<DailyMarketDataEntity>
 
-    @Query("SELECT * FROM daily_market_data AS d WHERE date = (SELECT MAX(date) FROM daily_market_data WHERE asset_id = d.asset_id)")
+    @Query(
+        """
+        SELECT d.* FROM daily_market_data AS d
+        INNER JOIN (
+            SELECT asset_id, MAX(date) AS max_date FROM daily_market_data GROUP BY asset_id
+        ) AS latest ON latest.asset_id = d.asset_id AND latest.max_date = d.date
+        """,
+    )
     suspend fun getLatestMarketData(): List<DailyMarketDataEntity>
 
     @Query("SELECT * FROM currency_history")

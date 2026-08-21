@@ -1810,7 +1810,7 @@ milestones:
           - NAV chart draws every daily in the selected range; it does not increase periodicity after a year
           - Dashboard load uses market/NAV rows from the selected HistoryRange (All still from first lot)
           - Daily sync does not triple-load the full snapshot
-          - Overlay lock is immediate; SQLCipher session evicts after 15 minutes in the background unless the process returns first
+          - Overlay lock is immediate except during a picker or biometric sheet; SQLCipher still evicts after 15 minutes in the background unless the process returns first
         guardrail_refs:
           - KT-CPLX-002
           - KT-SEC-001
