@@ -80,7 +80,7 @@ Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, includ
 
 Untracked limits (Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
-Do not record a fake lowered-gate deviation.
+- Room `@Insert(OnConflictStrategy.REPLACE)` on `assets` is DELETE+INSERT, so SQLite CASCADE wipes lots, quotes, and price alerts. Asset writes use `@Upsert`.
 
 ## Market feed (GET only)
 

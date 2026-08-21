@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import java.time.LocalDate
 
 @Dao
@@ -27,7 +28,7 @@ interface PortfolioDao {
     @Query("SELECT * FROM target_allocation")
     suspend fun getTargets(): List<TargetAllocationEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertAssets(items: List<AssetEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

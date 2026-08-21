@@ -75,14 +75,16 @@ class RoomPortfolioRepositoryTest {
                 feesEur = BigDecimal.ZERO,
             )
         repository.saveLedgerEntry(cash, deposit, null)
-        val loaded = repository.load()
-        assertEquals(1, loaded.assets.size)
-        assertEquals(1, loaded.transactions.size)
-        assertEquals(0, BigDecimal("1000").compareTo(loaded.transactions.single().quantity))
-        repository.rebuildNavHistoryIfNeeded(loaded, asOf)
+        val second =
+            deposit.copy(id = "tx-deposit-2", quantity = BigDecimal("250"), date = asOf.plusDays(1))
+        repository.saveLedgerEntry(cash, second, null)
+        val afterSecond = repository.load()
+        assertEquals(1, afterSecond.assets.size)
+        assertEquals(2, afterSecond.transactions.size)
+        repository.rebuildNavHistoryIfNeeded(afterSecond, asOf)
         val nav = repository.loadNavHistory()
         assertTrue(nav.isNotEmpty())
-        assertEquals(0, BigDecimal("1000").compareTo(nav.last().valueEur))
+        assertEquals(0, BigDecimal("1250").compareTo(nav.last().valueEur))
         assertTrue(!nav.last().date.isBefore(asOf))
     }
 
