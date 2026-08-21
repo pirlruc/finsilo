@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import java.time.LocalDate
 
 @Dao
@@ -12,11 +13,27 @@ interface PortfolioDao {
     @Query("SELECT * FROM assets")
     suspend fun getAssets(): List<AssetEntity>
 
+    @Query("SELECT * FROM assets WHERE asset_id = :assetId LIMIT 1")
+    suspend fun getAsset(assetId: String): AssetEntity?
+
     @Query("SELECT * FROM transactions ORDER BY date ASC, ledger_sequence ASC, transaction_id ASC")
     suspend fun getTransactions(): List<TransactionEntity>
 
     @Query("SELECT * FROM daily_market_data")
     suspend fun getMarketData(): List<DailyMarketDataEntity>
+
+    @Query("SELECT * FROM daily_market_data WHERE date >= :from")
+    suspend fun getMarketDataFrom(from: LocalDate): List<DailyMarketDataEntity>
+
+    @Query(
+        """
+        SELECT d.* FROM daily_market_data AS d
+        INNER JOIN (
+            SELECT asset_id, MAX(date) AS max_date FROM daily_market_data GROUP BY asset_id
+        ) AS latest ON latest.asset_id = d.asset_id AND latest.max_date = d.date
+        """,
+    )
+    suspend fun getLatestMarketData(): List<DailyMarketDataEntity>
 
     @Query("SELECT * FROM currency_history")
     suspend fun getFxRates(): List<CurrencyRateEntity>
@@ -24,7 +41,7 @@ interface PortfolioDao {
     @Query("SELECT * FROM target_allocation")
     suspend fun getTargets(): List<TargetAllocationEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertAssets(items: List<AssetEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -122,6 +139,24 @@ interface PortfolioDao {
 
     @Query("DELETE FROM price_alert_threshold")
     suspend fun deleteAllThresholds()
+
+    @Query("SELECT * FROM rating_alert")
+    suspend fun getRatingAlerts(): List<RatingAlertEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRatingAlerts(items: List<RatingAlertEntity>)
+
+    @Query("DELETE FROM rating_alert WHERE target_id = :targetId AND scope = :scope")
+    suspend fun deleteRatingAlert(targetId: String, scope: String)
+
+    @Query("DELETE FROM rating_alert")
+    suspend fun deleteAllRatingAlerts()
+
+    @Query("DELETE FROM rating_alert WHERE scope = :scope")
+    suspend fun deleteRatingAlertsByScope(scope: String)
+
+    @Query("DELETE FROM daily_market_data WHERE asset_id = :assetId")
+    suspend fun deleteMarketDataForAsset(assetId: String)
 
     @Transaction
     suspend fun clearWatchlist() {

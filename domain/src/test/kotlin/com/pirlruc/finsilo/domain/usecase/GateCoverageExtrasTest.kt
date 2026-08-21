@@ -54,7 +54,7 @@ class GateCoverageExtrasTest {
                         etf.id,
                         asOf,
                         bd("110"),
-                        AnalystRating.BUY,
+                        AnalystRating.SELL,
                         sma50 = bd("100"),
                         sma200 = bd("95"),
                     ),

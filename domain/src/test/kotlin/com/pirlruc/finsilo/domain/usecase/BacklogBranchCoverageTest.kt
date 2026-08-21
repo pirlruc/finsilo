@@ -281,6 +281,7 @@ class BacklogBranchCoverageTest {
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nL\t1") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nH\t1") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-2\nQ\t1") is LedgerBackupResult.Refused)
+        assertTrue(LedgerBackupText.decode("FSILO-LEDGER-3\nZ\tbad") is LedgerBackupResult.Refused)
         val extrasText =
             LedgerBackupText.encode(
                 PortfolioSnapshot(listOf(blank), emptyList(), emptyList(), emptyList(), emptyList()),

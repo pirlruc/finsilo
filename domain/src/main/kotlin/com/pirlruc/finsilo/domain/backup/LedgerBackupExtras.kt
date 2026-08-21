@@ -3,13 +3,15 @@ package com.pirlruc.finsilo.domain.backup
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.WatchlistSnapshot
 
-/** Watchlist, templates, and price alerts stored beside the live ledger. */
+/** Watchlist, templates, and alerts stored beside the live ledger. */
 data class LedgerBackupExtras(
     val watchlist: WatchlistSnapshot = WatchlistSnapshot(),
     val templates: List<LedgerTemplate> = emptyList(),
     val thresholds: List<PriceAlertThreshold> = emptyList(),
+    val ratingAlerts: List<RatingAlertPref> = emptyList(),
 )
 
 /** Outcome of opening an on-device backup file. */

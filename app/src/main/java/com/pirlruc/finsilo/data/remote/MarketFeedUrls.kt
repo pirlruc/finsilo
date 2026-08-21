@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.data.remote
 
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import okhttp3.HttpUrl
 
 /** Structured HTTPS URLs for the GET-only market feeds. */
@@ -17,20 +18,25 @@ object MarketFeedUrls {
         .addQueryParameter("to", "EUR")
         .toUrl()
 
-    fun coinGeckoChart(id: String): String = https("api.coingecko.com")
+    fun coinGeckoChart(id: String, days: Int = 200): String = https("api.coingecko.com")
         .addPathSegments("api/v3/coins")
         .addPathSegment(MarketHttpsPolicy.requireSafeToken(id, "coin id"))
         .addPathSegment("market_chart")
         .addQueryParameter("vs_currency", "usd")
-        .addQueryParameter("days", "200")
+        .addQueryParameter("days", days.toString())
         .addQueryParameter("interval", "daily")
         .toUrl()
 
-    fun stooqDaily(ticker: String): String = https("stooq.com")
-        .addPathSegments("q/d/l")
-        .addQueryParameter("s", MarketHttpsPolicy.requireSafeToken(ticker, "ticker"))
-        .addQueryParameter("i", "d")
-        .toUrl()
+    fun stooqDaily(ticker: String, from: LocalDate? = null): String {
+        val builder = https("stooq.com")
+            .addPathSegments("q/d/l")
+            .addQueryParameter("s", MarketHttpsPolicy.requireSafeToken(ticker, "ticker"))
+            .addQueryParameter("i", "d")
+        if (from != null) {
+            builder.addQueryParameter("d1", from.format(DateTimeFormatter.BASIC_ISO_DATE))
+        }
+        return builder.toUrl()
+    }
 
     fun alphaVantage(vararg query: Pair<String, String>): String {
         val builder = https("www.alphavantage.co").addPathSegment("query")

@@ -31,6 +31,7 @@ internal suspend fun FinsiloDatabase.replaceExtras(
     watchlistItems: List<WatchlistItemEntity>,
     watchlistQuotes: List<WatchlistQuoteEntity>,
     thresholds: List<PriceAlertThresholdEntity>,
+    ratingAlerts: List<RatingAlertEntity> = emptyList(),
 ) {
     withTransaction {
         val dao = portfolioDao()
@@ -38,9 +39,11 @@ internal suspend fun FinsiloDatabase.replaceExtras(
         dao.deleteAllWatchlistQuotes()
         dao.deleteAllWatchlistItems()
         dao.deleteAllThresholds()
+        dao.deleteAllRatingAlerts()
         if (templates.isNotEmpty()) dao.insertTemplates(templates)
         if (watchlistItems.isNotEmpty()) dao.insertWatchlistItems(watchlistItems)
         if (watchlistQuotes.isNotEmpty()) dao.insertWatchlistQuotes(watchlistQuotes)
         if (thresholds.isNotEmpty()) dao.insertThresholds(thresholds)
+        if (ratingAlerts.isNotEmpty()) dao.insertRatingAlerts(ratingAlerts)
     }
 }

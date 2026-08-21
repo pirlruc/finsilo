@@ -39,8 +39,8 @@ class ImportBrokerCsvUseCase internal constructor(private val applyLedger: (Port
         return ImportWalk(snapshot, applyLedger, funder).apply(parsed.lines)
     }
 
-    /** Visible for tests: apply already-parsed broker rows. */
-    internal fun importLines(snapshot: PortfolioSnapshot, lines: List<BrokerCsvLine>): ImportBrokerCsvResult =
+    /** Apply already-parsed broker rows (after quote-symbol review). */
+    fun importLines(snapshot: PortfolioSnapshot, lines: List<BrokerCsvLine>): ImportBrokerCsvResult =
         ImportWalk(snapshot, applyLedger, funder).apply(lines)
 }
 

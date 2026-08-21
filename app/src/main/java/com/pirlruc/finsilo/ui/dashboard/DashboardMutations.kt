@@ -3,10 +3,15 @@ package com.pirlruc.finsilo.ui.dashboard
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
+import com.pirlruc.finsilo.domain.market.QuoteMerge
+import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
+import com.pirlruc.finsilo.domain.usecase.SyncWatchlistUseCase
 import java.time.LocalDate
 
 internal object DashboardMutations {
@@ -37,6 +42,26 @@ internal object DashboardMutations {
         repository.saveThreshold(threshold)
     }
 
+    suspend fun saveRating(repository: RoomPortfolioRepository, pref: RatingAlertPref) {
+        repository.saveRatingAlert(pref)
+    }
+
+    suspend fun saveInstrument(repository: RoomPortfolioRepository, asset: Asset) {
+        repository.upsertAsset(asset)
+    }
+
+    fun thresholdSaved(state: DashboardUiState, threshold: PriceAlertThreshold): DashboardUiState {
+        val next = state.thresholds.toMutableMap()
+        if (threshold.isEmpty) next.remove(threshold.assetId) else next[threshold.assetId] = threshold
+        return state.copy(thresholds = next, statusMessage = "Price alert saved")
+    }
+
+    fun ratingSaved(state: DashboardUiState, pref: RatingAlertPref): DashboardUiState {
+        val next = state.ratingPrefs.toMutableMap()
+        next[pref.targetId] = pref
+        return state.copy(ratingPrefs = next, statusMessage = "Rating alert saved")
+    }
+
     suspend fun syncQuotes(
         repository: RoomPortfolioRepository,
         container: AppContainer,
@@ -46,10 +71,21 @@ internal object DashboardMutations {
         val loaded = repository.load()
         val result = SyncMarketDataUseCase(container.marketFeed)(loaded, today)
         repository.upsertQuotes(result.marketData, result.fxRates)
-        val updated = repository.load()
-        val alerts = GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), today)
+        val prefs = repository.loadRatingAlerts()
+        val watch = repository.loadWatchlist()
+        val watched = SyncWatchlistUseCase(container.marketFeed)(watch, today, prefs)
+        repository.replaceWatchlistQuotes(watched.quotes)
+        val updated =
+            loaded.copy(
+                marketData = QuoteMerge.market(loaded.marketData, result.marketData),
+                fxRates = QuoteMerge.fx(loaded.fxRates, result.fxRates),
+            )
+        val alerts =
+            GetPortfolioAlertsUseCase()(updated, today, watch.copy(quotes = watched.quotes), prefs) +
+                GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), today)
         notify(alerts)
-        val extra = if (result.failures.isEmpty()) "" else " (${result.failures.size} skipped)"
+        val skipped = result.failures.size + watched.failures.size
+        val extra = if (skipped == 0) "" else " ($skipped skipped)"
         return "Updated ${result.marketData.size} daily rows$extra"
     }
 }

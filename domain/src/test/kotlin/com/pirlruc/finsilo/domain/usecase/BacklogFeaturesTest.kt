@@ -14,6 +14,8 @@ import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.PriceBar
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.RealizedKind
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
@@ -130,12 +132,16 @@ class BacklogFeaturesTest {
                     LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, quantity = "250"),
                 ),
                 thresholds = listOf(PriceAlertThreshold(snapshot.assets.first().id, eurLevel = bd("10"))),
+                ratingAlerts = listOf(
+                    RatingAlertPref(snapshot.assets.first().id, RatingAlertScope.HOLDING, setOf(AnalystRating.SELL)),
+                ),
             )
         val bytes = LedgerBackupCodec.encrypt(snapshot, "ABCD1234EFGH5678", extras)
         val restored = LedgerBackupCodec.decrypt(bytes, "ABCD1234EFGH5678") as LedgerBackupResult.Restored
         assertEquals("MSFT", restored.extras.watchlist.items.single().symbol)
         assertEquals("Cash", restored.extras.templates.single().label)
         assertEquals(0, bd("10").compareTo(checkNotNull(restored.extras.thresholds.single().eurLevel)))
+        assertEquals(setOf(AnalystRating.SELL), restored.extras.ratingAlerts.single().levels)
         val v1 = LedgerBackupText.decode("FSILO-LEDGER-1\nEND") as LedgerBackupResult.Restored
         assertTrue(v1.extras.watchlist.items.isEmpty())
     }

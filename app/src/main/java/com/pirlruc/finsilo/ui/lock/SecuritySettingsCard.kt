@@ -32,7 +32,7 @@ fun SecuritySettingsCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("App lock", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "PIN unlocks the ledger key, not only the screen. Biometrics work after a PIN in this process. " +
+                "PIN, recovery, and optional biometrics each wrap the ledger key. " +
                     "Changing biometrics or the recovery code requires the current PIN.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -56,6 +56,7 @@ fun SecuritySettingsCard(
             }
             if (state.newRecoveryCode != null) {
                 Text(state.newRecoveryCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                CopyRecoveryButton(state.newRecoveryCode, enabled = !state.working)
                 TextButton(onClick = onDismissRecovery) { Text("I saved the new code") }
             }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }

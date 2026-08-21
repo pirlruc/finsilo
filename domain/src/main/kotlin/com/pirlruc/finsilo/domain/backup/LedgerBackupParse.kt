@@ -9,6 +9,8 @@ import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
@@ -20,9 +22,10 @@ import java.time.LocalDate
 internal object LedgerBackupParse {
     private val v1Kinds = setOf("A", "T", "M", "X", "G")
     private val v2Kinds = v1Kinds + setOf("W", "Q", "L", "H")
+    private val v3Kinds = v2Kinds + setOf("R")
 
-    fun parse(lines: List<String>, extrasEnabled: Boolean): LedgerBackupResult {
-        val kinds = if (extrasEnabled) v2Kinds else v1Kinds
+    fun parse(lines: List<String>, extrasEnabled: Boolean, ratingsEnabled: Boolean = false): LedgerBackupResult {
+        val kinds = kindsFor(extrasEnabled, ratingsEnabled)
         val unknown = lines.firstOrNull { row -> unknownRow(row, kinds) }
         if (unknown != null) return LedgerBackupResult.Refused("Unknown backup row.")
         val buckets = ParseBuckets()
@@ -30,6 +33,12 @@ internal object LedgerBackupParse {
             buckets.append(line.split('\t'))
         }
         return LedgerBackupResult.Restored(buckets.snapshot(), buckets.extras())
+    }
+
+    private fun kindsFor(extrasEnabled: Boolean, ratingsEnabled: Boolean): Set<String> = when {
+        ratingsEnabled -> v3Kinds
+        extrasEnabled -> v2Kinds
+        else -> v1Kinds
     }
 
     private fun unknownRow(line: String, kinds: Set<String>): Boolean {
@@ -47,24 +56,37 @@ internal object LedgerBackupParse {
         val watchQuotes = ArrayList<DailyMarketData>()
         val templates = ArrayList<LedgerTemplate>()
         val thresholds = ArrayList<PriceAlertThreshold>()
+        val ratingAlerts = ArrayList<RatingAlertPref>()
 
         fun append(cols: List<String>) {
+            if (!appendCore(cols)) appendExtras(cols)
+        }
+
+        private fun appendCore(cols: List<String>): Boolean {
             when (cols.firstOrNull()) {
                 "A" -> assets += parseAsset(cols)
                 "T" -> txs += parseTx(cols)
                 "M" -> market += parseMarket(cols)
                 "X" -> fx += parseFx(cols)
                 "G" -> targets += parseTarget(cols)
+                else -> return false
+            }
+            return true
+        }
+
+        private fun appendExtras(cols: List<String>) {
+            when (cols.firstOrNull()) {
                 "W" -> watchItems += parseWatchItem(cols)
                 "Q" -> watchQuotes += parseMarket(cols)
                 "L" -> templates += parseTemplate(cols)
                 "H" -> thresholds += parseThreshold(cols)
+                "R" -> ratingAlerts += parseRating(cols)
             }
         }
 
         fun snapshot() = PortfolioSnapshot(assets, txs, market, fx, targets)
 
-        fun extras() = LedgerBackupExtras(WatchlistSnapshot(watchItems, watchQuotes), templates, thresholds)
+        fun extras() = LedgerBackupExtras(WatchlistSnapshot(watchItems, watchQuotes), templates, thresholds, ratingAlerts)
     }
 
     private fun parseAsset(cols: List<String>): Asset {
@@ -150,6 +172,11 @@ internal object LedgerBackupParse {
             eurLevel = cols[2].takeIf { it.isNotEmpty() }?.let { BigDecimal(it) },
             percentMove = cols[3].takeIf { it.isNotEmpty() }?.let { BigDecimal(it) },
         )
+    }
+
+    private fun parseRating(cols: List<String>): RatingAlertPref {
+        require(cols.size >= 4)
+        return RatingAlertPref.fromMask(cols[1], RatingAlertScope.valueOf(cols[2]), cols[3].toInt())
     }
 
     private fun unesc(value: String): String = value.replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\")

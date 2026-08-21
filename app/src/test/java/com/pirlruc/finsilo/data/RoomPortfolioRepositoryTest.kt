@@ -5,12 +5,17 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
+import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
+import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.WatchlistItem
@@ -72,14 +77,16 @@ class RoomPortfolioRepositoryTest {
                 feesEur = BigDecimal.ZERO,
             )
         repository.saveLedgerEntry(cash, deposit, null)
-        val loaded = repository.load()
-        assertEquals(1, loaded.assets.size)
-        assertEquals(1, loaded.transactions.size)
-        assertEquals(0, BigDecimal("1000").compareTo(loaded.transactions.single().quantity))
-        repository.rebuildNavHistoryIfNeeded(loaded, asOf)
+        val second =
+            deposit.copy(id = "tx-deposit-2", quantity = BigDecimal("250"), date = asOf.plusDays(1))
+        repository.saveLedgerEntry(cash, second, null)
+        val afterSecond = repository.load()
+        assertEquals(1, afterSecond.assets.size)
+        assertEquals(2, afterSecond.transactions.size)
+        repository.rebuildNavHistoryIfNeeded(afterSecond, asOf)
         val nav = repository.loadNavHistory()
         assertTrue(nav.isNotEmpty())
-        assertEquals(0, BigDecimal("1000").compareTo(nav.last().valueEur))
+        assertEquals(0, BigDecimal("1250").compareTo(nav.last().valueEur))
         assertTrue(!nav.last().date.isBefore(asOf))
     }
 
@@ -134,6 +141,33 @@ class RoomPortfolioRepositoryTest {
         val loaded = repository.load()
         assertEquals(1, loaded.marketData.size)
         assertEquals(2, loaded.transactions.size)
+    }
+
+    @Test
+    fun changingQuoteSymbolDropsStoredBars() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val stock =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        repository.upsertAsset(stock)
+        repository.upsertQuotes(
+            listOf(DailyMarketData(stock.id, asOf, BigDecimal("100"))),
+            emptyList(),
+        )
+        assertEquals(1, repository.load().marketData.size)
+        repository.upsertAsset(stock.copy(quoteSymbol = "VWCE.DE"))
+        assertTrue(repository.load().marketData.isEmpty())
+        repository.upsertQuotes(
+            listOf(DailyMarketData(stock.id, asOf, BigDecimal("101"))),
+            emptyList(),
+        )
+        repository.upsertAsset(stock.copy(name = "Vanguard FTSE", quoteSymbol = "VWCE.DE"))
+        assertEquals(1, repository.load().marketData.size)
     }
 
     @Test
@@ -305,10 +339,79 @@ class RoomPortfolioRepositoryTest {
                     LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, quantity = "250"),
                 ),
                 thresholds = listOf(PriceAlertThreshold(live.id, eurLevel = BigDecimal("12"))),
+                ratingAlerts = listOf(
+                    RatingAlertPref(live.id, RatingAlertScope.HOLDING, setOf(AnalystRating.SELL)),
+                ),
             )
         repository.restoreBackup(snapshot, extras)
         assertEquals("MSFT", repository.loadWatchlist().items.single().symbol)
         assertEquals("Cash", repository.loadTemplates().single().label)
         assertEquals(0, BigDecimal("12").compareTo(checkNotNull(repository.loadThresholds().single().eurLevel)))
+        assertEquals(setOf(AnalystRating.SELL), repository.loadRatingAlerts().single().levels)
+    }
+
+    @Test
+    fun dashboardLoadOmitsBarsBeforeSelectedRange() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val cash =
+            Asset(
+                id = "asset-cash",
+                symbol = "EUR-CASH",
+                name = "Euro cash",
+                assetType = AssetType.CASH,
+                baseCurrency = Currency.EUR,
+            )
+        val etf =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        val old = LocalDate.of(2020, 1, 2)
+        val inRange = asOf.minusDays(5)
+        repository.write(
+            PortfolioSnapshot(
+                assets = listOf(cash, etf),
+                transactions =
+                listOf(
+                    Transaction(
+                        id = "tx-deposit",
+                        assetId = cash.id,
+                        date = old,
+                        type = TransactionType.DEPOSIT_CASH,
+                        quantity = BigDecimal("1000"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                    Transaction(
+                        id = "tx-buy",
+                        assetId = etf.id,
+                        date = old,
+                        type = TransactionType.BUY,
+                        quantity = BigDecimal.TEN,
+                        unitPriceNative = BigDecimal.TEN,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.TEN,
+                        feesEur = BigDecimal.ZERO,
+                    ),
+                ),
+                marketData =
+                listOf(
+                    DailyMarketData(etf.id, old, BigDecimal("50")),
+                    DailyMarketData(etf.id, inRange, BigDecimal("110")),
+                    DailyMarketData(etf.id, asOf, BigDecimal("111")),
+                ),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            ),
+        )
+        val loaded = repository.loadForDashboard(HistoryRange.ONE_MONTH, asOf)
+        assertTrue(loaded.marketData.none { it.date.year == 2020 })
+        assertTrue(loaded.marketData.any { it.date == inRange })
+        assertTrue(repository.load().marketData.any { it.date.year == 2020 })
     }
 }

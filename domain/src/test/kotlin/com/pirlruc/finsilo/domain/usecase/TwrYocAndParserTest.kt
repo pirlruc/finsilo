@@ -10,6 +10,7 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HistoryRange
+import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
@@ -46,6 +47,29 @@ class TwrYocAndParserTest {
         assertTrue(report.subPeriods.none { it.split == TwrSplit.EXTERNAL_BUY })
         // 9000 cash + 1100 holdings = 10100 vs 10000 start → 1%
         assertEquals(0, bd("1").compareTo(report.twrPercent.setScale(0, java.math.RoundingMode.HALF_EVEN)))
+    }
+
+    @Test
+    fun twrPrefersStoredNavOverLiveValuation() {
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(etf, cash),
+                transactions =
+                listOf(
+                    cashTx("c", LocalDate.of(2026, 1, 1), bd("10000")),
+                    buy("b", etf.id, LocalDate.of(2026, 1, 2), bd("10"), bd("100")),
+                ),
+                marketData = listOf(DailyMarketData(etf.id, asOf, bd("110"))),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val stored =
+            listOf(
+                NavPoint(LocalDate.of(2026, 1, 1), bd("10000")),
+                NavPoint(asOf, bd("20000")),
+            )
+        val report = GetTimeWeightedReturnUseCase()(snapshot, asOf, stored)
+        assertEquals(0, bd("100").compareTo(report.twrPercent.setScale(0, java.math.RoundingMode.HALF_EVEN)))
     }
 
     @Test

@@ -26,6 +26,9 @@ internal fun EmptyState(
     importState: BrokerImportUiState,
     onImportCsvs: (List<String>) -> Unit,
     onPickerBusy: (Boolean) -> Unit,
+    onQuoteSymbol: (String, String) -> Unit,
+    onConfirmReview: () -> Unit,
+    onCancelReview: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -42,7 +45,14 @@ internal fun EmptyState(
         Spacer(Modifier.height(20.dp))
         Button(onClick = onAddTransaction) { Text("Add transaction") }
         Spacer(Modifier.height(12.dp))
-        BrokerImportCard(state = importState, onImportCsvs = onImportCsvs, onPickerBusy = onPickerBusy)
+        BrokerImportCard(
+            state = importState,
+            onImportCsvs = onImportCsvs,
+            onPickerBusy = onPickerBusy,
+            onQuoteSymbol = onQuoteSymbol,
+            onConfirmReview = onConfirmReview,
+            onCancelReview = onCancelReview,
+        )
         Spacer(Modifier.height(12.dp))
         Button(onClick = onLoadSample) { Text("Load sample portfolio") }
     }

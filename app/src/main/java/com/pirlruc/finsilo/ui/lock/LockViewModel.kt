@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,6 +45,9 @@ data class LockUiState(
     val upgradeRecovery: String = "",
     val upgradeRecoveryConfirm: Boolean = false,
     val working: Boolean = false,
+    val pinFallback: Boolean = false,
+    val pendingBiometricSeal: Boolean = false,
+    val sessionEvicted: Boolean = false,
 )
 
 class LockViewModel(
@@ -51,6 +56,8 @@ class LockViewModel(
     private val nowMs: () -> Long = { System.currentTimeMillis() },
     private val keys: LedgerKeySession? = null,
     private val openLedger: () -> Unit = {},
+    private val evictLedger: () -> Unit = {},
+    private val sessionGraceMs: Long = SESSION_GRACE_MS,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LockUiState(setupComplete = store.isSetup(), biometric = store.biometricEnabled()))
     val state: StateFlow<LockUiState> = _state.asStateFlow()
@@ -65,6 +72,8 @@ class LockViewModel(
     private var pendingUpgradePin: String? = null
 
     private val inFlight = AtomicBoolean(false)
+
+    private var evictJob: Job? = null
 
     init {
         if (!_state.value.setupComplete) {
@@ -94,21 +103,57 @@ class LockViewModel(
         biometricPromptActive = active
     }
 
-    fun setExternalUiActive(active: Boolean) {
+    fun setExternalUiActive(active: Boolean): Int {
         if (active) {
             externalUiDepth += 1
         } else {
             externalUiDepth = (externalUiDepth - 1).coerceAtLeast(0)
         }
+        return externalUiDepth
     }
 
     fun onAppBackgrounded() {
-        if (biometricPromptActive || externalUiDepth > 0) return
         val current = _state.value
-        if (!current.setupComplete || !current.unlocked) return
-        _state.update {
-            it.copy(unlocked = false, pin = "", pinConfirm = "", pendingSensitiveAction = null, error = null)
+        if (!current.setupComplete) return
+        if (!overlaySuppressed() && current.unlocked) {
+            _state.update { overlayLock(it) }
         }
+        if (keys?.isSessionOpen() == true) scheduleSessionEviction()
+    }
+
+    fun onAppForegrounded() {
+        retainSessionTimer()
+    }
+
+    private fun retainSessionTimer() {
+        evictJob?.cancel()
+        evictJob = null
+    }
+
+    private fun overlaySuppressed(): Boolean = biometricPromptActive || externalUiDepth > 0
+
+    private fun overlayLock(state: LockUiState): LockUiState = state.copy(
+        unlocked = false,
+        pin = "",
+        pinConfirm = "",
+        pendingSensitiveAction = null,
+        error = null,
+        pinFallback = false,
+    )
+
+    private fun scheduleSessionEviction() {
+        retainSessionTimer()
+        evictJob =
+            viewModelScope.launch {
+                delay(sessionGraceMs)
+                evictLedger()
+                _state.update { overlayLock(it).copy(sessionEvicted = true) }
+            }
+    }
+
+    private fun sessionRetained() {
+        retainSessionTimer()
+        _state.update { it.copy(sessionEvicted = false) }
     }
 
     fun completeSetup() {
@@ -121,14 +166,61 @@ class LockViewModel(
 
     fun unlockWithBiometric() {
         if (keys != null && !keys.isSessionOpen()) {
-            _state.update { it.copy(error = "Enter your PIN after the app restarts.") }
+            _state.update { it.copy(error = "Unlock with biometrics failed. Enter PIN.", pinFallback = true) }
             return
         }
         runLockAction {
             store.clearUnlockFailures()
             openLedger()
-            _state.update { it.copy(unlocked = true, error = null) }
+            sessionRetained()
+            _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
         }
+    }
+
+    fun unlockWithUnwrappedKey(key: ByteArray) {
+        runLockAction { acceptUnwrappedKey(key) }
+    }
+
+    private fun acceptUnwrappedKey(key: ByteArray) {
+        val gate = keys
+        if (gate != null && !gate.unlockWithUnwrappedKey(key)) {
+            _state.update { it.copy(error = "Unlock with biometrics failed. Enter PIN.", pinFallback = true) }
+            return
+        }
+        store.clearUnlockFailures()
+        openLedger()
+        sessionRetained()
+        _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
+    }
+
+    fun showPinFallback() {
+        _state.update { it.copy(pinFallback = true, error = null) }
+    }
+
+    fun sessionKeyCopy(): ByteArray? = keys?.sessionKeyOrNull()
+
+    fun biometricWrapBlob(): ByteArray? = keys?.biometricWrapBlob()
+
+    fun finishBiometricSeal(blob: ByteArray) {
+        val stored = keys?.persistBiometricWrap(blob) ?: true
+        if (!stored) {
+            _state.update { it.copy(error = "Could not store biometric unlock.", pendingBiometricSeal = false) }
+            return
+        }
+        store.setBiometricEnabled(true)
+        _state.update {
+            it.copy(
+                pendingBiometricSeal = false,
+                biometric = true,
+                status = "Biometric unlock enabled.",
+                error = null,
+            )
+        }
+    }
+
+    fun cancelBiometricSeal() {
+        val keep = store.biometricEnabled()
+        _state.update { it.copy(pendingBiometricSeal = false, biometric = keep) }
     }
 
     fun recoverAndResetPin() {
@@ -189,8 +281,10 @@ class LockViewModel(
             return
         }
         if (!unwrapLedgerForPin(pin)) return
+        sessionRetained()
+        val needsSeal = store.biometricEnabled() && keys?.biometricWrapBlob() == null
         _state.update {
-            it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null)
+            it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null, pendingBiometricSeal = needsSeal)
         }
     }
 
@@ -226,7 +320,17 @@ class LockViewModel(
         }
         if (!persistSetup(current)) return
         openLedger()
-        _state.update { it.copy(setupComplete = true, unlocked = true, pin = "", pinConfirm = "", error = null) }
+        sessionRetained()
+        _state.update {
+            it.copy(
+                setupComplete = true,
+                unlocked = true,
+                pin = "",
+                pinConfirm = "",
+                error = null,
+                pendingBiometricSeal = current.biometric,
+            )
+        }
     }
 
     private fun setupValidationError(current: LockUiState): String? {
@@ -238,7 +342,7 @@ class LockViewModel(
     }
 
     private fun persistSetup(current: LockUiState): Boolean {
-        if (!store.setup(current.pin, current.recoveryCode, current.biometric)) {
+        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
             _state.update { it.copy(error = "Could not store the lock.") }
             return false
         }
@@ -258,6 +362,7 @@ class LockViewModel(
         }
         store.clearUnlockFailures()
         openLedger()
+        sessionRetained()
         _state.update { it.copy(unlocked = true, recovering = false, pin = "", pinConfirm = "", error = null) }
     }
 
@@ -299,6 +404,7 @@ class LockViewModel(
         }
         pendingUpgradePin = null
         openLedger()
+        sessionRetained()
         _state.update {
             it.copy(wrapUpgradeRequired = false, unlocked = true, upgradeRecoveryConfirm = false, error = null)
         }
@@ -355,14 +461,28 @@ class LockViewModel(
     }
 
     private fun persistBiometricAfterPin(enabled: Boolean) {
-        store.setBiometricEnabled(enabled)
+        if (!enabled) {
+            keys?.persistBiometricWrap(null)
+            BiometricKeyWrap.deleteKey()
+            store.setBiometricEnabled(false)
+            _state.update {
+                it.copy(
+                    pendingSensitiveAction = null,
+                    pin = "",
+                    error = null,
+                    biometric = false,
+                    pendingBiometricSeal = false,
+                    status = "Biometric unlock disabled.",
+                )
+            }
+            return
+        }
         _state.update {
             it.copy(
                 pendingSensitiveAction = null,
                 pin = "",
                 error = null,
-                biometric = enabled,
-                status = if (enabled) "Biometric unlock enabled." else "Biometric unlock disabled.",
+                pendingBiometricSeal = true,
             )
         }
     }
@@ -394,12 +514,15 @@ class LockViewModel(
     }
 
     companion object {
+        const val SESSION_GRACE_MS: Long = 15 * 60 * 1000L
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = LockViewModel(
                 store = container.lockStore,
                 keys = container.keys,
                 openLedger = container::openLedger,
+                evictLedger = container::closeLedger,
             ) as T
         }
     }

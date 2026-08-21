@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,10 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.HoldingValuation
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
-import com.pirlruc.finsilo.domain.usecase.parseDecimal
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatNative
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -35,8 +34,12 @@ internal fun HoldingsCard(
     holdings: List<HoldingValuation>,
     cashEur: BigDecimal,
     thresholds: Map<String, PriceAlertThreshold>,
+    ratingPrefs: Map<String, RatingAlertPref>,
     onSaveThreshold: (PriceAlertThreshold) -> Unit,
+    onSaveRating: (RatingAlertPref) -> Unit,
+    onSaveInstrument: (Asset) -> Unit,
 ) {
+    var alerting by remember { mutableStateOf<HoldingValuation?>(null) }
     var editing by remember { mutableStateOf<HoldingValuation?>(null) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -47,7 +50,12 @@ internal fun HoldingsCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             holdings.forEach { holding ->
-                HoldingRow(holding, thresholds[holding.asset.id], onEdit = { editing = holding })
+                HoldingRow(
+                    holding = holding,
+                    threshold = thresholds[holding.asset.id],
+                    onAlert = { alerting = holding },
+                    onEdit = { editing = holding },
+                )
             }
             if (cashEur.signum() > 0) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -57,14 +65,30 @@ internal fun HoldingsCard(
             }
         }
     }
-    val target = editing
-    if (target != null) {
-        ThresholdDialog(
-            holding = target,
-            existing = thresholds[target.asset.id],
-            onDismiss = { editing = null },
-            onSave = { threshold ->
+    val alertTarget = alerting
+    if (alertTarget != null) {
+        HoldingAlertDialog(
+            holding = alertTarget,
+            existing = thresholds[alertTarget.asset.id],
+            ratingPref = ratingPrefs[alertTarget.asset.id],
+            onDismiss = { alerting = null },
+            onSaveThreshold = { threshold ->
                 onSaveThreshold(threshold)
+                alerting = null
+            },
+            onSaveRating = { pref ->
+                onSaveRating(pref)
+                alerting = null
+            },
+        )
+    }
+    val editTarget = editing
+    if (editTarget != null) {
+        InstrumentEditDialog(
+            asset = editTarget.asset,
+            onDismiss = { editing = null },
+            onSave = { asset ->
+                onSaveInstrument(asset)
                 editing = null
             },
         )
@@ -72,7 +96,7 @@ internal fun HoldingsCard(
 }
 
 @Composable
-private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold?, onEdit: () -> Unit) {
+private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold?, onAlert: () -> Unit, onEdit: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -95,51 +119,11 @@ private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold
             Column(horizontalAlignment = Alignment.End) {
                 Text(formatEur(holding.valueEur), fontWeight = FontWeight.SemiBold)
                 Text(formatSignedEur(holding.unrealizedPnlEur), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onEdit) {
-                    Text(if (threshold == null) "Alert" else "Alert on")
+                Row {
+                    TextButton(onClick = onAlert) { Text(if (threshold == null) "Alert" else "Alert on") }
+                    TextButton(onClick = onEdit) { Text("Edit") }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun ThresholdDialog(
-    holding: HoldingValuation,
-    existing: PriceAlertThreshold?,
-    onDismiss: () -> Unit,
-    onSave: (PriceAlertThreshold) -> Unit,
-) {
-    var eur by remember { mutableStateOf(existing?.eurLevel?.stripTrailingZeros()?.toPlainString().orEmpty()) }
-    var percent by remember { mutableStateOf(existing?.percentMove?.stripTrailingZeros()?.toPlainString().orEmpty()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("${holding.asset.symbol} alerts") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Evaluated on stored closes after sync. No extra Yahoo feed.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                OutlinedTextField(eur, { eur = it }, label = { Text("EUR level") }, singleLine = true)
-                OutlinedTextField(percent, { percent = it }, label = { Text("Day move %") }, singleLine = true)
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSave(
-                        PriceAlertThreshold(
-                            assetId = holding.asset.id,
-                            eurLevel = parseDecimal(eur),
-                            percentMove = parseDecimal(percent),
-                        ),
-                    )
-                },
-            ) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-    )
 }

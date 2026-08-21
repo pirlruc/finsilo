@@ -23,7 +23,7 @@ fun LockSetupScreen(
         FinSiloBrand()
         Text("Protect this device copy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
-            "Set a PIN before the ledger opens. Biometrics only work after a PIN unlock in this process. " +
+            "Set a PIN before the ledger opens. Optional biometrics wrap the same ledger key. " +
                 "Losing both PIN and recovery code makes this copy of the ledger unreadable.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -42,9 +42,10 @@ fun LockSetupScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        CopyRecoveryButton(state.recoveryCode, enabled)
         CheckRow(state.recoveryConfirm, enabled, "I saved the recovery code", onSaved)
         if (state.biometricAvailable) {
-            CheckRow(state.biometric, enabled, "Unlock with biometrics after PIN", onBiometric)
+            CheckRow(state.biometric, enabled, "Unlock with biometrics", onBiometric)
         }
         LockError(state.error)
         LockWorkingIndicator(state.working)

@@ -11,11 +11,13 @@ import java.security.SecureRandom
  * such as the Alpha Vantage key.
  *
  * The unwrapped 32-byte database key stays in process memory after a successful
- * PIN or recovery unlock. UI re-lock does not evict it. A cold process cannot
- * open the ledger until the user types PIN or recovery again.
+ * PIN, recovery, or biometric unwrap. Overlay lock does not evict it; [evictSession]
+ * wipes it after the hybrid background grace.
  */
 interface LedgerKeySession {
     fun isSessionOpen(): Boolean
+
+    fun sessionKeyOrNull(): ByteArray?
 
     fun needsWrapUpgrade(): Boolean
 
@@ -25,11 +27,19 @@ interface LedgerKeySession {
 
     fun unlockWithRecovery(recovery: String): Boolean
 
+    fun unlockWithUnwrappedKey(key: ByteArray): Boolean
+
     fun rewrapPin(newPin: String): Boolean
 
     fun rewrapRecovery(newRecovery: String): Boolean
 
     fun finishLegacyMigration(pin: String, recovery: String): Boolean
+
+    fun biometricWrapBlob(): ByteArray?
+
+    fun persistBiometricWrap(blob: ByteArray?): Boolean
+
+    fun evictSession()
 }
 
 class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
@@ -46,6 +56,13 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
 
     override fun isSessionOpen(): Boolean = session != null
+
+    override fun evictSession() {
+        session?.fill(0)
+        session = null
+    }
+
+    override fun sessionKeyOrNull(): ByteArray? = session?.copyOf()
 
     override fun needsWrapUpgrade(): Boolean = hasLegacyPassphrase() && !hasWrappedPassphrase()
 
@@ -71,6 +88,19 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         val wrapped = storedBlob(KEY_WRAP_RECOVERY)
         if (wrapped != null) return acceptWrapped(PassphraseWrap.unwrap(secret, wrapped))
         return unlockLegacy()
+    }
+
+    override fun unlockWithUnwrappedKey(key: ByteArray): Boolean {
+        if (key.size != PASSPHRASE_BYTES) return false
+        return acceptWrapped(key.copyOf())
+    }
+
+    override fun biometricWrapBlob(): ByteArray? = storedBlob(KEY_WRAP_BIOMETRIC)
+
+    override fun persistBiometricWrap(blob: ByteArray?): Boolean {
+        val editor = prefs.edit()
+        if (blob == null) editor.remove(KEY_WRAP_BIOMETRIC) else editor.putString(KEY_WRAP_BIOMETRIC, AppLockCrypto.toHex(blob))
+        return editor.commit()
     }
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
@@ -134,6 +164,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         private const val KEY_PASSPHRASE = "sqlcipher_passphrase"
         private const val KEY_WRAP_PIN = "sqlcipher_wrap_pin"
         private const val KEY_WRAP_RECOVERY = "sqlcipher_wrap_recovery"
+        private const val KEY_WRAP_BIOMETRIC = "sqlcipher_wrap_biometric"
         private const val KEY_ALPHA_VANTAGE = "alpha_vantage_key"
         private const val PASSPHRASE_BYTES: Int = 32
 

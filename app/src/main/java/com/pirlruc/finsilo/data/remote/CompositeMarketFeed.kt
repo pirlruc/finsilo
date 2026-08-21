@@ -54,30 +54,36 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return listOf(CurrencyRate(to, eurPerUsd()))
     }
 
-    override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> {
+    override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> = history(asset, asOf, compact = false)
+
+    override suspend fun probeHistory(asset: Asset, asOf: LocalDate): List<PriceBar> =
+        history(asset, asOf, compact = true).takeLast(PROBE_BARS)
+
+    private suspend fun history(asset: Asset, asOf: LocalDate, compact: Boolean): List<PriceBar> {
         val errors = ArrayList<String>()
-        typedHistory(asset, asOf, errors)?.let { return it }
-        listedHistory(asset.feedSymbol, errors)?.let { return it }
+        typedHistory(asset, asOf, errors, compact)?.let { return it }
+        listedHistory(asset.feedSymbol, asOf, errors, compact)?.let { return it }
         throw IllegalStateException(errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" })
     }
 
-    private suspend fun typedHistory(asset: Asset, asOf: LocalDate, errors: MutableList<String>): List<PriceBar>? = when (asset.assetType) {
-        AssetType.CRYPTO -> firstNonEmpty(errors) { coinGecko(asset) }
-        AssetType.COMMODITY ->
-            firstNonEmpty(errors) { stooqCommodity(asset) }
-                ?: firstNonEmpty(errors) { alphaVantageCommodity(asset, asOf) }
-                ?: throw IllegalStateException(
-                    errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" },
-                )
-        else -> null
-    }
-
-    private suspend fun listedHistory(ticker: String, errors: MutableList<String>): List<PriceBar>? {
-        if (ListedQuoteRouting.looksEuropean(ticker)) {
-            firstNonEmpty(errors) { stooq(ticker) }?.let { return it }
+    private suspend fun typedHistory(asset: Asset, asOf: LocalDate, errors: MutableList<String>, compact: Boolean): List<PriceBar>? =
+        when (asset.assetType) {
+            AssetType.CRYPTO -> firstNonEmpty(errors) { coinGecko(asset, compact) }
+            AssetType.COMMODITY ->
+                firstNonEmpty(errors) { stooqCommodity(asset, compact, asOf) }
+                    ?: firstNonEmpty(errors) { alphaVantageCommodity(asset, asOf) }
+                    ?: throw IllegalStateException(
+                        errors.joinToString("; ").ifBlank { "No history for ${asset.feedSymbol}" },
+                    )
+            else -> null
         }
-        firstNonEmpty(errors) { alphaVantageDaily(ticker) }?.let { return it }
-        return firstNonEmpty(errors) { stooq(ticker) }
+
+    private suspend fun listedHistory(ticker: String, asOf: LocalDate, errors: MutableList<String>, compact: Boolean): List<PriceBar>? {
+        if (ListedQuoteRouting.looksEuropean(ticker)) {
+            firstNonEmpty(errors) { stooq(ticker, compact, asOf) }?.let { return it }
+        }
+        firstNonEmpty(errors) { alphaVantageDaily(ticker, compact) }?.let { return it }
+        return firstNonEmpty(errors) { stooq(ticker, compact, asOf) }
     }
 
     private suspend fun firstNonEmpty(errors: MutableList<String>, block: suspend () -> List<PriceBar>): List<PriceBar>? =
@@ -105,24 +111,25 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return AlphaVantageParser.analystRating(json)
     }
 
-    private suspend fun coinGecko(asset: Asset): List<PriceBar> {
+    private suspend fun coinGecko(asset: Asset, compact: Boolean): List<PriceBar> {
         val id = CRYPTO_IDS[asset.feedSymbol.uppercase()] ?: asset.feedSymbol.lowercase()
-        val json = http.get(MarketFeedUrls.coinGeckoChart(id))
+        val days = if (compact) PROBE_BARS else COIN_GECKO_SYNC_DAYS
+        val json = http.get(MarketFeedUrls.coinGeckoChart(id, days))
         return CoinGeckoParser.dailyCloses(json)
     }
 
-    private suspend fun stooq(symbol: String): List<PriceBar> {
-        val csv = http.get(MarketFeedUrls.stooqDaily(ListedQuoteRouting.stooqTicker(symbol)))
+    private suspend fun stooq(symbol: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
+        val csv = http.get(MarketFeedUrls.stooqDaily(ListedQuoteRouting.stooqTicker(symbol), compactFrom(compact, asOf)))
         return StooqParser.dailyCloses(csv)
     }
 
-    private suspend fun alphaVantageDaily(symbol: String): List<PriceBar> {
+    private suspend fun alphaVantageDaily(symbol: String, compact: Boolean): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
         val json = http.get(
             MarketFeedUrls.alphaVantage(
                 "function" to "TIME_SERIES_DAILY",
                 "symbol" to ListedQuoteRouting.avSymbol(symbol),
-                "outputsize" to "full",
+                "outputsize" to if (compact) "compact" else "full",
                 "apikey" to key,
             ),
         )
@@ -158,13 +165,17 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return AlphaVantageParser.commoditySeries(json)
     }
 
-    private suspend fun stooqCommodity(asset: Asset): List<PriceBar> {
+    private suspend fun stooqCommodity(asset: Asset, compact: Boolean, asOf: LocalDate): List<PriceBar> {
         val ticker = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
-        val csv = http.get(MarketFeedUrls.stooqDaily(ticker))
+        val csv = http.get(MarketFeedUrls.stooqDaily(ticker, compactFrom(compact, asOf)))
         return StooqParser.dailyCloses(csv)
     }
 
+    private fun compactFrom(compact: Boolean, asOf: LocalDate): LocalDate? = if (compact) asOf.minusDays(PROBE_BARS.toLong() + 20) else null
+
     companion object {
+        private const val PROBE_BARS: Int = 100
+        private const val COIN_GECKO_SYNC_DAYS: Int = 200
         private val CRYPTO_IDS = mapOf(
             "BTC" to "bitcoin",
             "ETH" to "ethereum",
