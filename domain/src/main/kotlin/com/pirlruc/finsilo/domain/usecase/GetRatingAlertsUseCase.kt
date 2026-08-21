@@ -65,8 +65,10 @@ class GetRatingAlertsUseCase {
         selected: Set<AnalystRating>,
     ): PortfolioAlert? {
         if (current == AnalystRating.NONE || current !in selected) return null
-        if (previous != null && previous in selected) return null
-        val from = previous?.displayName ?: "None"
+        val prior = previous.takeUnless { it == AnalystRating.NONE }
+        if (prior != null && prior in selected) return null
+        if (prior == null && previous == AnalystRating.NONE) return null
+        val from = prior?.displayName ?: "None"
         return PortfolioAlert(
             AlertChannel.RATING,
             "$symbol rating",

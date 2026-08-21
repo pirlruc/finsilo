@@ -96,12 +96,13 @@ class LockViewModel(
         biometricPromptActive = active
     }
 
-    fun setExternalUiActive(active: Boolean) {
+    fun setExternalUiActive(active: Boolean): Int {
         if (active) {
             externalUiDepth += 1
         } else {
             externalUiDepth = (externalUiDepth - 1).coerceAtLeast(0)
         }
+        return externalUiDepth
     }
 
     fun onAppBackgrounded() {

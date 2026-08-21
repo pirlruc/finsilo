@@ -21,7 +21,7 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     RelockOnProcessStop(viewModel)
     BiometricAvailability(viewModel)
-    val prompt = biometricLauncher(viewModel, state)
+    val prompt = biometricLauncher(viewModel)
     AutoBiometricPrompt(state, prompt)
     var sessionReady by remember { mutableStateOf(false) }
     SideEffect {

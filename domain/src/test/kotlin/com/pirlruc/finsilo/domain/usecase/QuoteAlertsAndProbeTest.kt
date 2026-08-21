@@ -53,6 +53,40 @@ class QuoteAlertsAndProbeTest {
         val alerts = GetRatingAlertsUseCase()(listOf(entered, stayed, buy), emptyList(), emptyList(), emptyList(), asOf)
         assertEquals(1, alerts.size)
         assertTrue(alerts.single().body.contains("Sell"))
+        val unknownPrior = GetRatingAlertsUseCase()(
+            listOf(signal(AnalystRating.NONE, AnalystRating.SELL)),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            asOf,
+        )
+        assertTrue(unknownPrior.isEmpty())
+    }
+
+    @Test
+    fun watchlistFirstBarNotifiesAndNonePriorDoesNot() {
+        val item = WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)
+        val first =
+            GetRatingAlertsUseCase()(
+                emptyList(),
+                listOf(item),
+                listOf(DailyMarketData("w1", asOf, BigDecimal("410"), AnalystRating.STRONG_BUY)),
+                emptyList(),
+                asOf,
+            )
+        assertEquals(1, first.size)
+        val unknown =
+            GetRatingAlertsUseCase()(
+                emptyList(),
+                listOf(item),
+                listOf(
+                    DailyMarketData("w1", asOf.minusDays(1), BigDecimal("400"), AnalystRating.NONE),
+                    DailyMarketData("w1", asOf, BigDecimal("410"), AnalystRating.STRONG_BUY),
+                ),
+                emptyList(),
+                asOf,
+            )
+        assertTrue(unknown.isEmpty())
     }
 
     @Test

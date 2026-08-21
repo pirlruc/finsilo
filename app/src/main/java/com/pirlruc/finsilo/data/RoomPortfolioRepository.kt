@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.data
 
+import androidx.room.withTransaction
 import com.pirlruc.finsilo.data.local.AssetEntity
 import com.pirlruc.finsilo.data.local.CurrencyRateEntity
 import com.pirlruc.finsilo.data.local.DailyMarketDataEntity
@@ -136,10 +137,11 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     }
 
     override suspend fun upsertAsset(asset: Asset) {
-        val previous = dao.getAssets().firstOrNull { it.assetId == asset.id }?.toDomain()
-        dao.insertAssets(listOf(AssetEntity.from(asset)))
-        if (previous != null && previous.feedSymbol != asset.feedSymbol) {
-            dao.deleteMarketDataForAsset(asset.id)
+        val previous = dao.getAsset(asset.id)?.toDomain()
+        val clearQuotes = previous != null && previous.feedSymbol != asset.feedSymbol
+        database.withTransaction {
+            dao.insertAssets(listOf(AssetEntity.from(asset)))
+            if (clearQuotes) dao.deleteMarketDataForAsset(asset.id)
         }
         rebuildNavHistoryIfNeeded(load())
     }

@@ -22,7 +22,7 @@ class ProbeMarketQuoteUseCase(private val feed: MarketFeed) {
             return QuoteProbeResult.Found(emptyList())
         }
         val bars =
-            runCatching { feed.dailyHistory(asset, asOf).filter { !it.date.isAfter(asOf) } }
+            runCatching { feed.probeHistory(asset, asOf).filter { !it.date.isAfter(asOf) } }
                 .getOrElse { return QuoteProbeResult.Missing("${asset.symbol}: ${it.message}") }
         if (bars.isEmpty()) return QuoteProbeResult.Missing("No current quote for ${asset.feedSymbol}.")
         return QuoteProbeResult.Found(bars)

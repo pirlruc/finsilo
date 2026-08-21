@@ -12,16 +12,19 @@ import java.time.LocalDate
 
 internal class QuoteDraftProber(private val feed: MarketFeed, private val today: () -> LocalDate) {
     private val bars = HashMap<String, List<PriceBar>>()
+    private val probedQuote = HashMap<String, String>()
+    private val outcomeByQuote = HashMap<String, QuoteProbeResult>()
 
     fun clear() {
         bars.clear()
+        probedQuote.clear()
+        outcomeByQuote.clear()
     }
 
     suspend fun probe(drafts: List<ImportSymbolDraft>): List<ImportSymbolDraft> {
         val probe = ProbeMarketQuoteUseCase(feed)
         val asOf = today()
-        val next = drafts.map { draft -> probeOne(probe, asOf, draft) }
-        return next
+        return drafts.map { draft -> probeOne(probe, asOf, draft) }
     }
 
     suspend fun store(repository: RoomPortfolioRepository, snapshot: PortfolioSnapshot, drafts: List<ImportSymbolDraft>) {
@@ -35,12 +38,23 @@ internal class QuoteDraftProber(private val feed: MarketFeed, private val today:
 
     private suspend fun probeOne(probe: ProbeMarketQuoteUseCase, asOf: LocalDate, draft: ImportSymbolDraft): ImportSymbolDraft {
         if (!draft.needsQuote) return draft
-        return when (val outcome = probe(draft.asProbeAsset(), asOf)) {
-            is QuoteProbeResult.Found -> {
-                bars[draft.key] = outcome.bars
-                draft.copy(quoteWarning = null)
-            }
-            is QuoteProbeResult.Missing -> draft.copy(quoteWarning = outcome.reason)
+        val quote = draft.quoteSymbol.trim()
+        if (probedQuote[draft.key] == quote) return draft
+        val cacheKey = quote.uppercase()
+        val outcome = outcomeByQuote[cacheKey] ?: probe(draft.asProbeAsset(), asOf).also { outcomeByQuote[cacheKey] = it }
+        return applyOutcome(draft, quote, outcome)
+    }
+
+    private fun applyOutcome(draft: ImportSymbolDraft, quote: String, outcome: QuoteProbeResult): ImportSymbolDraft = when (outcome) {
+        is QuoteProbeResult.Found -> {
+            bars[draft.key] = outcome.bars
+            probedQuote[draft.key] = quote
+            draft.copy(quoteWarning = null)
+        }
+        is QuoteProbeResult.Missing -> {
+            bars.remove(draft.key)
+            probedQuote[draft.key] = quote
+            draft.copy(quoteWarning = outcome.reason)
         }
     }
 }

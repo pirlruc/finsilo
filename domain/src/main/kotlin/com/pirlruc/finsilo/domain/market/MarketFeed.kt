@@ -17,6 +17,12 @@ interface MarketFeed {
 
     suspend fun dailyHistory(asset: Asset, asOf: LocalDate = LocalDate.now()): List<PriceBar>
 
+    /**
+     * Compact existence/seed fetch. Default is [dailyHistory]; production feeds
+     * should request a short window (Alpha Vantage `compact`) instead of full.
+     */
+    suspend fun probeHistory(asset: Asset, asOf: LocalDate = LocalDate.now()): List<PriceBar> = dailyHistory(asset, asOf)
+
     suspend fun analystRating(asset: Asset): AnalystRating
 }
 

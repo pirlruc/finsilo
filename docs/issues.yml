@@ -1776,4 +1776,66 @@ milestones:
               - ./gradlew :domain:test :domain:koverVerify
               - ./gradlew :app:testDebugUnitTest :app:lintDebug
 
+      - id: FS-031
+        status: open
+        title: Bound market-history growth and optional session eviction
+        overview:
+          problem: >-
+            Each sync writes at most 400 bars per asset but never deletes older
+            rows, so daily_market_data and full-snapshot loads grow for the life
+            of the book. UI relock leaves the SQLCipher session key in process
+            memory so background sync can still run. Those are scaling and
+            threat-model leftovers after FS-030, not blockers for the quote
+            probe / biometric wrap slice.
+          goal: >-
+            After quote upsert, keep a rolling window of stored bars per asset.
+            Split hot read paths so dashboard/sync do not always materialize
+            every market row. Document or implement process-background eviction
+            of the SQLCipher session (close Room) as an explicit lock-policy
+            decision — do not silently change overlay-relock behaviour.
+        architecture:
+          target: Rolling bar prune, narrower repository reads, lock-policy eviction
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data
+            - app/src/main/java/com/pirlruc/finsilo/data/security
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+        acceptance_criteria:
+          - Stored bars per asset stay near the sync write window after upsert
+          - Dashboard/sync no longer require loading unused historical bars on every call
+          - Session-key eviction on UI relock is an explicit product choice with tests
+        guardrail_refs:
+          - KT-CPLX-002
+          - KT-SEC-001
+        tasks:
+          - id: FS-031-T1
+            status: open
+            title: Prune daily_market_data to a rolling window on upsert
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Old dates for an asset are gone after a sliding-window upsert
+          - id: FS-031-T2
+            status: open
+            title: Narrow portfolio reads used by dashboard and daily sync
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+                - app/src/main/java/com/pirlruc/finsilo/data/sync
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Daily sync does not triple-load the full snapshot
+          - id: FS-031-T3
+            status: open
+            title: Decide SQLCipher session eviction on UI relock
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Behaviour matches the Epic decision (keep session vs close Room)
+
 

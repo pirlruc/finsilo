@@ -108,10 +108,10 @@ private fun rememberPickerBusy(lock: LockViewModel): (Boolean) -> Unit {
     val activity = LocalActivity.current
     return remember(lock, activity) {
         { busy ->
-            lock.setExternalUiActive(busy)
+            val depth = lock.setExternalUiActive(busy)
             val window = activity?.window
             if (window != null) {
-                if (busy) {
+                if (depth > 0) {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 } else {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)

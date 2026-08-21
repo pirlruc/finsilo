@@ -3,6 +3,8 @@ package com.pirlruc.finsilo.data.remote
 import java.io.IOException
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.Buffer
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,5 +35,17 @@ class HttpGetClientTest {
         validateMarketGet(
             Request.Builder().url("https://stooq.com/").post(ByteArray(0).toRequestBody()).build(),
         )
+    }
+
+    @Test
+    fun utf8BodyIsCapped() {
+        val source = Buffer().writeUtf8("ok")
+        assertEquals("ok", readUtf8Capped(source, 16))
+        try {
+            readUtf8Capped(Buffer().writeUtf8("too-big-payload"), 4)
+            error("expected cap")
+        } catch (error: IOException) {
+            assertTrue(error.message!!.contains("too large"))
+        }
     }
 }

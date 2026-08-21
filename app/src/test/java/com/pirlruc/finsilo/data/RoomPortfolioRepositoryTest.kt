@@ -140,6 +140,33 @@ class RoomPortfolioRepositoryTest {
     }
 
     @Test
+    fun changingQuoteSymbolDropsStoredBars() = runTest {
+        val asOf = LocalDate.of(2026, 8, 16)
+        val stock =
+            Asset(
+                id = "asset-vwce",
+                symbol = "VWCE",
+                name = "VWCE",
+                assetType = AssetType.ETF,
+                baseCurrency = Currency.EUR,
+            )
+        repository.upsertAsset(stock)
+        repository.upsertQuotes(
+            listOf(DailyMarketData(stock.id, asOf, BigDecimal("100"))),
+            emptyList(),
+        )
+        assertEquals(1, repository.load().marketData.size)
+        repository.upsertAsset(stock.copy(quoteSymbol = "VWCE.DE"))
+        assertTrue(repository.load().marketData.isEmpty())
+        repository.upsertQuotes(
+            listOf(DailyMarketData(stock.id, asOf, BigDecimal("101"))),
+            emptyList(),
+        )
+        repository.upsertAsset(stock.copy(name = "Vanguard FTSE", quoteSymbol = "VWCE.DE"))
+        assertEquals(1, repository.load().marketData.size)
+    }
+
+    @Test
     fun ledgerSequenceRoundTripsThroughRoom() = runTest {
         val asOf = LocalDate.of(2026, 8, 16)
         val cash =

@@ -117,6 +117,21 @@ class LockViewModelTest {
     }
 
     @Test
+    fun overlappingPickersKeepSessionUntilTheLastCloses() {
+        val store = FakeAppLock()
+        val viewModel = LockViewModel(store, dispatcher, { 1L })
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.setExternalUiActive(true)
+        viewModel.setExternalUiActive(true)
+        viewModel.setExternalUiActive(false)
+        viewModel.onAppBackgrounded()
+        assertTrue(viewModel.state.value.unlocked)
+        viewModel.setExternalUiActive(false)
+        viewModel.onAppBackgrounded()
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
+    @Test
     fun completeSetupProvisionsWrappedKey() {
         val keys = FakeLedgerKeys()
         var opened = 0

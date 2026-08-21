@@ -9,13 +9,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 @Composable
-internal fun biometricLauncher(viewModel: LockViewModel, state: LockUiState): () -> Unit = rememberBiometricPrompt(
-    mode = { promptMode(state, viewModel) },
-    wrapBlob = { viewModel.biometricWrapBlob() },
-    onResult = { result -> applyBiometricResult(viewModel, result) },
-    onError = { message -> onBiometricError(viewModel, state, message) },
-    onClosed = { viewModel.setBiometricPromptActive(false) },
-)
+internal fun biometricLauncher(viewModel: LockViewModel): () -> Unit {
+    val raw = rememberBiometricPrompt(
+        mode = { promptMode(viewModel.state.value, viewModel) },
+        wrapBlob = { viewModel.biometricWrapBlob() },
+        onResult = { result -> applyBiometricResult(viewModel, result) },
+        onError = { message -> onBiometricError(viewModel, message) },
+        onClosed = { viewModel.setBiometricPromptActive(false) },
+    )
+    return {
+        viewModel.setBiometricPromptActive(true)
+        raw()
+    }
+}
 
 internal fun promptMode(state: LockUiState, viewModel: LockViewModel): BiometricCryptoMode = when {
     state.pendingBiometricSeal -> BiometricCryptoMode.SEAL
@@ -53,25 +59,29 @@ internal fun shouldAutoPrompt(state: LockUiState): Boolean {
     return state.setupComplete && !state.unlocked && !state.recovering && !state.pinFallback
 }
 
-private fun onBiometricError(viewModel: LockViewModel, state: LockUiState, message: String) {
+private fun onBiometricError(viewModel: LockViewModel, message: String) {
     viewModel.setBiometricPromptActive(false)
     if (message == BIOMETRIC_PIN_FALLBACK) {
         viewModel.showPinFallback()
     } else {
         viewModel.setError(message)
     }
-    if (state.pendingBiometricSeal) viewModel.cancelBiometricSeal()
+    if (viewModel.state.value.pendingBiometricSeal) viewModel.cancelBiometricSeal()
 }
 
 private fun finishSeal(viewModel: LockViewModel, result: BiometricPrompt.AuthenticationResult): Boolean {
     if (!viewModel.state.value.pendingBiometricSeal) return false
     val plain = viewModel.sessionKeyCopy()
-    val blob = if (plain == null) null else BiometricKeyWrap.seal(result, plain)
-    if (blob == null) {
-        viewModel.cancelBiometricSeal()
-        viewModel.setError("Could not enable biometric unlock.")
-    } else {
-        viewModel.finishBiometricSeal(blob)
+    try {
+        val blob = if (plain == null) null else BiometricKeyWrap.seal(result, plain)
+        if (blob == null) {
+            viewModel.cancelBiometricSeal()
+            viewModel.setError("Could not enable biometric unlock.")
+        } else {
+            viewModel.finishBiometricSeal(blob)
+        }
+    } finally {
+        plain?.fill(0)
     }
     return true
 }
@@ -79,11 +89,15 @@ private fun finishSeal(viewModel: LockViewModel, result: BiometricPrompt.Authent
 private fun finishUnwrap(viewModel: LockViewModel, result: BiometricPrompt.AuthenticationResult): Boolean {
     val wrap = viewModel.biometricWrapBlob() ?: return false
     val key = BiometricKeyWrap.open(result, wrap)
-    if (key == null) {
-        viewModel.showPinFallback()
-        viewModel.setError("Unlock with biometrics failed. Enter PIN.")
-    } else {
-        viewModel.unlockWithUnwrappedKey(key)
+    try {
+        if (key == null) {
+            viewModel.showPinFallback()
+            viewModel.setError("Unlock with biometrics failed. Enter PIN.")
+        } else {
+            viewModel.unlockWithUnwrappedKey(key)
+        }
+    } finally {
+        key?.fill(0)
     }
     return true
 }

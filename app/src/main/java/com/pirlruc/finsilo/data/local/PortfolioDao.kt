@@ -12,6 +12,9 @@ interface PortfolioDao {
     @Query("SELECT * FROM assets")
     suspend fun getAssets(): List<AssetEntity>
 
+    @Query("SELECT * FROM assets WHERE asset_id = :assetId LIMIT 1")
+    suspend fun getAsset(assetId: String): AssetEntity?
+
     @Query("SELECT * FROM transactions ORDER BY date ASC, ledger_sequence ASC, transaction_id ASC")
     suspend fun getTransactions(): List<TransactionEntity>
 

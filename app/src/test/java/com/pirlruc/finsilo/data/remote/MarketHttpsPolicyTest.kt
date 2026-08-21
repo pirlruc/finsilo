@@ -64,5 +64,7 @@ class MarketHttpsPolicyTest {
             MarketFeedUrls.frankfurterRange(LocalDate.parse("2024-01-01"), LocalDate.parse("2024-01-31"))
                 .contains("2024-01-01..2024-01-31"),
         )
+        assertTrue(MarketFeedUrls.coinGeckoChart("bitcoin", 100).contains("days=100"))
+        assertTrue(MarketFeedUrls.stooqDaily("vwce.de", LocalDate.parse("2026-04-23")).contains("d1=20260423"))
     }
 }

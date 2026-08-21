@@ -26,7 +26,11 @@ object AppLockCrypto {
     /** Grouped uppercase hex recovery code (16 bytes). */
     fun generateRecoveryCode(random: SecureRandom = SecureRandom()): String {
         val raw = ByteArray(RECOVERY_BYTES).also { random.nextBytes(it) }
-        return toHex(raw).chunked(4).joinToString("-").uppercase()
+        return try {
+            toHex(raw).chunked(4).joinToString("-").uppercase()
+        } finally {
+            raw.fill(0)
+        }
     }
 
     /** True when [pin] is 4–8 digits. */
@@ -34,14 +38,24 @@ object AppLockCrypto {
 
     /** PBKDF2-HMAC-SHA256 of [secret] with [salt]. */
     fun hashSecret(secret: String, salt: ByteArray): ByteArray {
-        val spec = PBEKeySpec(secret.toCharArray(), salt, ITERATIONS, KEY_LENGTH_BITS)
-        return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        val chars = secret.toCharArray()
+        val spec = PBEKeySpec(chars, salt, ITERATIONS, KEY_LENGTH_BITS)
+        return try {
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        } finally {
+            spec.clearPassword()
+            chars.fill('\u0000')
+        }
     }
 
     /** Constant-time compare of [secret] against a stored hash. */
     fun verify(secret: String, salt: ByteArray, expected: ByteArray): Boolean {
         val actual = hashSecret(secret, salt)
-        return MessageDigest.isEqual(actual, expected)
+        return try {
+            MessageDigest.isEqual(actual, expected)
+        } finally {
+            actual.fill(0)
+        }
     }
 
     /** Strips grouping punctuation so typed recovery codes still match. */
