@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
-import com.pirlruc.finsilo.data.sync.PortfolioAlertNotifier
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.NavPoint
@@ -124,11 +123,7 @@ class DashboardViewModel(
     fun saveThreshold(threshold: PriceAlertThreshold) {
         viewModelScope.launch {
             runCatching { DashboardMutations.saveThreshold(repository, threshold) }
-                .onSuccess {
-                    val next = _state.value.thresholds.toMutableMap()
-                    if (threshold.isEmpty) next.remove(threshold.assetId) else next[threshold.assetId] = threshold
-                    _state.update { it.copy(thresholds = next, statusMessage = "Price alert saved") }
-                }
+                .onSuccess { _state.update { DashboardMutations.thresholdSaved(it, threshold) } }
                 .onFailure { error ->
                     _state.update { it.copy(statusMessage = error.message ?: "Could not save alert") }
                 }
@@ -137,12 +132,8 @@ class DashboardViewModel(
 
     fun saveRating(pref: RatingAlertPref) {
         viewModelScope.launch {
-            runCatching { repository.saveRatingAlert(pref) }
-                .onSuccess {
-                    val next = _state.value.ratingPrefs.toMutableMap()
-                    next[pref.targetId] = pref
-                    _state.update { it.copy(ratingPrefs = next, statusMessage = "Rating alert saved") }
-                }
+            runCatching { DashboardMutations.saveRating(repository, pref) }
+                .onSuccess { _state.update { DashboardMutations.ratingSaved(it, pref) } }
                 .onFailure { error ->
                     _state.update { it.copy(statusMessage = error.message ?: "Could not save rating alert") }
                 }
@@ -151,7 +142,7 @@ class DashboardViewModel(
 
     fun saveInstrument(asset: Asset) {
         viewModelScope.launch {
-            runCatching { repository.upsertAsset(asset) }
+            runCatching { DashboardMutations.saveInstrument(repository, asset) }
                 .onSuccess {
                     _state.update { it.copy(statusMessage = "Instrument updated") }
                     refresh()
@@ -193,17 +184,6 @@ class DashboardViewModel(
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val notifier = PortfolioAlertNotifier(container.application)
-                return DashboardViewModel(
-                    container.repository,
-                    container.getDashboard,
-                    container,
-                    notify = { notifier.publish(it) },
-                ) as T
-            }
-        }
+        fun factory(container: AppContainer): ViewModelProvider.Factory = dashboardViewModelFactory(container)
     }
 }

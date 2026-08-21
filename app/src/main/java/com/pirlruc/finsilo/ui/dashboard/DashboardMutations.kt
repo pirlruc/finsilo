@@ -3,7 +3,9 @@ package com.pirlruc.finsilo.ui.dashboard
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
+import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
@@ -37,6 +39,26 @@ internal object DashboardMutations {
 
     suspend fun saveThreshold(repository: RoomPortfolioRepository, threshold: PriceAlertThreshold) {
         repository.saveThreshold(threshold)
+    }
+
+    suspend fun saveRating(repository: RoomPortfolioRepository, pref: RatingAlertPref) {
+        repository.saveRatingAlert(pref)
+    }
+
+    suspend fun saveInstrument(repository: RoomPortfolioRepository, asset: Asset) {
+        repository.upsertAsset(asset)
+    }
+
+    fun thresholdSaved(state: DashboardUiState, threshold: PriceAlertThreshold): DashboardUiState {
+        val next = state.thresholds.toMutableMap()
+        if (threshold.isEmpty) next.remove(threshold.assetId) else next[threshold.assetId] = threshold
+        return state.copy(thresholds = next, statusMessage = "Price alert saved")
+    }
+
+    fun ratingSaved(state: DashboardUiState, pref: RatingAlertPref): DashboardUiState {
+        val next = state.ratingPrefs.toMutableMap()
+        next[pref.targetId] = pref
+        return state.copy(ratingPrefs = next, statusMessage = "Rating alert saved")
     }
 
     suspend fun syncQuotes(
