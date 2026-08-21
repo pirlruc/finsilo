@@ -60,6 +60,9 @@ fun TargetSettingsRoute(
             onWeight = targets::setWeight,
             onSave = { targets.save(onClose) },
             onImportCsvs = { texts -> importer.importCsvs(texts) { } },
+            onDraftQuote = importer::setDraftQuote,
+            onConfirmImport = { importer.confirmImport { } },
+            onCancelImport = importer::cancelReview,
             onPickerBusy = onPickerBusy,
             lock = LockSettingsActions(
                 onToggleBiometric = lock::requestToggleBiometric,
@@ -74,7 +77,9 @@ fun TargetSettingsRoute(
                 onRecovery = tools::setRecovery,
                 onExportCsv = tools::exportTaxCsv,
                 onExportPdf = tools::exportTaxPdf,
-                onExportBackup = tools::exportBackup,
+                onPrepareBackup = tools::prepareBackupExport,
+                onExportConsumed = tools::onExportConsumed,
+                onExportLaunchFailed = tools::onExportLaunchFailed,
                 onRestoreBackup = tools::restoreBackup,
                 onConfirmRestore = tools::confirmRestore,
                 onCancelRestore = tools::cancelRestore,
@@ -114,7 +119,14 @@ internal fun TargetSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Data", style = MaterialTheme.typography.titleLarge)
-            BrokerImportCard(state = importState, onImportCsvs = actions.onImportCsvs, onPickerBusy = actions.onPickerBusy)
+            BrokerImportCard(
+                state = importState,
+                onImportCsvs = actions.onImportCsvs,
+                onQuoteSymbol = actions.onDraftQuote,
+                onConfirmReview = actions.onConfirmImport,
+                onCancelReview = actions.onCancelImport,
+                onPickerBusy = actions.onPickerBusy,
+            )
             PortfolioToolsCard(state = tools, actions = actions.tools)
             Text("Target allocation", style = MaterialTheme.typography.titleLarge)
             Text(

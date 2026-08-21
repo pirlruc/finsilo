@@ -32,5 +32,7 @@ milestones:
     description: Charts, sample honesty, live signals
   - name: Phase 7 — Guardrails
     description: Kotlin/Android quality, coverage, security, Android lint
+  - name: Phase 8 — Quotes, lock, and alerts
+    description: Quote probe, biometric DB wrap, rating prefs, backup export
   - name: Tooling — Analog & methodology
     description: Guardrails, github-scaffold, github-issue-adr

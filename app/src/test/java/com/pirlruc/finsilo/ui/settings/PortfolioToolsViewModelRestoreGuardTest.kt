@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -95,11 +96,26 @@ class PortfolioToolsViewModelRestoreGuardTest {
     fun exportStillRequiresCurrentLockRecovery() {
         val viewModel = toolsViewModel()
         viewModel.setRecovery("ZZZZ9999YYYY8888")
-        var written = false
-        viewModel.exportBackup { written = true }
+        viewModel.prepareBackupExport("backup.fsi")
         dispatcher.scheduler.advanceUntilIdle()
-        assertFalse(written)
+        assertNull(viewModel.state.value.pendingExport)
         assertTrue(viewModel.state.value.error!!.contains("current recovery"))
+    }
+
+    @Test
+    fun exportQueuesBytesUntilPickerWrites() {
+        val repository = RoomPortfolioRepository(database)
+        kotlinx.coroutines.runBlocking { repository.write(SamplePortfolioFactory.create()) }
+        val viewModel = toolsViewModel(repository)
+        viewModel.setRecovery("ABCD1234EFGH5678")
+        viewModel.prepareBackupExport("backup.fsi")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.state.value.pendingExport != null)
+        assertEquals("backup.fsi", viewModel.state.value.pendingExportName)
+        assertNull(viewModel.state.value.status)
+        viewModel.onExportConsumed(written = true)
+        assertNull(viewModel.state.value.pendingExport)
+        assertTrue(viewModel.state.value.status!!.contains("written"))
     }
 
     private fun toolsViewModel(

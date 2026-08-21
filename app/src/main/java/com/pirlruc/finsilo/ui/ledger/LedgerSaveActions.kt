@@ -15,7 +15,7 @@ internal sealed class LedgerSaveOutcome {
 
     data class ManualSaved(val state: LedgerUiState, val snapshot: PortfolioSnapshot) : LedgerSaveOutcome()
 
-    data class Posted(val status: String) : LedgerSaveOutcome()
+    data class Posted(val status: String, val assetId: String) : LedgerSaveOutcome()
 }
 
 internal object LedgerSaveActions {
@@ -83,7 +83,7 @@ internal object LedgerSaveActions {
     ): LedgerSaveOutcome = runCatching {
         repository.persistImport(snapshot, withAccepted(snapshot, result))
     }.fold(
-        onSuccess = { LedgerSaveOutcome.Posted(postedStatus(result)) },
+        onSuccess = { LedgerSaveOutcome.Posted(postedStatus(result), result.asset.id) },
         onFailure = { error ->
             LedgerSaveOutcome.StateOnly(state.copy(saving = false, error = error.message ?: "Could not save"))
         },

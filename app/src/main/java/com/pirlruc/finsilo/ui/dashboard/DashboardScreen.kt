@@ -40,10 +40,17 @@ fun DashboardRoute(
             onAddTransaction = onAddTransaction,
             onOpenSettings = onOpenSettings,
             onOpenWatchlist = onOpenWatchlist,
-            onPickerBusy = onPickerBusy,
-            onImportCsvs = { texts -> importer.importCsvs(texts) { viewModel.refresh() } },
+            import = ImportNavActions(
+                onImportCsvs = { texts -> importer.importCsvs(texts) { viewModel.refresh() } },
+                onQuoteSymbol = importer::setDraftQuote,
+                onConfirmReview = { importer.confirmImport { viewModel.refresh() } },
+                onCancelReview = importer::cancelReview,
+                onPickerBusy = onPickerBusy,
+            ),
             onRangeSelected = viewModel::setRange,
             onSaveThreshold = viewModel::saveThreshold,
+            onSaveRating = viewModel::saveRating,
+            onSaveInstrument = viewModel::saveInstrument,
             onSync = viewModel::syncMarketData,
             onSaveKey = viewModel::saveAlphaVantageKey,
             onLoadSample = viewModel::loadSample,
@@ -93,15 +100,25 @@ internal fun DashboardScreen(
                 state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.error != null -> ErrorState(state.error)
                 state.empty ->
-                    EmptyState(nav.onLoadSample, nav.onAddTransaction, importState, nav.onImportCsvs, nav.onPickerBusy)
+                    EmptyState(
+                        nav.onLoadSample,
+                        nav.onAddTransaction,
+                        importState,
+                        nav.import.onImportCsvs,
+                        nav.import.onPickerBusy,
+                        nav.import.onQuoteSymbol,
+                        nav.import.onConfirmReview,
+                        nav.import.onCancelReview,
+                    )
                 state.report != null ->
                     DashboardContent(
                         report = state.report,
                         range = state.range,
                         statusMessage = state.statusMessage,
                         thresholds = state.thresholds,
+                        ratingPrefs = state.ratingPrefs,
                         onRangeSelected = nav.onRangeSelected,
-                        onSaveThreshold = nav.onSaveThreshold,
+                        holdings = HoldingActions(nav.onSaveThreshold, nav.onSaveRating, nav.onSaveInstrument),
                     )
             }
         }

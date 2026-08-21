@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.sync.PortfolioAlertNotifier
+import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioHistoryUseCase
@@ -129,6 +131,33 @@ class DashboardViewModel(
                 }
                 .onFailure { error ->
                     _state.update { it.copy(statusMessage = error.message ?: "Could not save alert") }
+                }
+        }
+    }
+
+    fun saveRating(pref: RatingAlertPref) {
+        viewModelScope.launch {
+            runCatching { repository.saveRatingAlert(pref) }
+                .onSuccess {
+                    val next = _state.value.ratingPrefs.toMutableMap()
+                    next[pref.targetId] = pref
+                    _state.update { it.copy(ratingPrefs = next, statusMessage = "Rating alert saved") }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(statusMessage = error.message ?: "Could not save rating alert") }
+                }
+        }
+    }
+
+    fun saveInstrument(asset: Asset) {
+        viewModelScope.launch {
+            runCatching { repository.upsertAsset(asset) }
+                .onSuccess {
+                    _state.update { it.copy(statusMessage = "Instrument updated") }
+                    refresh()
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(statusMessage = error.message ?: "Could not update instrument") }
                 }
         }
     }

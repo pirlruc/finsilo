@@ -27,6 +27,8 @@ data class PortfolioToolsUiState(
     val error: String? = null,
     val busy: Boolean = false,
     val confirmRestore: Boolean = false,
+    val pendingExport: ByteArray? = null,
+    val pendingExportName: String? = null,
 )
 
 class PortfolioToolsViewModel(
@@ -51,24 +53,35 @@ class PortfolioToolsViewModel(
         exportTax(csv = false, write = write)
     }
 
-    fun exportBackup(write: (ByteArray) -> Unit) {
+    fun prepareBackupExport(fileName: String) {
         viewModelScope.launch {
             val recovery = _state.value.recovery
-            if (!lock.verifyRecovery(recovery)) {
-                _state.update { it.copy(error = "Enter the current recovery code to encrypt the backup.") }
+            _state.update { it.copy(busy = true, error = null, status = null, pendingExport = null, pendingExportName = null) }
+            val accepted = withContext(cryptoDispatcher) { lock.verifyRecovery(recovery) }
+            if (!accepted) {
+                _state.update { it.copy(busy = false, error = "Enter the current recovery code to encrypt the backup.") }
                 return@launch
             }
-            _state.update { it.copy(busy = true, error = null, status = null) }
             runCatching {
                 val snapshot = repository.load()
                 val extras = repository.loadBackupExtras()
                 withContext(cryptoDispatcher) { LedgerBackupCodec.encrypt(snapshot, recovery, extras) }
             }.onSuccess { bytes ->
-                write(bytes)
-                _state.update { it.copy(busy = false, status = "Encrypted backup written. Keep the recovery code.") }
+                _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName) }
             }.onFailure { error ->
                 _state.update { it.copy(busy = false, error = error.message ?: "Export failed") }
             }
+        }
+    }
+
+    fun onExportConsumed(written: Boolean) {
+        val status = if (written) "Encrypted backup written. Keep the recovery code." else null
+        _state.update { it.copy(pendingExport = null, pendingExportName = null, status = status) }
+    }
+
+    fun onExportLaunchFailed(message: String) {
+        _state.update {
+            it.copy(pendingExport = null, pendingExportName = null, error = message, busy = false)
         }
     }
 

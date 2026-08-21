@@ -5,12 +5,15 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
+import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.WatchlistItem
@@ -305,10 +308,14 @@ class RoomPortfolioRepositoryTest {
                     LedgerTemplate("t1", "Cash", TransactionType.DEPOSIT_CASH, quantity = "250"),
                 ),
                 thresholds = listOf(PriceAlertThreshold(live.id, eurLevel = BigDecimal("12"))),
+                ratingAlerts = listOf(
+                    RatingAlertPref(live.id, RatingAlertScope.HOLDING, setOf(AnalystRating.SELL)),
+                ),
             )
         repository.restoreBackup(snapshot, extras)
         assertEquals("MSFT", repository.loadWatchlist().items.single().symbol)
         assertEquals("Cash", repository.loadTemplates().single().label)
         assertEquals(0, BigDecimal("12").compareTo(checkNotNull(repository.loadThresholds().single().eurLevel)))
+        assertEquals(setOf(AnalystRating.SELL), repository.loadRatingAlerts().single().levels)
     }
 }

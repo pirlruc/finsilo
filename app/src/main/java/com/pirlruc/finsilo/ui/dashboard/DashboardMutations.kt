@@ -4,9 +4,11 @@ import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
+import com.pirlruc.finsilo.domain.usecase.SyncWatchlistUseCase
 import java.time.LocalDate
 
 internal object DashboardMutations {
@@ -46,10 +48,17 @@ internal object DashboardMutations {
         val loaded = repository.load()
         val result = SyncMarketDataUseCase(container.marketFeed)(loaded, today)
         repository.upsertQuotes(result.marketData, result.fxRates)
+        val prefs = repository.loadRatingAlerts()
+        val watch = repository.loadWatchlist()
+        val watched = SyncWatchlistUseCase(container.marketFeed)(watch, today, prefs)
+        repository.replaceWatchlistQuotes(watched.quotes)
         val updated = repository.load()
-        val alerts = GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), today)
+        val alerts =
+            GetPortfolioAlertsUseCase()(updated, today, repository.loadWatchlist(), prefs) +
+                GetPriceThresholdAlertsUseCase()(updated, repository.loadThresholds(), today)
         notify(alerts)
-        val extra = if (result.failures.isEmpty()) "" else " (${result.failures.size} skipped)"
+        val skipped = result.failures.size + watched.failures.size
+        val extra = if (skipped == 0) "" else " ($skipped skipped)"
         return "Updated ${result.marketData.size} daily rows$extra"
     }
 }

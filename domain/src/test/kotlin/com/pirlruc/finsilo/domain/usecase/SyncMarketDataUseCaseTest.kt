@@ -56,7 +56,7 @@ class SyncMarketDataUseCaseTest {
                 history = mapOf(gold.id to listOf(PriceBar(asOf, BigDecimal("2400")))),
             )
         val stored =
-            (0..5).map { offset ->
+            (1..5).map { offset ->
                 DailyMarketData(gold.id, asOf.minusDays(offset.toLong()), BigDecimal("2300"))
             }
         val result =
@@ -95,15 +95,65 @@ class SyncMarketDataUseCaseTest {
         val stored =
             listOf(
                 DailyMarketData(apple.id, yesterday, BigDecimal("190"), AnalystRating.HOLD),
-                DailyMarketData(apple.id, asOf, BigDecimal("195"), AnalystRating.BUY),
             )
         val result =
             kotlinx.coroutines.runBlocking {
                 SyncMarketDataUseCase(feed)(snap(apple, market = stored), asOf)
             }
         assertEquals(AnalystRating.HOLD, result.marketData.single { it.date == yesterday }.analystRating)
-        assertEquals(AnalystRating.BUY, result.marketData.single { it.date == asOf }.analystRating)
+        assertEquals(AnalystRating.HOLD, result.marketData.single { it.date == asOf }.analystRating)
         assertTrue(feed.ratingSymbols.isEmpty())
+    }
+
+    @Test
+    fun freshAsOfBarSkipsHistoryAndRequestsOldestFirst() {
+        val stale = Asset("msft", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)
+        val feed =
+            RecordingFeed(
+                history = mapOf(
+                    apple.id to listOf(PriceBar(asOf, BigDecimal("200"))),
+                    stale.id to listOf(PriceBar(asOf, BigDecimal("400"))),
+                ),
+            )
+        val stored =
+            listOf(
+                DailyMarketData(apple.id, asOf, BigDecimal("190"), AnalystRating.HOLD),
+                DailyMarketData(stale.id, asOf.minusDays(10), BigDecimal("380"), AnalystRating.HOLD),
+            )
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(apple, stale),
+                transactions = emptyList(),
+                marketData = stored,
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        kotlinx.coroutines.runBlocking { SyncMarketDataUseCase(feed)(snapshot, asOf) }
+        assertEquals(listOf("MSFT"), feed.historySymbols)
+    }
+
+    @Test
+    fun freshBarStillPatchesNewRating() {
+        val feed = RecordingFeed(history = mapOf(apple.id to listOf(PriceBar(asOf, BigDecimal("200")))))
+        val stored = listOf(DailyMarketData(apple.id, asOf, BigDecimal("190"), AnalystRating.NONE))
+        val result =
+            kotlinx.coroutines.runBlocking {
+                SyncMarketDataUseCase(feed)(snap(apple, market = stored), asOf)
+            }
+        assertTrue(feed.historySymbols.isEmpty())
+        assertEquals(AnalystRating.HOLD, result.marketData.single().analystRating)
+    }
+
+    @Test
+    fun defaultAsOfRunsOnEmptyBook() {
+        val feed = RecordingFeed(history = emptyMap())
+        val result =
+            kotlinx.coroutines.runBlocking {
+                SyncMarketDataUseCase(feed)(
+                    PortfolioSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), emptyList()),
+                )
+            }
+        assertTrue(result.marketData.isEmpty())
     }
 
     private fun snap(asset: Asset, market: List<DailyMarketData> = emptyList()) = PortfolioSnapshot(

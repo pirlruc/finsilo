@@ -31,6 +31,7 @@ fun WrapUpgradeScreen(state: LockUiState, onSaved: (Boolean) -> Unit, onContinue
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        CopyRecoveryButton(state.upgradeRecovery, enabled)
         CheckRow(state.upgradeRecoveryConfirm, enabled, "I saved the new recovery code", onSaved)
         LockError(state.error)
         LockWorkingIndicator(state.working)

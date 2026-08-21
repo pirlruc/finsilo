@@ -5,6 +5,7 @@ import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.WatchlistItem
@@ -87,6 +88,8 @@ internal object LedgerBackupEncode {
         row.eurLevel?.toPlainString().orEmpty(),
         row.percentMove?.toPlainString().orEmpty(),
     ).joinToString("\t")
+
+    fun ratingAlert(row: RatingAlertPref): String = listOf("R", row.targetId, row.scope.name, row.mask.toString()).joinToString("\t")
 
     fun esc(value: String): String = value.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
 }

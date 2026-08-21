@@ -5,12 +5,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
+import com.pirlruc.finsilo.domain.market.MarketFeed
+import com.pirlruc.finsilo.domain.market.QuoteSeed
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
+import com.pirlruc.finsilo.domain.usecase.ProbeMarketQuoteUseCase
+import com.pirlruc.finsilo.domain.usecase.QuoteProbeResult
 import com.pirlruc.finsilo.domain.usecase.RecordLedgerEntryUseCase
 import com.pirlruc.finsilo.domain.usecase.RecordManualQuoteUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +25,7 @@ import kotlinx.coroutines.launch
 
 class LedgerEntryViewModel(
     private val repository: RoomPortfolioRepository,
+    private val feed: MarketFeed? = null,
     private val record: RecordLedgerEntryUseCase = RecordLedgerEntryUseCase(),
     private val ledger: PositionLedger = PositionLedger(),
     private val manualQuote: RecordManualQuoteUseCase = RecordManualQuoteUseCase(),
@@ -126,15 +131,30 @@ class LedgerEntryViewModel(
 
     fun save(onSaved: () -> Unit) {
         viewModelScope.launch {
+            val probe = probeNewBuy()
+            if (probe is QuoteProbeResult.Missing) {
+                _state.update { it.copy(saving = false, error = probe.reason) }
+                return@launch
+            }
+            val bars = (probe as? QuoteProbeResult.Found)?.bars.orEmpty()
             when (val outcome = LedgerSaveActions.saveEntry(repository, record, snapshot, _state.value)) {
                 is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
                 is LedgerSaveOutcome.Posted -> {
+                    if (bars.isNotEmpty()) {
+                        runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars), emptyList()) }
+                    }
                     resetFormFields(outcome.status)
                     onSaved()
                 }
                 is LedgerSaveOutcome.ManualSaved -> Unit
             }
         }
+    }
+
+    private suspend fun probeNewBuy(): QuoteProbeResult? {
+        val market = feed ?: return null
+        val asset = LedgerQuoteGate.probeAsset(_state.value) ?: return null
+        return ProbeMarketQuoteUseCase(market)(asset)
     }
 
     private suspend fun reload(resetForm: Boolean) {
@@ -150,7 +170,8 @@ class LedgerEntryViewModel(
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = LedgerEntryViewModel(container.repository) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                LedgerEntryViewModel(container.repository, container.marketFeed) as T
         }
     }
 }

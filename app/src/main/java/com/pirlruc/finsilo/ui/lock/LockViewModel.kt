@@ -43,6 +43,8 @@ data class LockUiState(
     val upgradeRecovery: String = "",
     val upgradeRecoveryConfirm: Boolean = false,
     val working: Boolean = false,
+    val pinFallback: Boolean = false,
+    val pendingBiometricSeal: Boolean = false,
 )
 
 class LockViewModel(
@@ -107,7 +109,14 @@ class LockViewModel(
         val current = _state.value
         if (!current.setupComplete || !current.unlocked) return
         _state.update {
-            it.copy(unlocked = false, pin = "", pinConfirm = "", pendingSensitiveAction = null, error = null)
+            it.copy(
+                unlocked = false,
+                pin = "",
+                pinConfirm = "",
+                pendingSensitiveAction = null,
+                error = null,
+                pinFallback = false,
+            )
         }
     }
 
@@ -121,14 +130,59 @@ class LockViewModel(
 
     fun unlockWithBiometric() {
         if (keys != null && !keys.isSessionOpen()) {
-            _state.update { it.copy(error = "Enter your PIN after the app restarts.") }
+            _state.update { it.copy(error = "Unlock with biometrics failed. Enter PIN.", pinFallback = true) }
             return
         }
         runLockAction {
             store.clearUnlockFailures()
             openLedger()
-            _state.update { it.copy(unlocked = true, error = null) }
+            _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
         }
+    }
+
+    fun unlockWithUnwrappedKey(key: ByteArray) {
+        runLockAction { acceptUnwrappedKey(key) }
+    }
+
+    private fun acceptUnwrappedKey(key: ByteArray) {
+        val gate = keys
+        if (gate != null && !gate.unlockWithUnwrappedKey(key)) {
+            _state.update { it.copy(error = "Unlock with biometrics failed. Enter PIN.", pinFallback = true) }
+            return
+        }
+        store.clearUnlockFailures()
+        openLedger()
+        _state.update { it.copy(unlocked = true, error = null, pinFallback = false) }
+    }
+
+    fun showPinFallback() {
+        _state.update { it.copy(pinFallback = true, error = null) }
+    }
+
+    fun sessionKeyCopy(): ByteArray? = keys?.sessionKeyOrNull()
+
+    fun biometricWrapBlob(): ByteArray? = keys?.biometricWrapBlob()
+
+    fun finishBiometricSeal(blob: ByteArray) {
+        val stored = keys?.persistBiometricWrap(blob) ?: true
+        if (!stored) {
+            _state.update { it.copy(error = "Could not store biometric unlock.", pendingBiometricSeal = false) }
+            return
+        }
+        store.setBiometricEnabled(true)
+        _state.update {
+            it.copy(
+                pendingBiometricSeal = false,
+                biometric = true,
+                status = "Biometric unlock enabled.",
+                error = null,
+            )
+        }
+    }
+
+    fun cancelBiometricSeal() {
+        val keep = store.biometricEnabled()
+        _state.update { it.copy(pendingBiometricSeal = false, biometric = keep) }
     }
 
     fun recoverAndResetPin() {
@@ -189,8 +243,9 @@ class LockViewModel(
             return
         }
         if (!unwrapLedgerForPin(pin)) return
+        val needsSeal = store.biometricEnabled() && keys?.biometricWrapBlob() == null
         _state.update {
-            it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null)
+            it.copy(unlocked = !it.wrapUpgradeRequired, pin = "", error = null, pendingBiometricSeal = needsSeal)
         }
     }
 
@@ -226,7 +281,16 @@ class LockViewModel(
         }
         if (!persistSetup(current)) return
         openLedger()
-        _state.update { it.copy(setupComplete = true, unlocked = true, pin = "", pinConfirm = "", error = null) }
+        _state.update {
+            it.copy(
+                setupComplete = true,
+                unlocked = true,
+                pin = "",
+                pinConfirm = "",
+                error = null,
+                pendingBiometricSeal = current.biometric,
+            )
+        }
     }
 
     private fun setupValidationError(current: LockUiState): String? {
@@ -238,7 +302,7 @@ class LockViewModel(
     }
 
     private fun persistSetup(current: LockUiState): Boolean {
-        if (!store.setup(current.pin, current.recoveryCode, current.biometric)) {
+        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
             _state.update { it.copy(error = "Could not store the lock.") }
             return false
         }
@@ -355,14 +419,28 @@ class LockViewModel(
     }
 
     private fun persistBiometricAfterPin(enabled: Boolean) {
-        store.setBiometricEnabled(enabled)
+        if (!enabled) {
+            keys?.persistBiometricWrap(null)
+            BiometricKeyWrap.deleteKey()
+            store.setBiometricEnabled(false)
+            _state.update {
+                it.copy(
+                    pendingSensitiveAction = null,
+                    pin = "",
+                    error = null,
+                    biometric = false,
+                    pendingBiometricSeal = false,
+                    status = "Biometric unlock disabled.",
+                )
+            }
+            return
+        }
         _state.update {
             it.copy(
                 pendingSensitiveAction = null,
                 pin = "",
                 error = null,
-                biometric = enabled,
-                status = if (enabled) "Biometric unlock enabled." else "Biometric unlock disabled.",
+                pendingBiometricSeal = true,
             )
         }
     }

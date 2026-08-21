@@ -20,6 +20,24 @@ class BrokerImportSummaryTest {
         val text = brokerImportSummary(result)
         assertTrue(text.contains("Skipped 1: Line 2"))
         assertTrue(text.contains("1 duplicate(s)"))
+        val warned =
+            importStatus(
+                result,
+                listOf(
+                    com.pirlruc.finsilo.domain.importcsv.ImportSymbolDraft(
+                        key = "IWDA",
+                        symbol = "IWDA",
+                        quoteSymbol = "",
+                        name = "World",
+                        assetType = com.pirlruc.finsilo.domain.model.AssetType.ETF,
+                        currency = com.pirlruc.finsilo.domain.model.Currency.EUR,
+                        isin = null,
+                        needsQuote = true,
+                        quoteWarning = "No current quote",
+                    ),
+                ),
+            )
+        assertTrue(warned.contains("No live quote for IWDA"))
     }
 
     @Test

@@ -123,6 +123,24 @@ interface PortfolioDao {
     @Query("DELETE FROM price_alert_threshold")
     suspend fun deleteAllThresholds()
 
+    @Query("SELECT * FROM rating_alert")
+    suspend fun getRatingAlerts(): List<RatingAlertEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRatingAlerts(items: List<RatingAlertEntity>)
+
+    @Query("DELETE FROM rating_alert WHERE target_id = :targetId AND scope = :scope")
+    suspend fun deleteRatingAlert(targetId: String, scope: String)
+
+    @Query("DELETE FROM rating_alert")
+    suspend fun deleteAllRatingAlerts()
+
+    @Query("DELETE FROM rating_alert WHERE scope = :scope")
+    suspend fun deleteRatingAlertsByScope(scope: String)
+
+    @Query("DELETE FROM daily_market_data WHERE asset_id = :assetId")
+    suspend fun deleteMarketDataForAsset(assetId: String)
+
     @Transaction
     suspend fun clearWatchlist() {
         deleteAllWatchlistQuotes()

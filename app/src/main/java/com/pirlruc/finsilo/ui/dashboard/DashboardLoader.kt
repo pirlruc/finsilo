@@ -4,6 +4,7 @@ import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import java.time.LocalDate
 
@@ -32,6 +33,10 @@ internal object DashboardLoader {
         repository.rebuildNavHistoryIfNeeded(loaded, resolved)
         val storedNav = repository.loadNavHistory()
         val thresholds = repository.loadThresholds().associateBy { it.assetId }
+        val ratingPrefs =
+            repository.loadRatingAlerts()
+                .filter { it.scope == RatingAlertScope.HOLDING }
+                .associateBy { it.targetId }
         val counts = loaded.transactions.groupingBy { it.assetId }.eachCount()
         val state =
             DashboardUiState(
@@ -42,6 +47,7 @@ internal object DashboardLoader {
                 statusMessage = statusMessage,
                 hasAlphaVantageKey = hasKey,
                 thresholds = thresholds,
+                ratingPrefs = ratingPrefs,
                 transactionsByAsset = counts,
             )
         return DashboardSession(loaded, storedNav, resolved) to state

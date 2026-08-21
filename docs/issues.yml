@@ -1574,6 +1574,8 @@ milestones:
             used by PositionLedger instead of UUID text. Wrap the database
             passphrase with the PIN/recovery secret so a stolen ciphertext file
             is not readable without that secret. Do not reopen FS-DEC-001.
+            Superseded in part by FS-030: a third biometric wrap now unwraps
+            on a cold process, with PIN fallback.
         architecture:
           target: Transaction row identity plus PIN-wrapped DatabaseKeyStore
           modules:
@@ -1585,7 +1587,7 @@ milestones:
         acceptance_criteria:
           - Same-day replay order is stable without depending on UUID string sort
           - PIN-wrapped DB migrates existing installs without a silent wipe
-          - Recovery rewraps the passphrase; biometric does not unwrap on a cold process
+          - Recovery rewraps the passphrase; biometric cold-start unwrap is FS-030
         guardrail_refs:
           - KT-SEC-001
         tasks:
@@ -1713,4 +1715,65 @@ milestones:
             verification:
               - AllocationPieSpecTest.singleSliceIsAFullDisk
               - AllocationPieSpecTest.multipleSlicesKeepDonutGaps
+
+  - name: Phase 8 — Quotes, lock, and alerts
+    epics:
+      - id: FS-030
+        status: open
+        title: Quote probe, biometric key wrap, rating prefs, and backup export
+        overview:
+          problem: >-
+            Recovery codes could not be copied while FLAG_SECURE is on. Mark-to-market
+            buys and watchlist adds stored tickers with no close. CSV import had no
+            chance to fix quote symbols. One Alpha Vantage key was spent re-fetching
+            fresh names. Export backup crashed on tap (PBKDF2 on main, SAF launch).
+            Biometrics confirmed presence but did not unwrap the SQLCipher key after a
+            cold start. Rating notifications fired on any change instead of per-name
+            selected levels.
+          goal: >-
+            Copy recovery with a 60s clipboard clear. Probe mark-to-market buys and
+            watchlist adds; CSV always persists lots after an editable quote-symbol
+            review. Skip as-of-fresh quotes and request oldest-first on one AV key.
+            Encrypt backups off the main thread and launch the document picker from
+            Compose. Add a biometric Keystore wrap of the DB key (PIN fallback;
+            enrollment change reseals). Per-holding and per-watchlist rating sets
+            with defaults Sell/Strong Sell vs Buy/Strong Buy; missing row uses
+            defaults, stored empty set notifies none; edge-triggered. This changes
+            FS-027's cold-start biometric rule.
+        architecture:
+          target: Quote probe, Room v7 rating_alert, biometric wrap, backup v3
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/market
+            - app/src/main/java/com/pirlruc/finsilo/ui
+            - app/src/main/java/com/pirlruc/finsilo/data
+        acceptance_criteria:
+          - Recovery copy exists on setup, wrap-upgrade, and rotate; clipboard clears at 60s
+          - New mark-to-market buys and watchlist adds refuse when the feed has no close
+          - CSV import never drops lots; review can edit quote symbols and warns
+          - Sync skips names whose last bar date is as-of and orders remaining oldest-first
+          - Export backup does not crash on tap; written status is after the URI write
+          - Cold start can unwrap via biometrics; PIN and recovery remain; enrollment change asks for PIN
+          - Rating alerts use per-name sets, defaults, empty=none, and edge trigger
+        guardrail_refs:
+          - KT-SEC-001
+          - KT-TEST-001
+          - KT-CPLX-001
+        tasks:
+          - id: FS-030-T1
+            status: open
+            title: Recovery copy, quote probe, AV skip-fresh, backup export, biometric wrap, rating prefs
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings
+                - app/src/main/java/com/pirlruc/finsilo/ui/importcsv
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard
+                - app/src/main/java/com/pirlruc/finsilo/ui/watchlist
+                - app/src/main/java/com/pirlruc/finsilo/data/security
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - ./gradlew :app:testDebugUnitTest :app:lintDebug
+
 

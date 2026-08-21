@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.ui.dashboard
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 
 data class DashboardUiState(
     val loading: Boolean = true,
@@ -18,5 +19,6 @@ data class DashboardUiState(
     val clearWatchlist: Boolean = true,
     val clearTemplates: Boolean = true,
     val thresholds: Map<String, PriceAlertThreshold> = emptyMap(),
+    val ratingPrefs: Map<String, RatingAlertPref> = emptyMap(),
     val transactionsByAsset: Map<String, Int> = emptyMap(),
 )

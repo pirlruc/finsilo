@@ -201,6 +201,36 @@ class LockViewModelTest {
         assertFalse(viewModel.state.value.working)
     }
 
+    @Test
+    fun biometricUnwrapOpensColdSession() {
+        val keys = FakeLedgerKeys()
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        viewModel.unlockWithUnwrappedKey(ByteArray(32) { 1 })
+        assertTrue(viewModel.state.value.unlocked)
+        assertTrue(keys.sessionOpen)
+        assertEquals(1, opened)
+        assertFalse(viewModel.state.value.pinFallback)
+    }
+
+    @Test
+    fun setupWithBiometricCheckboxWaitsForSeal() {
+        val store = FakeAppLock(setup = false)
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, FakeLedgerKeys())
+        viewModel.setPin("1234")
+        viewModel.setPinConfirm("1234")
+        viewModel.setRecoveryConfirm(true)
+        viewModel.setBiometric(true)
+        viewModel.completeSetup()
+        assertTrue(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.pendingBiometricSeal)
+        assertFalse(store.biometricEnabled())
+        viewModel.cancelBiometricSeal()
+        assertFalse(viewModel.state.value.pendingBiometricSeal)
+        assertFalse(viewModel.state.value.biometric)
+        assertFalse(store.biometricEnabled())
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()
@@ -278,25 +308,45 @@ private class FakeLedgerKeys(
     var finishMigrationCalls: Int = 0
     var lastRewrapPin: String? = null
     var lastRewrapRecovery: String? = null
+    private var sessionKey: ByteArray? = if (sessionOpen) ByteArray(32) else null
+    private var biometricWrap: ByteArray? = null
 
     override fun isSessionOpen(): Boolean = sessionOpen
+
+    override fun sessionKeyOrNull(): ByteArray? = sessionKey?.copyOf()
 
     override fun needsWrapUpgrade(): Boolean = upgrade
 
     override fun provision(pin: String, recovery: String): Boolean {
         provisionCalls += 1
         sessionOpen = true
+        sessionKey = ByteArray(32)
         upgrade = false
         return true
     }
 
     override fun unlockWithPin(pin: String): Boolean {
         sessionOpen = true
+        sessionKey = ByteArray(32)
         return true
     }
 
     override fun unlockWithRecovery(recovery: String): Boolean {
         sessionOpen = true
+        sessionKey = ByteArray(32)
+        return true
+    }
+
+    override fun unlockWithUnwrappedKey(key: ByteArray): Boolean {
+        sessionOpen = true
+        sessionKey = key.copyOf()
+        return true
+    }
+
+    override fun biometricWrapBlob(): ByteArray? = biometricWrap
+
+    override fun persistBiometricWrap(blob: ByteArray?): Boolean {
+        biometricWrap = blob
         return true
     }
 
@@ -314,6 +364,7 @@ private class FakeLedgerKeys(
         finishMigrationCalls += 1
         upgrade = false
         sessionOpen = true
+        sessionKey = ByteArray(32)
         return true
     }
 }

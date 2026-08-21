@@ -6,10 +6,15 @@ import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.domain.market.MarketFeed
+import com.pirlruc.finsilo.domain.market.QuoteSeed
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.WatchlistItem
+import com.pirlruc.finsilo.domain.usecase.ProbeMarketQuoteUseCase
+import com.pirlruc.finsilo.domain.usecase.QuoteProbeResult
 import com.pirlruc.finsilo.domain.usecase.SyncWatchlistUseCase
 import java.time.LocalDate
 import java.util.UUID
@@ -23,6 +28,7 @@ data class WatchlistUiState(
     val loading: Boolean = true,
     val items: List<WatchlistItem> = emptyList(),
     val quotes: Map<String, DailyMarketData> = emptyMap(),
+    val ratingPrefs: Map<String, RatingAlertPref> = emptyMap(),
     val symbol: String = "",
     val name: String = "",
     val assetType: AssetType = AssetType.STOCK,
@@ -58,22 +64,7 @@ class WatchlistViewModel(
             _state.update { it.copy(error = "Symbol is required.") }
             return
         }
-        viewModelScope.launch {
-            val item =
-                WatchlistItem(
-                    id = UUID.randomUUID().toString(),
-                    symbol = symbol,
-                    name = _state.value.name.ifBlank { symbol },
-                    assetType = _state.value.assetType,
-                    baseCurrency = _state.value.currency,
-                )
-            runCatching { repository.saveWatchlistItem(item) }
-                .onSuccess {
-                    _state.update { it.copy(symbol = "", name = "", error = null) }
-                    reload()
-                }
-                .onFailure { error -> _state.update { it.copy(error = error.message) } }
-        }
+        viewModelScope.launch { addItem(symbol) }
     }
 
     fun remove(id: String) {
@@ -83,12 +74,20 @@ class WatchlistViewModel(
         }
     }
 
+    fun saveRating(pref: RatingAlertPref) {
+        viewModelScope.launch {
+            repository.saveRatingAlert(pref)
+            reload()
+        }
+    }
+
     fun sync() {
         viewModelScope.launch {
             _state.update { it.copy(syncing = true, error = null, status = "Refreshing watchlist quotes…") }
             runCatching {
                 val current = repository.loadWatchlist()
-                val result = SyncWatchlistUseCase(feed)(current, today())
+                val prefs = repository.loadRatingAlerts()
+                val result = SyncWatchlistUseCase(feed)(current, today(), prefs)
                 repository.replaceWatchlistQuotes(result.quotes)
                 result
             }.onSuccess { result ->
@@ -101,13 +100,43 @@ class WatchlistViewModel(
         }
     }
 
+    private suspend fun addItem(symbol: String) {
+        val item =
+            WatchlistItem(
+                id = UUID.randomUUID().toString(),
+                symbol = symbol,
+                name = _state.value.name.ifBlank { symbol },
+                assetType = _state.value.assetType,
+                baseCurrency = _state.value.currency,
+            )
+        when (val probe = ProbeMarketQuoteUseCase(feed)(item.asFeedAsset(), today())) {
+            is QuoteProbeResult.Missing -> {
+                _state.update { it.copy(error = probe.reason) }
+                return
+            }
+            is QuoteProbeResult.Found -> {
+                repository.saveWatchlistItem(item)
+                if (probe.bars.isNotEmpty()) {
+                    repository.replaceWatchlistQuotes(QuoteSeed.fromBars(item.id, probe.bars))
+                }
+            }
+        }
+        _state.update { it.copy(symbol = "", name = "", error = null) }
+        reload()
+    }
+
     private suspend fun reload() {
         val snap = repository.loadWatchlist()
+        val prefs =
+            repository.loadRatingAlerts()
+                .filter { it.scope == RatingAlertScope.WATCHLIST }
+                .associateBy { it.targetId }
         _state.update {
             it.copy(
                 loading = false,
                 items = snap.items,
                 quotes = snap.quotes.groupBy { row -> row.assetId }.mapValues { entry -> entry.value.maxBy { row -> row.date } },
+                ratingPrefs = prefs,
             )
         }
     }

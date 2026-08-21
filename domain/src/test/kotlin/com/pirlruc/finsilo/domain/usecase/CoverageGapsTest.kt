@@ -69,7 +69,7 @@ class CoverageGapsTest {
                 listOf(cashTx(), buy(etf.id)),
                 listOf(
                     DailyMarketData(etf.id, asOf.minusDays(1), bd("100"), AnalystRating.HOLD, bd("110"), bd("90")),
-                    DailyMarketData(etf.id, asOf, bd("105"), AnalystRating.BUY, bd("108"), bd("90")),
+                    DailyMarketData(etf.id, asOf, bd("105"), AnalystRating.SELL, bd("108"), bd("90")),
                 ),
                 emptyList(),
                 emptyList(),

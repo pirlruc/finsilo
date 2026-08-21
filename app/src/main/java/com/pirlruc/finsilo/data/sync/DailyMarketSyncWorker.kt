@@ -12,6 +12,7 @@ import com.pirlruc.finsilo.FinsiloApplication
 import com.pirlruc.finsilo.domain.usecase.GetPortfolioAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.GetPriceThresholdAlertsUseCase
 import com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase
+import com.pirlruc.finsilo.domain.usecase.SyncWatchlistUseCase
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
@@ -38,8 +39,12 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
             return Result.retry()
         }
         container.repository.upsertQuotes(synced.marketData, synced.fxRates)
+        val prefs = container.repository.loadRatingAlerts()
+        val watch = container.repository.loadWatchlist()
+        val watched = SyncWatchlistUseCase(container.marketFeed)(watch, asOf, prefs)
+        container.repository.replaceWatchlistQuotes(watched.quotes)
         val updated = container.repository.load()
-        val alerts = GetPortfolioAlertsUseCase()(updated, asOf) +
+        val alerts = GetPortfolioAlertsUseCase()(updated, asOf, container.repository.loadWatchlist(), prefs) +
             GetPriceThresholdAlertsUseCase()(updated, container.repository.loadThresholds(), asOf)
         PortfolioAlertNotifier(applicationContext).publish(alerts)
         schedule(applicationContext)

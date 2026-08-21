@@ -97,7 +97,7 @@ class DashboardUseCasesTest {
                 marketData =
                 listOf(
                     DailyMarketData(apple.id, yesterday, bd("150"), AnalystRating.HOLD, bd("10"), bd("12")),
-                    DailyMarketData(apple.id, asOf, bd("155"), AnalystRating.BUY, bd("13"), bd("12")),
+                    DailyMarketData(apple.id, asOf, bd("155"), AnalystRating.SELL, bd("13"), bd("12")),
                 ),
                 fxRates = listOf(CurrencyRate(asOf, bd("1.10"))),
                 targets = emptyList(),
@@ -106,7 +106,7 @@ class DashboardUseCasesTest {
         val appleSignal = signals.single { it.asset.id == apple.id }
         assertTrue(appleSignal.ratingChanged)
         assertEquals(AnalystRating.HOLD, appleSignal.previousRating)
-        assertEquals(AnalystRating.BUY, appleSignal.rating)
+        assertEquals(AnalystRating.SELL, appleSignal.rating)
         assertEquals(TechnicalCross.GOLDEN, appleSignal.cross)
         val alerts = GetPortfolioAlertsUseCase()(snapshot, asOf)
         assertTrue(alerts.any { it.channel == AlertChannel.RATING })

@@ -3,13 +3,16 @@ package com.pirlruc.finsilo.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +53,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     val dashboard: DashboardViewModel = viewModel(factory = DashboardViewModel.factory(container))
     val importer: BrokerImportViewModel = viewModel(factory = BrokerImportViewModel.factory(container))
     val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
+    val onPickerBusy = rememberPickerBusy(lock)
     BackHandler(enabled = screen != AppScreen.DASHBOARD) {
         screen = AppScreen.DASHBOARD
         dashboard.refresh()
@@ -65,7 +69,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                 },
                 onOpenSettings = { screen = AppScreen.SETTINGS },
                 onOpenWatchlist = { screen = AppScreen.WATCHLIST },
-                onPickerBusy = lock::setExternalUiActive,
+                onPickerBusy = onPickerBusy,
             )
         AppScreen.LEDGER ->
             LedgerEntryRoute(
@@ -85,7 +89,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                     screen = AppScreen.DASHBOARD
                     dashboard.refresh()
                 },
-                onPickerBusy = lock::setExternalUiActive,
+                onPickerBusy = onPickerBusy,
                 container = container,
             )
         }
@@ -95,6 +99,24 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                 viewModel = watchlist,
                 onClose = { screen = AppScreen.DASHBOARD },
             )
+        }
+    }
+}
+
+@Composable
+private fun rememberPickerBusy(lock: LockViewModel): (Boolean) -> Unit {
+    val activity = LocalActivity.current
+    return remember(lock, activity) {
+        { busy ->
+            lock.setExternalUiActive(busy)
+            val window = activity?.window
+            if (window != null) {
+                if (busy) {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
         }
     }
 }

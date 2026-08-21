@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.ui.settings
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,39 +33,79 @@ import java.time.LocalDate
 internal fun PortfolioToolsCard(state: PortfolioToolsUiState, actions: PortfolioToolsActions) {
     val context = LocalContext.current
     var pending by remember { mutableStateOf<ByteArray?>(null) }
-    val create =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-            actions.onPickerBusy(false)
-            val bytes = pending
-            pending = null
-            if (uri != null && bytes != null) writeUri(context, uri, bytes)
+    val create = rememberBackupCreateLauncher(context, state, actions) { pending.also { pending = null } }
+    val open = rememberBackupOpenLauncher(context, actions)
+    LaunchBackupPicker(state.pendingExportName, actions, create)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TaxExportCard(state, actions) { name, producer ->
+            producer { bytes ->
+                pending = bytes
+                launchCreate(create, name, actions) { pending = null }
+            }
         }
-    val open =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            actions.onPickerBusy(false)
-            if (uri == null) return@rememberLauncherForActivityResult
-            context.contentResolver.openInputStream(uri)?.use { input -> actions.onRestoreBackup(input.readBytes()) }
-        }
+        BackupExportCard(state, actions) { launchOpen(open, actions) }
+        RestoreConfirmIfNeeded(state.confirmRestore, actions)
+        ToolMessages(state.status, state.error)
+    }
+}
 
-    fun saveAs(name: String, producer: ((ByteArray) -> Unit) -> Unit) {
-        producer { bytes ->
-            pending = bytes
-            actions.onPickerBusy(true)
-            create.launch(name)
-        }
+@Composable
+private fun rememberBackupCreateLauncher(
+    context: Context,
+    state: PortfolioToolsUiState,
+    actions: PortfolioToolsActions,
+    takePending: () -> ByteArray?,
+): ActivityResultLauncher<String> = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+    actions.onPickerBusy(false)
+    val bytes = takePending() ?: state.pendingExport
+    val written = writePicked(context, uri, bytes)
+    if (state.pendingExportName != null) actions.onExportConsumed(written)
+}
+
+@Composable
+private fun rememberBackupOpenLauncher(context: Context, actions: PortfolioToolsActions): ActivityResultLauncher<Array<String>> =
+    rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        actions.onPickerBusy(false)
+        if (uri == null) return@rememberLauncherForActivityResult
+        context.contentResolver.openInputStream(uri)?.use { input -> actions.onRestoreBackup(input.readBytes()) }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TaxExportCard(state, actions, ::saveAs)
-        BackupExportCard(state, actions, ::saveAs) {
-            actions.onPickerBusy(true)
-            open.launch(arrayOf("*/*"))
-        }
-        if (state.confirmRestore) {
-            RestoreConfirmDialog(onConfirm = actions.onConfirmRestore, onCancel = actions.onCancelRestore)
-        }
-        state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+private fun launchCreate(create: ActivityResultLauncher<String>, name: String, actions: PortfolioToolsActions, onFail: () -> Unit) {
+    actions.onPickerBusy(true)
+    runCatching { create.launch(name) }.onFailure { error ->
+        actions.onPickerBusy(false)
+        onFail()
+        actions.onExportLaunchFailed(error.message ?: "Could not open the file picker.")
+    }
+}
+
+private fun launchOpen(open: ActivityResultLauncher<Array<String>>, actions: PortfolioToolsActions) {
+    actions.onPickerBusy(true)
+    runCatching { open.launch(arrayOf("*/*")) }.onFailure { error ->
+        actions.onPickerBusy(false)
+        actions.onExportLaunchFailed(error.message ?: "Could not open the file picker.")
+    }
+}
+
+private fun writePicked(context: Context, uri: Uri?, bytes: ByteArray?): Boolean =
+    uri != null && bytes != null && writeUri(context, uri, bytes)
+
+@Composable
+private fun RestoreConfirmIfNeeded(confirm: Boolean, actions: PortfolioToolsActions) {
+    if (confirm) RestoreConfirmDialog(onConfirm = actions.onConfirmRestore, onCancel = actions.onCancelRestore)
+}
+
+@Composable
+private fun ToolMessages(status: String?, error: String?) {
+    status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+}
+
+@Composable
+private fun LaunchBackupPicker(fileName: String?, actions: PortfolioToolsActions, create: ActivityResultLauncher<String>) {
+    LaunchedEffect(fileName) {
+        if (fileName == null) return@LaunchedEffect
+        launchCreate(create, fileName, actions) {}
     }
 }
 
@@ -103,12 +145,7 @@ private fun TaxExportCard(
 }
 
 @Composable
-private fun BackupExportCard(
-    state: PortfolioToolsUiState,
-    actions: PortfolioToolsActions,
-    saveAs: (String, ((ByteArray) -> Unit) -> Unit) -> Unit,
-    onPickRestore: () -> Unit,
-) {
+private fun BackupExportCard(state: PortfolioToolsUiState, actions: PortfolioToolsActions, onPickRestore: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Encrypted backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -116,7 +153,7 @@ private fun BackupExportCard(
                 "Not plaintext SQLite. Export wraps the file with this install’s recovery code. " +
                     "After unlock on a new phone, type the code from the backup — it can differ " +
                     "from this phone’s lock recovery. Restore asks before overwriting the live " +
-                    "ledger, watchlist, templates, and price alerts. The sample portfolio is not a backup.",
+                    "ledger, watchlist, templates, and alerts. The sample portfolio is not a backup.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -129,10 +166,10 @@ private fun BackupExportCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(
-                onClick = { saveAs("finsilo-backup-${LocalDate.now()}.fsi", actions.onExportBackup) },
-                enabled = !state.busy,
+                onClick = { actions.onPrepareBackup("finsilo-backup-${LocalDate.now()}.fsi") },
+                enabled = !state.busy && state.pendingExportName == null,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Export backup") }
+            ) { Text(if (state.busy) "Preparing…" else "Export backup") }
             Button(
                 onClick = onPickRestore,
                 enabled = !state.busy,
@@ -142,9 +179,9 @@ private fun BackupExportCard(
     }
 }
 
-private fun writeUri(context: Context, uri: Uri, bytes: ByteArray) {
-    context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-}
+private fun writeUri(context: Context, uri: Uri, bytes: ByteArray): Boolean = runCatching {
+    context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } != null
+}.getOrDefault(false)
 
 @Composable
 private fun RestoreConfirmDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
@@ -153,7 +190,7 @@ private fun RestoreConfirmDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
         title = { Text("Replace live data?") },
         text = {
             Text(
-                "Restore overwrites the ledger, watchlist, templates, and price alerts on this device. Encrypted backups on disk are not deleted.",
+                "Restore overwrites the ledger, watchlist, templates, and alerts on this device. Encrypted backups on disk are not deleted.",
             )
         },
         confirmButton = { TextButton(onClick = onConfirm) { Text("Restore") } },

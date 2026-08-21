@@ -8,6 +8,7 @@ import com.pirlruc.finsilo.data.local.LedgerTemplateEntity
 import com.pirlruc.finsilo.data.local.NavHistoryEntity
 import com.pirlruc.finsilo.data.local.NavRebuildStateEntity
 import com.pirlruc.finsilo.data.local.PriceAlertThresholdEntity
+import com.pirlruc.finsilo.data.local.RatingAlertEntity
 import com.pirlruc.finsilo.data.local.TargetAllocationEntity
 import com.pirlruc.finsilo.data.local.TransactionEntity
 import com.pirlruc.finsilo.data.local.WatchlistItemEntity
@@ -23,6 +24,8 @@ import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.WatchlistItem
@@ -83,6 +86,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
             watchlistItems = extras.watchlist.items.map(WatchlistItemEntity::from),
             watchlistQuotes = extras.watchlist.quotes.map(WatchlistQuoteEntity::from),
             thresholds = extras.thresholds.map(PriceAlertThresholdEntity::from),
+            ratingAlerts = extras.ratingAlerts.map(RatingAlertEntity::from),
         )
     }
 
@@ -90,6 +94,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         watchlist = loadWatchlist(),
         templates = loadTemplates(),
         thresholds = loadThresholds(),
+        ratingAlerts = loadRatingAlerts(),
     )
 
     /**
@@ -120,14 +125,22 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         if (!selection.any) return
         if (selection.ledger) {
             database.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            dao.deleteRatingAlertsByScope(RatingAlertScope.HOLDING.name)
             widgetNav?.write(null)
         }
-        if (selection.watchlist) dao.clearWatchlist()
+        if (selection.watchlist) {
+            dao.clearWatchlist()
+            dao.deleteRatingAlertsByScope(RatingAlertScope.WATCHLIST.name)
+        }
         if (selection.templates) dao.deleteAllTemplates()
     }
 
     override suspend fun upsertAsset(asset: Asset) {
+        val previous = dao.getAssets().firstOrNull { it.assetId == asset.id }?.toDomain()
         dao.insertAssets(listOf(AssetEntity.from(asset)))
+        if (previous != null && previous.feedSymbol != asset.feedSymbol) {
+            dao.deleteMarketDataForAsset(asset.id)
+        }
         rebuildNavHistoryIfNeeded(load())
     }
 
@@ -213,6 +226,7 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     suspend fun deleteWatchlistItem(id: String) {
         dao.deleteWatchlistQuotes(id)
         dao.deleteWatchlistItem(id)
+        dao.deleteRatingAlert(id, RatingAlertScope.WATCHLIST.name)
     }
 
     suspend fun replaceWatchlistQuotes(quotes: List<DailyMarketData>) {
@@ -220,6 +234,12 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
             dao.deleteWatchlistQuotes(id)
             dao.insertWatchlistQuotes(rows.map(WatchlistQuoteEntity::from))
         }
+    }
+
+    suspend fun loadRatingAlerts(): List<RatingAlertPref> = dao.getRatingAlerts().map { it.toDomain() }
+
+    suspend fun saveRatingAlert(pref: RatingAlertPref) {
+        dao.insertRatingAlerts(listOf(RatingAlertEntity.from(pref)))
     }
 
     suspend fun lastNavPoint(): NavPoint? = dao.getNavHistory().maxByOrNull { it.date }?.toDomain()

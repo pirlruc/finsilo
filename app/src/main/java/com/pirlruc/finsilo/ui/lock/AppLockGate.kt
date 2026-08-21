@@ -27,18 +27,8 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     RelockOnProcessStop(viewModel)
     BiometricAvailability(viewModel)
-    val prompt =
-        rememberBiometricPrompt(
-            onSuccess = {
-                viewModel.setBiometricPromptActive(false)
-                viewModel.unlockWithBiometric()
-            },
-            onError = { message ->
-                viewModel.setBiometricPromptActive(false)
-                viewModel.setError(message)
-            },
-            onClosed = { viewModel.setBiometricPromptActive(false) },
-        )
+    val prompt = biometricLauncher(viewModel, state)
+    AutoBiometricPrompt(state, prompt)
     var sessionReady by remember { mutableStateOf(false) }
     SideEffect {
         if (state.setupComplete && state.unlocked && !state.wrapUpgradeRequired) {
@@ -52,6 +42,79 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
             }
         }
         LockChromeLayer(state, viewModel, prompt)
+    }
+}
+
+@Composable
+private fun biometricLauncher(viewModel: LockViewModel, state: LockUiState): () -> Unit = rememberBiometricPrompt(
+    mode = { promptMode(state, viewModel) },
+    wrapBlob = { viewModel.biometricWrapBlob() },
+    onResult = { result -> applyBiometricResult(viewModel, result) },
+    onError = { message ->
+        viewModel.setBiometricPromptActive(false)
+        if (message == BIOMETRIC_PIN_FALLBACK) {
+            viewModel.showPinFallback()
+            if (state.pendingBiometricSeal) viewModel.cancelBiometricSeal()
+        } else {
+            viewModel.setError(message)
+            if (state.pendingBiometricSeal) viewModel.cancelBiometricSeal()
+        }
+    },
+    onClosed = { viewModel.setBiometricPromptActive(false) },
+)
+
+private fun promptMode(state: LockUiState, viewModel: LockViewModel): BiometricCryptoMode = when {
+    state.pendingBiometricSeal -> BiometricCryptoMode.SEAL
+    viewModel.biometricWrapBlob() != null -> BiometricCryptoMode.UNWRAP
+    else -> BiometricCryptoMode.CONFIRM
+}
+
+private fun applyBiometricResult(viewModel: LockViewModel, result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+    val state = viewModel.state.value
+    if (state.pendingBiometricSeal) {
+        val plain = viewModel.sessionKeyCopy()
+        val blob = if (plain == null) null else BiometricKeyWrap.seal(result, plain)
+        if (blob == null) {
+            viewModel.cancelBiometricSeal()
+            viewModel.setError("Could not enable biometric unlock.")
+        } else {
+            viewModel.finishBiometricSeal(blob)
+        }
+        return
+    }
+    val wrap = viewModel.biometricWrapBlob()
+    if (wrap != null) {
+        val key = BiometricKeyWrap.open(result, wrap)
+        if (key == null) {
+            viewModel.showPinFallback()
+            viewModel.setError("Unlock with biometrics failed. Enter PIN.")
+        } else {
+            viewModel.unlockWithUnwrappedKey(key)
+        }
+        return
+    }
+    if (!BiometricSessionCipher.confirm(result)) {
+        viewModel.setError("Biometric unlock failed")
+        return
+    }
+    viewModel.unlockWithBiometric()
+}
+
+@Composable
+private fun AutoBiometricPrompt(state: LockUiState, prompt: () -> Unit) {
+    var prompted by remember { mutableStateOf(false) }
+    val shouldPrompt =
+        state.biometric &&
+            state.biometricAvailable &&
+            !state.working &&
+            (state.pendingBiometricSeal || (state.setupComplete && !state.unlocked && !state.recovering && !state.pinFallback))
+    LaunchedEffect(shouldPrompt) {
+        if (!shouldPrompt) {
+            prompted = false
+        } else if (!prompted) {
+            prompted = true
+            prompt()
+        }
     }
 }
 
@@ -98,7 +161,7 @@ private fun LockChromeLayer(state: LockUiState, viewModel: LockViewModel, prompt
             )
         !state.unlocked && state.recovering ->
             RecoveringOverlay(state, viewModel)
-        !state.unlocked ->
+        !state.unlocked || state.pendingBiometricSeal ->
             UnlockOverlay(state, viewModel, prompt)
     }
 }
@@ -128,6 +191,9 @@ private fun UnlockOverlay(state: LockUiState, viewModel: LockViewModel, prompt: 
                 prompt()
             },
             onForgot = { viewModel.showRecover(true) },
+            onPinFallback = {
+                if (state.pendingBiometricSeal) viewModel.cancelBiometricSeal() else viewModel.showPinFallback()
+            },
         )
     }
 }

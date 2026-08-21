@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
+import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -34,8 +35,9 @@ internal fun DashboardContent(
     range: HistoryRange,
     statusMessage: String?,
     thresholds: Map<String, PriceAlertThreshold>,
+    ratingPrefs: Map<String, RatingAlertPref>,
     onRangeSelected: (HistoryRange) -> Unit,
-    onSaveThreshold: (PriceAlertThreshold) -> Unit,
+    holdings: HoldingActions,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -48,7 +50,15 @@ internal fun DashboardContent(
             Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         SummaryColumn(report)
-        HoldingsCard(report.allocation.holdings, report.allocation.cashEur, thresholds, onSaveThreshold)
+        HoldingsCard(
+            report.allocation.holdings,
+            report.allocation.cashEur,
+            thresholds,
+            ratingPrefs,
+            holdings.onSaveThreshold,
+            holdings.onSaveRating,
+            holdings.onSaveInstrument,
+        )
         AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
         HistoryCard(report.history.points, range, onRangeSelected)
         if (report.yoc.isNotEmpty()) {
