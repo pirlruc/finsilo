@@ -136,7 +136,7 @@ class LockViewModelTest {
     fun completeSetupProvisionsWrappedKey() {
         val keys = FakeLedgerKeys()
         var opened = 0
-        val viewModel = LockViewModel(FakeAppLock(setup = false), dispatcher, { 1L }, keys) { opened += 1 }
+        val viewModel = LockViewModel(FakeAppLock(setup = false), dispatcher, { 1L }, keys, openLedger = { opened += 1 })
         viewModel.setPin("1234")
         viewModel.setPinConfirm("1234")
         viewModel.setRecoveryConfirm(true)
@@ -159,7 +159,7 @@ class LockViewModelTest {
     fun biometricWorksWhenSessionAlreadyOpen() {
         val keys = FakeLedgerKeys(sessionOpen = true)
         var opened = 0
-        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys, openLedger = { opened += 1 })
         viewModel.unlockWithBiometric()
         assertTrue(viewModel.state.value.unlocked)
         assertEquals(1, opened)
@@ -169,7 +169,7 @@ class LockViewModelTest {
     fun pinUnlockOnLegacyShowsUpgradeUntilConfirm() {
         val keys = FakeLedgerKeys(upgrade = true)
         var opened = 0
-        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys, openLedger = { opened += 1 })
         viewModel.setPin("1234")
         viewModel.unlockWithPin()
         assertTrue(viewModel.state.value.wrapUpgradeRequired)
@@ -200,7 +200,7 @@ class LockViewModelTest {
     fun recoverRewrapsPin() {
         val keys = FakeLedgerKeys()
         var opened = 0
-        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys, openLedger = { opened += 1 })
         viewModel.showRecover(true)
         viewModel.setRecoveryTyped(FakeAppLock.INITIAL_RECOVERY)
         viewModel.setPinConfirm("5678")
@@ -221,7 +221,7 @@ class LockViewModelTest {
     fun biometricUnwrapOpensColdSession() {
         val keys = FakeLedgerKeys()
         var opened = 0
-        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys) { opened += 1 }
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys, openLedger = { opened += 1 })
         viewModel.unlockWithUnwrappedKey(ByteArray(32) { 1 })
         assertTrue(viewModel.state.value.unlocked)
         assertTrue(keys.sessionOpen)

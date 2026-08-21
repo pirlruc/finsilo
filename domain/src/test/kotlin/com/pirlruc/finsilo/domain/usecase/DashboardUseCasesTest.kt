@@ -7,6 +7,7 @@ import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HistoryRange
+import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TechnicalCross
 import com.pirlruc.finsilo.domain.model.Transaction
@@ -58,6 +59,23 @@ class DashboardUseCasesTest {
         val fromStored = GetPortfolioHistoryUseCase(maxPoints = 1000)(partial, HistoryRange.ALL, asOf, stored)
         assertEquals(stored.first().date, fromStored.points.first().date)
         assertEquals(0, stored.first().valueEur.compareTo(fromStored.points.first().valueEur))
+        val wrongTo = stored.map { point ->
+            if (point.date == asOf) point.copy(valueEur = point.valueEur.add(bd("1"))) else point
+        }
+        val walked = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, wrongTo)
+        assertEquals(0, stored.last().valueEur.compareTo(walked.points.last().valueEur))
+        val wrongFrom = stored.map { point ->
+            if (point.date == snapshot.transactions.minOf { it.date }) point.copy(valueEur = point.valueEur.add(bd("1"))) else point
+        }
+        val walkedFrom = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, wrongFrom)
+        assertEquals(0, stored.first().valueEur.compareTo(walkedFrom.points.first().valueEur))
+        val missingFrom =
+            listOf(NavPoint(stored.first().date.minusDays(1), stored.first().valueEur)) + stored.drop(1)
+        val walkedMissingFrom = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, missingFrom)
+        assertEquals(stored.first().date, walkedMissingFrom.points.first().date)
+        val missingTo = stored.dropLast(1) + listOf(NavPoint(asOf.plusDays(1), stored.last().valueEur))
+        val walkedMissingTo = GetPortfolioHistoryUseCase(maxPoints = 1000)(snapshot, HistoryRange.ALL, asOf, missingTo)
+        assertEquals(asOf, walkedMissingTo.points.last().date)
     }
 
     @Test

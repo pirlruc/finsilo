@@ -27,6 +27,18 @@ class HistoryBoundsTest {
         assertEquals(asOf.minusDays(5), HoldingHistory.firstHeldOn(txs, "aapl"))
         assertEquals(asOf.minusDays(10), HoldingHistory.firstHeldOn(txs, "cash"))
         assertEquals(null, HoldingHistory.firstHeldOn(txs, "missing"))
+        assertEquals(null, HoldingHistory.firstHeldOn(emptyList(), "aapl"))
+        assertEquals(asOf.minusDays(2), HoldingHistory.firstHeldOn(listOf(tx("s", "aapl", asOf.minusDays(2), TransactionType.SELL)), "aapl"))
+        assertEquals(
+            asOf.minusDays(8),
+            HoldingHistory.firstHeldOn(
+                listOf(
+                    tx("b1", "aapl", asOf.minusDays(3), TransactionType.BUY),
+                    tx("b0", "aapl", asOf.minusDays(8), TransactionType.BUY),
+                ),
+                "aapl",
+            ),
+        )
     }
 
     @Test
@@ -35,8 +47,12 @@ class HistoryBoundsTest {
         assertEquals(values, HistoryPeriodicity.thin(values, 20, 10))
         val thinned = HistoryPeriodicity.thin(values, 3, 10)
         assertEquals(listOf(1, 5, 9, 10), thinned)
+        assertEquals(listOf(1, 5, 9), HistoryPeriodicity.thin(values, 3, null))
         assertEquals(1, thinned.first())
         assertEquals(10, thinned.last())
+        assertEquals(emptyList<Int>(), HistoryPeriodicity.thin(emptyList(), 4, null))
+        assertEquals(listOf(1, 10), HistoryPeriodicity.thin(values, 0, 10))
+        assertEquals(listOf(1, 4, 7, 10), HistoryPeriodicity.thin(values, 4, 10))
     }
 
     @Test
@@ -45,12 +61,17 @@ class HistoryBoundsTest {
         val incoming = listOf(DailyMarketData("a", asOf.minusDays(1), BigDecimal.TWO))
         val merged = QuoteMerge.market(old, incoming)
         assertEquals(BigDecimal.TWO, merged.single { it.assetId == "a" }.closingPriceNative)
-        assertEquals(1, QuoteMerge.fx(listOf(CurrencyRate(asOf, BigDecimal.ONE)), emptyList()).size)
+        assertEquals(old, QuoteMerge.market(old, emptyList()))
+        val fxOld = listOf(CurrencyRate(asOf, BigDecimal.ONE))
+        assertEquals(1, QuoteMerge.fx(fxOld, emptyList()).size)
+        val fxNew = QuoteMerge.fx(fxOld, listOf(CurrencyRate(asOf, BigDecimal.TWO)))
+        assertEquals(0, BigDecimal.TWO.compareTo(fxNew.single().eurPerUsd))
         val ranged = listOf(DailyMarketData("a", asOf, BigDecimal.ONE))
         val latest = listOf(DailyMarketData("a", asOf.minusDays(3), BigDecimal.ONE), DailyMarketData("b", asOf.minusYears(1), BigDecimal.TEN))
         val combined = QuoteMerge.plusLatest(ranged, latest)
         assertEquals(setOf("a", "b"), combined.map { it.assetId }.toSet())
         assertEquals(1, combined.count { it.assetId == "a" })
+        assertEquals(ranged, QuoteMerge.plusLatest(ranged, emptyList()))
     }
 
     @Test
@@ -72,7 +93,9 @@ class HistoryBoundsTest {
             )
         val rows = QuoteSeed.fromBars("aapl", bars, asOf.minusDays(1))
         assertEquals(listOf(asOf.minusDays(1), asOf), rows.map { it.date })
+        assertEquals(3, QuoteSeed.fromBars("aapl", bars).size)
         assertTrue(QuoteSeed.fromBars("aapl", bars, asOf.plusDays(1)).isEmpty())
+        assertTrue(QuoteSeed.fromBars("aapl", emptyList(), asOf).isEmpty())
     }
 
     private fun tx(id: String, assetId: String, date: LocalDate, type: TransactionType) = Transaction(

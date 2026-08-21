@@ -45,13 +45,29 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
         if (!rangeCovered(stored, from, to)) return false
         val atFrom = stored.find { it.date == from } ?: return false
         val atTo = stored.find { it.date == to } ?: return false
-        return matchesStored(snapshot, from, atFrom) && matchesStored(snapshot, to, atTo)
+        return endpointPairMatches(snapshot, from, to, atFrom, atTo)
     }
 
-    private fun matchesStored(snapshot: PortfolioSnapshot, date: LocalDate, point: NavPoint): Boolean {
-        if (!canValue(snapshot, date)) return true
-        return point.valueEur.compareTo(valuator.totalNavEur(snapshot, date)) == 0
+    private fun endpointPairMatches(
+        snapshot: PortfolioSnapshot,
+        from: LocalDate,
+        to: LocalDate,
+        atFrom: NavPoint,
+        atTo: NavPoint,
+    ): Boolean {
+        if (snapshot.marketData.isEmpty()) {
+            return liveEquals(snapshot, from, atFrom) && liveEquals(snapshot, to, atTo)
+        }
+        return matchIfValuable(snapshot, from, atFrom) && matchIfValuable(snapshot, to, atTo)
     }
+
+    private fun matchIfValuable(snapshot: PortfolioSnapshot, date: LocalDate, point: NavPoint): Boolean {
+        if (!canValue(snapshot, date)) return true
+        return liveEquals(snapshot, date, point)
+    }
+
+    private fun liveEquals(snapshot: PortfolioSnapshot, date: LocalDate, point: NavPoint): Boolean =
+        point.valueEur.compareTo(valuator.totalNavEur(snapshot, date)) == 0
 
     private fun canValue(snapshot: PortfolioSnapshot, date: LocalDate): Boolean = snapshot.marketData.any { !it.date.isAfter(date) }
 
