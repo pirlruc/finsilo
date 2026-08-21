@@ -31,18 +31,12 @@ fun LockSetupScreen(
         PinSecretField(state.pin, onPin, "PIN (4–8 digits)", enabled)
         PinSecretField(state.pinConfirm, onConfirm, "Confirm PIN", enabled, ImeAction.Done, onContinue)
         Text("Recovery code", style = MaterialTheme.typography.titleMedium)
-        Text(
-            state.recoveryCode,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.secondary,
-        )
+        RecoveryCodeRow(state.recoveryCode, enabled)
         Text(
             "Write this down offline. It is not shown again. The PIN and this code wrap the SQLCipher key.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        CopyRecoveryButton(state.recoveryCode, enabled)
         CheckRow(state.recoveryConfirm, enabled, "I saved the recovery code", onSaved)
         if (state.biometricAvailable) {
             CheckRow(state.biometric, enabled, "Unlock with biometrics", onBiometric)

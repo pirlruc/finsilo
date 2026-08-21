@@ -1748,7 +1748,7 @@ milestones:
             - app/src/main/java/com/pirlruc/finsilo/ui
             - app/src/main/java/com/pirlruc/finsilo/data
         acceptance_criteria:
-          - Recovery copy exists on setup, wrap-upgrade, and rotate; clipboard clears at 60s
+          - Recovery copy icon sits beside the code on setup, wrap-upgrade, and rotate; clipboard clears at 60s
           - New mark-to-market buys and watchlist adds refuse when the feed has no close
           - CSV import never drops lots; review can edit quote symbols and warns
           - Sync skips names whose last bar date is as-of and orders remaining oldest-first
