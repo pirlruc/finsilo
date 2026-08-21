@@ -20,18 +20,12 @@ fun WrapUpgradeScreen(state: LockUiState, onSaved: (Boolean) -> Unit, onContinue
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text("New recovery code", style = MaterialTheme.typography.titleMedium)
-        Text(
-            state.upgradeRecovery,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.secondary,
-        )
+        RecoveryCodeRow(state.upgradeRecovery, enabled)
         Text(
             "Write this down offline. It is not shown again.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        CopyRecoveryButton(state.upgradeRecovery, enabled)
         CheckRow(state.upgradeRecoveryConfirm, enabled, "I saved the new recovery code", onSaved)
         LockError(state.error)
         LockWorkingIndicator(state.working)

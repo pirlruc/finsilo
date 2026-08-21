@@ -55,8 +55,7 @@ fun SecuritySettingsCard(
                 }
             }
             if (state.newRecoveryCode != null) {
-                Text(state.newRecoveryCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                CopyRecoveryButton(state.newRecoveryCode, enabled = !state.working)
+                RecoveryCodeRow(state.newRecoveryCode, enabled = !state.working)
                 TextButton(onClick = onDismissRecovery) { Text("I saved the new code") }
             }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
