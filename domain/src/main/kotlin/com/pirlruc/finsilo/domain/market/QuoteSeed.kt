@@ -33,9 +33,8 @@ object QuoteSeed {
         }
     }
 
-    fun storedOverview(stored: List<DailyMarketData>, asOf: LocalDate): AnalystRating? =
-        stored
-            .filter { it.analystRating != AnalystRating.NONE && !it.date.isBefore(asOf.minusDays(OVERVIEW_MAX_AGE_DAYS)) }
-            .maxByOrNull { it.date }
-            ?.analystRating
+    fun storedOverview(stored: List<DailyMarketData>, asOf: LocalDate): AnalystRating? = stored
+        .filter { it.analystRating != AnalystRating.NONE && !it.date.isBefore(asOf.minusDays(OVERVIEW_MAX_AGE_DAYS)) }
+        .maxByOrNull { it.date }
+        ?.analystRating
 }
