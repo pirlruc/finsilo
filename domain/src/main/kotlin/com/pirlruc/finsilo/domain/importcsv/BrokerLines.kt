@@ -37,29 +37,24 @@ internal object BrokerLines {
         format = format,
     )
 
-    fun cash(
-        format: BrokerCsvFormat,
-        sourceLine: Int,
-        date: LocalDate,
-        type: TransactionType,
-        amountEur: BigDecimal,
-    ): BrokerCsvLine = BrokerCsvLine(
-        date = date,
-        type = type,
-        skipReason = null,
-        symbol = "EUR-CASH",
-        name = "Euro cash",
-        isin = null,
-        quoteSymbol = null,
-        assetType = AssetType.CASH,
-        quantity = amountEur.abs(),
-        unitPriceNative = BigDecimal.ONE,
-        currency = Currency.EUR,
-        feesEur = BigDecimal.ZERO,
-        eurPerUsd = null,
-        sourceLine = sourceLine,
-        format = format,
-    )
+    fun cash(format: BrokerCsvFormat, sourceLine: Int, date: LocalDate, type: TransactionType, amountEur: BigDecimal): BrokerCsvLine =
+        BrokerCsvLine(
+            date = date,
+            type = type,
+            skipReason = null,
+            symbol = "EUR-CASH",
+            name = "Euro cash",
+            isin = null,
+            quoteSymbol = null,
+            assetType = AssetType.CASH,
+            quantity = amountEur.abs(),
+            unitPriceNative = BigDecimal.ONE,
+            currency = Currency.EUR,
+            feesEur = BigDecimal.ZERO,
+            eurPerUsd = null,
+            sourceLine = sourceLine,
+            format = format,
+        )
 
     fun holding(draft: HoldingDraft): BrokerCsvLine = BrokerCsvLine(
         date = draft.date,
