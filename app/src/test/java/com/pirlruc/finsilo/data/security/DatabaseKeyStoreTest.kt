@@ -41,7 +41,17 @@ class DatabaseKeyStoreTest {
         assertTrue(reopened.unlockWithPin("1234"))
         assertTrue(first.contentEquals(reopened.sessionPassphrase()))
         assertFalse(DatabaseKeyStore(prefs).unlockWithPin("0000"))
-        assertTrue(prefs.contains("sqlcipher_wrap_pin"))
+    }
+
+    @Test
+    fun corruptWrapHexFailsClosedAndIgnoresLegacyHex() {
+        assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
+        prefs.edit()
+            .putString("sqlcipher_wrap_pin", "zz")
+            .putString("sqlcipher_passphrase", AppLockCrypto.toHex(ByteArray(32) { 9 }))
+            .commit()
+        assertFalse(keys.unlockWithPin("1234"))
+        assertFalse(DatabaseKeyStore(prefs).unlockWithPin("1234"))
     }
 
     @Test
@@ -125,9 +135,36 @@ class DatabaseKeyStoreTest {
     fun rollbackRecoveryWrapRestoresPreviousBlob() {
         assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
         assertTrue(keys.rewrapRecovery("ZZZZ9999YYYY8888"))
-        assertTrue(keys.rollbackRecoveryWrap())
+        assertTrue(keys.rollbackLastWrap())
         val reopened = DatabaseKeyStore(prefs)
         assertTrue(reopened.unlockWithRecovery("ABCD1234EFGH5678"))
         assertFalse(DatabaseKeyStore(prefs).unlockWithRecovery("ZZZZ9999YYYY8888"))
+    }
+
+    @Test
+    fun rollbackPinWrapRestoresPreviousBlob() {
+        assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
+        assertTrue(keys.rewrapPin("9999"))
+        assertTrue(keys.rollbackLastWrap())
+        val reopened = DatabaseKeyStore(prefs)
+        assertTrue(reopened.unlockWithPin("1234"))
+        assertFalse(DatabaseKeyStore(prefs).unlockWithPin("9999"))
+    }
+
+    @Test
+    fun rollbackLegacyMigrationRestoresHexAndDropsWraps() {
+        val raw = ByteArray(32) { 7 }
+        prefs.edit().putString("sqlcipher_passphrase", AppLockCrypto.toHex(raw)).commit()
+        assertTrue(keys.unlockWithPin("1234"))
+        assertTrue(keys.finishLegacyMigration("1234", "ABCD1234EFGH5678"))
+        assertFalse(prefs.contains("sqlcipher_passphrase"))
+        assertTrue(keys.rollbackLastWrap())
+        assertTrue(prefs.contains("sqlcipher_passphrase"))
+        assertFalse(prefs.contains("sqlcipher_wrap_pin"))
+        assertFalse(prefs.contains("sqlcipher_wrap_recovery"))
+        val restored = DatabaseKeyStore(prefs)
+        assertTrue(restored.needsWrapUpgrade())
+        assertTrue(restored.unlockWithPin("0000"))
+        assertTrue(raw.contentEquals(restored.sessionPassphrase()))
     }
 }

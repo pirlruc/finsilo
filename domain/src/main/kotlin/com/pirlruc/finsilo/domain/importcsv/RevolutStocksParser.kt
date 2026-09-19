@@ -3,13 +3,7 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 internal object RevolutStocksParser {
-    fun parse(table: CsvTable): List<BrokerCsvLine> {
-        val lines = ArrayList<BrokerCsvLine>()
-        table.forEachRow { sourceLine, row ->
-            lines += parseRow(sourceLine, row)
-        }
-        return lines
-    }
+    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
         val date = BrokerDates.parse(row.get("Date"))
@@ -28,7 +22,7 @@ internal object RevolutStocksParser {
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash row missing amount", date)
         val eur = BrokerMoney.toEurCash(amount, row.get("Currency"), row.get("FX Rate", "FX"))
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash currency cannot be booked in EUR", date)
-        return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, eur, row.get("ID"))
+        return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, eur)
     }
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
@@ -52,7 +46,6 @@ internal object RevolutStocksParser {
                 isin = isin,
                 quoteSymbol = quote,
                 booked = booked.copy(eurPerUsd = fx),
-                externalId = row.get("ID"),
             ),
         )
     }

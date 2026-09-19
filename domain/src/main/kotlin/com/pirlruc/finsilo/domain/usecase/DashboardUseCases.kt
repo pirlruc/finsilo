@@ -25,12 +25,12 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
     ): HistoryReport {
         val firstTx = snapshot.transactions.minOfOrNull { it.date }
         if (firstTx == null) {
-            return HistoryReport(range = range, from = asOf, to = asOf, points = emptyList())
+            return HistoryReport(from = asOf, to = asOf, points = emptyList())
         }
         val from = range.startDate(asOf, firstTx)
         val to = asOf
         if (from.isAfter(to)) {
-            return HistoryReport(range = range, from = from, to = to, points = emptyList())
+            return HistoryReport(from = from, to = to, points = emptyList())
         }
         val dense =
             if (covers(storedNav, snapshot, from, to)) {
@@ -38,7 +38,7 @@ class GetPortfolioHistoryUseCase(private val valuator: PortfolioValuator = Portf
             } else {
                 walk(snapshot, from, to)
             }
-        return HistoryReport(range = range, from = from, to = to, points = dense)
+        return HistoryReport(from = from, to = to, points = dense)
     }
 
     private fun covers(stored: List<NavPoint>, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): Boolean {

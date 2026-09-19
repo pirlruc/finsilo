@@ -30,11 +30,7 @@ internal object RoomNavHistory {
         }
         dao.replaceNavHistory(
             items = decision.points.map(NavHistoryEntity::from),
-            state = NavRebuildStateEntity(
-                fingerprint = decision.fingerprint,
-                asOf = asOf,
-                rebuiltAtMs = System.currentTimeMillis(),
-            ),
+            state = NavRebuildStateEntity(fingerprint = decision.fingerprint),
         )
         widgetNav?.write(decision.points.maxByOrNull { it.date })
     }

@@ -20,5 +20,4 @@ data class DashboardUiState(
     val clearTemplates: Boolean = true,
     val thresholds: Map<String, PriceAlertThreshold> = emptyMap(),
     val ratingPrefs: Map<String, RatingAlertPref> = emptyMap(),
-    val transactionsByAsset: Map<String, Int> = emptyMap(),
 )

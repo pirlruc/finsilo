@@ -25,6 +25,8 @@ import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.model.TwrReport
+import com.pirlruc.finsilo.domain.model.TwrSplit
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -60,7 +62,7 @@ internal fun DashboardContent(
             holdings.onSaveInstrument,
         )
         AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
-        HistoryCard(report.history.points, range, onRangeSelected)
+        HistoryCard(report.history, range, onRangeSelected)
         if (report.yoc.isNotEmpty()) {
             YocCard(report.yoc)
         }
@@ -94,7 +96,7 @@ internal fun SummaryColumn(report: DashboardReport) {
                 modifier = Modifier.weight(1f),
                 label = "TWR",
                 value = formatPercent(report.twr.twrPercent),
-                caption = "${report.twr.subPeriods.size} sub-period(s)",
+                caption = twrCaption(report.twr),
                 description = "Time-weighted return ${formatPercent(report.twr.twrPercent)}",
             )
         }
@@ -121,4 +123,18 @@ internal fun MetricCard(
             Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+internal fun twrCaption(report: TwrReport): String {
+    val periods = report.subPeriods
+    if (periods.isEmpty()) return "0 sub-period(s)"
+    val span = "${periods.first().from}–${periods.last().to}"
+    val splits = periods.mapNotNull { it.split }.distinct()
+    val splitLabel = splits.takeIf { it.isNotEmpty() }?.joinToString { it.caption() }
+    return listOfNotNull("${periods.size} sub-period(s)", span, splitLabel).joinToString(" · ")
+}
+
+private fun TwrSplit.caption(): String = when (this) {
+    TwrSplit.EXTERNAL_BUY -> "external buy"
+    TwrSplit.WITHDRAWAL -> "withdrawal"
 }

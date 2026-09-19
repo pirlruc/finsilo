@@ -19,7 +19,7 @@ import java.util.ArrayDeque
 data class FifoLot(val quantity: BigDecimal, val remainingCostEur: BigDecimal, val acquiredDate: LocalDate)
 
 /** Aggregated open lots for one instrument. */
-data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecimal, val lots: List<FifoLot> = emptyList())
+data class LotPosition(val quantity: BigDecimal, val remainingCostEur: BigDecimal)
 
 /** Reconstructs holdings, cash, and locally valued instruments from the transaction ledger. */
 class PositionLedger {
@@ -59,7 +59,7 @@ class PositionLedger {
         }
         val qty = lots.fold(ZERO) { acc, lot -> plus(acc, lot.quantity) }
         val cost = lots.fold(ZERO) { acc, lot -> plus(acc, lot.remainingCostEur) }
-        return LotPosition(quantity = qty, remainingCostEur = cost, lots = lots.toList())
+        return LotPosition(quantity = qty, remainingCostEur = cost)
     }
 
     /** @return quantity actually filled from open lots (may be less than [sellQty]). */

@@ -4,18 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -73,14 +70,13 @@ private fun ConfirmSensitivePin(state: LockUiState, onPin: (String) -> Unit, onC
             null -> "Enter PIN"
         }
     Text(label, style = MaterialTheme.typography.bodyMedium)
-    OutlinedTextField(
+    PinSecretField(
         value = state.pin,
         onValueChange = onPin,
-        label = { Text("PIN") },
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
+        label = "PIN",
+        enabled = !state.working,
+        imeAction = ImeAction.Done,
+        onDone = onConfirm,
     )
     Button(onClick = onConfirm, enabled = !state.working, modifier = Modifier.fillMaxWidth()) { Text("Confirm") }
     TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }

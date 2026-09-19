@@ -2,12 +2,14 @@ package com.pirlruc.finsilo.domain.importcsv
 
 /** Header + data rows with alias lookup. */
 internal data class CsvTable(val headers: List<String>, val rows: List<List<String>>) {
-    fun forEachRow(block: (lineNumber: Int, row: CsvRow) -> Unit) {
+    fun mapRows(block: (lineNumber: Int, row: CsvRow) -> BrokerCsvLine): List<BrokerCsvLine> {
+        val lines = ArrayList<BrokerCsvLine>()
         rows.forEachIndexed { index, cells ->
             if (cells.any { it.isNotBlank() }) {
-                block(index + 2, CsvRow(headers, cells))
+                lines += block(index + 2, CsvRow(headers, cells))
             }
         }
+        return lines
     }
 }
 

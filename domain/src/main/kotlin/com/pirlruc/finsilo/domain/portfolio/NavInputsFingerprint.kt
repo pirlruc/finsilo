@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.portfolio
 
+import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import java.math.BigDecimal
 import java.nio.charset.StandardCharsets
@@ -50,6 +51,6 @@ object NavInputsFingerprint {
 
     private fun sha256(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8))
-        return digest.joinToString("") { byte -> "%02x".format(byte) }
+        return AppLockCrypto.toHex(digest)
     }
 }

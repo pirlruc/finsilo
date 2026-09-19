@@ -3,13 +3,7 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 internal object Trading212CsvParser {
-    fun parse(table: CsvTable): List<BrokerCsvLine> {
-        val lines = ArrayList<BrokerCsvLine>()
-        table.forEachRow { sourceLine, row ->
-            lines += parseRow(sourceLine, row)
-        }
-        return lines
-    }
+    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
         val action = row.get("Action").lowercase()
@@ -30,7 +24,7 @@ internal object Trading212CsvParser {
         }
         val eur = BrokerMoney.toEurCash(amount, row.get("Currency (Total)"), row.get("Exchange rate"))
             ?: return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Cash currency cannot be booked in EUR", date)
-        return BrokerLines.cash(BrokerCsvFormat.TRADING_212, sourceLine, date, type, eur, row.get("ID"))
+        return BrokerLines.cash(BrokerCsvFormat.TRADING_212, sourceLine, date, type, eur)
     }
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
@@ -53,7 +47,6 @@ internal object Trading212CsvParser {
                 isin = isin,
                 quoteSymbol = quote,
                 booked = booked,
-                externalId = row.get("ID"),
             ),
         )
     }

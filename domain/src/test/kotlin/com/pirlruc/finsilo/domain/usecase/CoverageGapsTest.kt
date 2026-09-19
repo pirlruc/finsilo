@@ -168,13 +168,11 @@ class CoverageGapsTest {
                     isin = "  ",
                     quoteSymbol = "  ",
                     booked = BookedAmounts(bd("1"), bd("1"), Currency.EUR, BigDecimal.ZERO, null),
-                    externalId = "  ",
                 ),
             )
         assertEquals("X", blankHolding.name)
         assertNull(blankHolding.isin)
         assertNull(blankHolding.quoteSymbol)
-        assertNull(blankHolding.externalId)
         assertEquals(".DE", BrokerQuoteSymbol.fromIsin(".DE", null))
         assertEquals("AAPL.US", BrokerQuoteSymbol.fromIsin("AAPL.US", "US0378331005"))
         assertEquals("FOO", BrokerQuoteSymbol.fromIsin("FOO", null))
@@ -215,7 +213,6 @@ class CoverageGapsTest {
                 currency = Currency.EUR,
                 feesEur = BigDecimal.ZERO,
                 eurPerUsd = null,
-                externalId = null,
                 sourceLine = 2,
                 format = BrokerCsvFormat.TRADING_212,
             )
@@ -508,7 +505,6 @@ class CoverageGapsTest {
         currency = currency,
         feesEur = BigDecimal.ZERO,
         eurPerUsd = eurPerUsd,
-        externalId = "L$sourceLine",
         sourceLine = sourceLine,
         format = BrokerCsvFormat.TRADING_212,
     )

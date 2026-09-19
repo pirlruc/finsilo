@@ -4,13 +4,7 @@ import com.pirlruc.finsilo.domain.model.TransactionType
 import java.math.BigDecimal
 
 internal object DegiroTransactionsParser {
-    fun parse(table: CsvTable): List<BrokerCsvLine> {
-        val lines = ArrayList<BrokerCsvLine>()
-        table.forEachRow { sourceLine, row ->
-            lines += parseRow(sourceLine, row)
-        }
-        return lines
-    }
+    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
         val date = BrokerDates.parse(row.get("Datum", "Date"))
@@ -48,7 +42,6 @@ internal object DegiroTransactionsParser {
                 isin = isin,
                 quoteSymbol = null,
                 booked = booked,
-                externalId = row.get("Order ID", "Order-ID", "Order Id"),
             ),
         )
     }

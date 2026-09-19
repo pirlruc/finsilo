@@ -2,6 +2,8 @@ package com.pirlruc.finsilo.data.remote
 
 import java.io.IOException
 import java.net.URI
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** HTTPS host allowlist and path-token checks for quote-feed URLs. */
 object MarketHttpsPolicy {
@@ -15,19 +17,23 @@ object MarketHttpsPolicy {
 
     private val safeToken = Regex("^[A-Za-z0-9._-]+$")
 
-    fun requireHttpsUrl(url: String): URI {
-        val uri = runCatching { URI(url) }.getOrElse { reject("Invalid URL") }
-        if (!uri.isAbsolute || !uri.scheme.equals("https", ignoreCase = true)) {
+    fun requireHttpsUrl(url: String): URI = requireHttps(url.toHttpUrlOrNull() ?: reject("Invalid URL")).toUri()
+
+    fun requireHttps(url: HttpUrl): HttpUrl {
+        if (url.scheme != "https") {
             reject("FinSilo allows HTTPS only")
         }
-        val host = uri.host ?: reject("URL missing host")
+        val host = url.host
         if (host !in allowedHosts) {
             reject("Host not allowed: $host")
         }
-        if (uri.userInfo != null) {
+        if (url.port != 443) {
+            reject("HTTPS port not allowed")
+        }
+        if (url.username.isNotEmpty() || url.password.isNotEmpty()) {
             reject("URL userinfo is not allowed")
         }
-        return uri
+        return url
     }
 
     fun requireSafeToken(value: String, label: String): String {

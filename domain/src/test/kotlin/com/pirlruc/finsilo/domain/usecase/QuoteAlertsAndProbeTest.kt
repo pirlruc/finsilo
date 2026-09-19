@@ -145,7 +145,6 @@ class QuoteAlertsAndProbeTest {
                 currency = Currency.EUR,
                 feesEur = BigDecimal.ZERO,
                 eurPerUsd = null,
-                externalId = null,
                 sourceLine = 2,
                 format = BrokerCsvFormat.TRADING_212,
             )
@@ -170,6 +169,10 @@ class QuoteAlertsAndProbeTest {
         assertEquals(asOf, rows.last().date)
         assertEquals(0, BigDecimal("11").compareTo(rows.last().closingPriceNative))
         assertTrue(QuoteSeed.fromBars("aapl", emptyList()).isEmpty())
+        val stored = listOf(rows.last().copy(analystRating = AnalystRating.HOLD))
+        assertEquals(1, QuoteSeed.patchFreshRating(stored, AnalystRating.BUY).size)
+        assertTrue(QuoteSeed.patchFreshRating(stored, AnalystRating.HOLD).isEmpty())
+        assertTrue(QuoteSeed.patchFreshRating(emptyList(), AnalystRating.BUY).isEmpty())
     }
 
     @Test
@@ -211,7 +214,6 @@ class QuoteAlertsAndProbeTest {
                 currency = Currency.EUR,
                 feesEur = BigDecimal.ZERO,
                 eurPerUsd = null,
-                externalId = null,
                 sourceLine = 3,
                 format = BrokerCsvFormat.TRADING_212,
             )
@@ -230,7 +232,6 @@ class QuoteAlertsAndProbeTest {
                 currency = Currency.EUR,
                 feesEur = BigDecimal.ZERO,
                 eurPerUsd = null,
-                externalId = null,
                 sourceLine = 4,
                 format = BrokerCsvFormat.TRADING_212,
             )

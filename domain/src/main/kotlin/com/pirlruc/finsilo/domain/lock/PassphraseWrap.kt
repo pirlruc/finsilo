@@ -49,5 +49,12 @@ object PassphraseWrap {
         }
     }
 
-    private fun wrappingKey(secret: String, salt: ByteArray): SecretKeySpec = SecretKeySpec(AppLockCrypto.hashSecret(secret, salt), "AES")
+    private fun wrappingKey(secret: String, salt: ByteArray): SecretKeySpec {
+        val bits = AppLockCrypto.hashSecret(secret, salt)
+        return try {
+            SecretKeySpec(bits, "AES")
+        } finally {
+            bits.fill(0)
+        }
+    }
 }

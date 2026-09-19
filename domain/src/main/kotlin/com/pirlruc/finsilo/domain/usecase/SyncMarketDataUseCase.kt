@@ -68,10 +68,8 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         asOf: LocalDate,
         failures: MutableList<String>,
     ): List<DailyMarketData> {
-        val latest = stored.maxBy { it.date }
         val rating = ratingFor(asset, stored, asOf, failures)
-        if (rating == latest.analystRating) return emptyList()
-        return listOf(latest.copy(analystRating = rating))
+        return QuoteSeed.patchFreshRating(stored, rating)
     }
 
     private suspend fun barsFor(

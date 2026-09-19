@@ -16,7 +16,6 @@ internal data class HoldingDraft(
     val isin: String?,
     val quoteSymbol: String?,
     val booked: BookedAmounts,
-    val externalId: String?,
 )
 
 internal object BrokerLines {
@@ -34,36 +33,28 @@ internal object BrokerLines {
         currency = Currency.EUR,
         feesEur = BigDecimal.ZERO,
         eurPerUsd = null,
-        externalId = null,
         sourceLine = sourceLine,
         format = format,
     )
 
-    fun cash(
-        format: BrokerCsvFormat,
-        sourceLine: Int,
-        date: LocalDate,
-        type: TransactionType,
-        amountEur: BigDecimal,
-        externalId: String?,
-    ): BrokerCsvLine = BrokerCsvLine(
-        date = date,
-        type = type,
-        skipReason = null,
-        symbol = "EUR-CASH",
-        name = "Euro cash",
-        isin = null,
-        quoteSymbol = null,
-        assetType = AssetType.CASH,
-        quantity = amountEur.abs(),
-        unitPriceNative = BigDecimal.ONE,
-        currency = Currency.EUR,
-        feesEur = BigDecimal.ZERO,
-        eurPerUsd = null,
-        externalId = externalId,
-        sourceLine = sourceLine,
-        format = format,
-    )
+    fun cash(format: BrokerCsvFormat, sourceLine: Int, date: LocalDate, type: TransactionType, amountEur: BigDecimal): BrokerCsvLine =
+        BrokerCsvLine(
+            date = date,
+            type = type,
+            skipReason = null,
+            symbol = "EUR-CASH",
+            name = "Euro cash",
+            isin = null,
+            quoteSymbol = null,
+            assetType = AssetType.CASH,
+            quantity = amountEur.abs(),
+            unitPriceNative = BigDecimal.ONE,
+            currency = Currency.EUR,
+            feesEur = BigDecimal.ZERO,
+            eurPerUsd = null,
+            sourceLine = sourceLine,
+            format = format,
+        )
 
     fun holding(draft: HoldingDraft): BrokerCsvLine = BrokerCsvLine(
         date = draft.date,
@@ -79,7 +70,6 @@ internal object BrokerLines {
         currency = draft.booked.currency,
         feesEur = draft.booked.feesEur,
         eurPerUsd = draft.booked.eurPerUsd,
-        externalId = draft.externalId?.ifBlank { null },
         sourceLine = draft.sourceLine,
         format = draft.format,
     )

@@ -130,7 +130,7 @@ private class FakeRecoveryLock : AppLockRepository {
 
     override fun biometricEnabled(): Boolean = false
 
-    override fun setBiometricEnabled(enabled: Boolean) = Unit
+    override fun setBiometricEnabled(enabled: Boolean): Boolean = true
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean = true
 

@@ -33,9 +33,8 @@ data class AllocationSlice(
     }
 }
 
-/** Portfolio allocation at an as-of date. */
+/** Portfolio allocation at the dashboard as-of date. */
 data class AllocationReport(
-    val asOf: LocalDate,
     val totalValueEur: BigDecimal,
     val unrealizedPnlEur: BigDecimal,
     val cashEur: BigDecimal,
@@ -46,8 +45,8 @@ data class AllocationReport(
 /** One dense NAV observation. */
 data class NavPoint(val date: LocalDate, val valueEur: BigDecimal)
 
-/** Downsampled NAV series for a dashboard range. */
-data class HistoryReport(val range: HistoryRange, val from: LocalDate, val to: LocalDate, val points: List<NavPoint>)
+/** Dense NAV series for a dashboard range window. */
+data class HistoryReport(val from: LocalDate, val to: LocalDate, val points: List<NavPoint>)
 
 /** Rating and SMA context for a held marketable instrument. */
 data class MarketSignal(
@@ -78,7 +77,7 @@ data class DashboardReport(
 )
 
 /** Time-weighted return and the sub-periods that produced it. */
-data class TwrReport(val asOf: LocalDate, val twrPercent: BigDecimal, val subPeriods: List<TwrSubPeriod>)
+data class TwrReport(val twrPercent: BigDecimal, val subPeriods: List<TwrSubPeriod>)
 
 /** One TWR sub-period. [split] is the event that opened it. */
 data class TwrSubPeriod(val from: LocalDate, val to: LocalDate, val returnPercent: BigDecimal, val split: TwrSplit?)

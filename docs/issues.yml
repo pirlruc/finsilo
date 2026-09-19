@@ -140,7 +140,8 @@ milestones:
             GitHub issues, epic/task labels, or github-issue-adr milestones.
             LIM-GH: the cloud token is issues=read, so setup-issue-scaffold and
             issues-sync 403. Closed work from PR #15 (TOOL-002, GATE-005,
-            GATE-006, FS-032, FS-033-T1) exists only in the YAML.
+            GATE-006, FS-032, FS-033-T1) and PR #18 (FS-033-T2, FS-033-T4,
+            FS-035) exists only in the YAML. FS-033 stays open for T3.
           goal: >-
             After Issues: Read and write is granted on the PAT or GitHub App,
             bootstrap labels and milestones, then sync so GitHub matches
@@ -2178,15 +2179,17 @@ milestones:
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
-            Lock hashes and SQLCipher wraps remain two stores (including
-            persistMigratedWraps, which wraps then rotates recovery without
-            rollback). The SPDX allow list is empty (org default) and scanner
-            fail bars stay at High/ERROR. FLAG_SECURE still drops while a
-            system picker is open; ledger pixels are covered (FS-033-T1).
-            Holdings omit unit price and FIFO cost; YOC omits remaining cost.
+            Scanner fail bars stay at High/ERROR and the SPDX allow list is
+            still the empty org default. FLAG_SECURE still drops while a
+            system picker is open; ledger pixels and a11y nodes are covered
+            (FS-033-T1). Lock hashes and SQLCipher wraps now share
+            finsilo_credentials (FS-033-T2, PR #18). Holdings, YOC, history,
+            TWR, and signal captions use the former unused report fields
+            (FS-033-T4, PR #18). T3 (medium scanner bars / SPDX allow-list)
+            stays open.
           goal: >-
-            Close leftover design gaps that this pass identified but did not
-            ship, without adding finding-level scanner ignores.
+            Close leftover scanner-policy gaps without adding finding-level
+            scanner ignores.
         architecture:
           target: Lock overlay, credential stores, dashboard reports, and scanner fail bars
           modules:
@@ -2219,16 +2222,18 @@ milestones:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - Opening CreateDocument/OpenDocument does not leave Compose ledger pixels on screen
           - id: FS-033-T2
-            status: open
+            status: done
             title: Unify lock hash and wrap persistence
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/security
                 - app/src/main/java/com/pirlruc/finsilo/ui/lock/LockViewModel.kt
             verification:
-              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.security.LockMaterialTest
               - A failed second write cannot leave PIN ready without matching wraps
-              - persistMigratedWraps rolls back finishLegacyMigration if rotateRecovery fails
+              - Setup, recovery PIN reset, wrap upgrade, and recovery rotation write hashes and wraps in one SharedPreferences commit
+            guardrail_refs:
+              - KT-SEC-002
           - id: FS-033-T3
             status: open
             title: Evaluate medium-severity scanner fail bars and license allow-list
@@ -2244,7 +2249,7 @@ milestones:
               - CI-005
               - SC-LIC-001
           - id: FS-033-T4
-            status: open
+            status: done
             title: Surface or drop unused dashboard report fields
             instructions:
               files:
@@ -2254,10 +2259,97 @@ milestones:
                 - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardHistory.kt
             verification:
               - ./gradlew :domain:test :app:lintDebug
-              - Holdings show EUR unit price and FIFO cost, or HoldingValuation.priceEur/costEur are removed
-              - YOC shows remainingCostEur, or the field is removed
-              - HistoryReport.range/from/to and TwrReport.asOf are used or dropped as redundant with the chip and DashboardReport.asOf
+              - Holdings show EUR unit price and FIFO cost
+              - YOC shows remainingCostEur
+              - HistoryReport.range and TwrReport.asOf / AllocationReport.asOf dropped; HistoryReport.from/to and TwrSubPeriod dates/splits shown
             guardrail_refs:
               - KT-API-001
+
+      - id: FS-034
+        status: open
+        title: Pin market HTTPS certificates
+        overview:
+          problem: >-
+            Quote traffic is GET-only to four allowlisted hosts with system CAs.
+            A compromised CA or hostile network can still MITM Alpha Vantage,
+            CoinGecko, Frankfurter, or Stooq and feed false prices.
+          goal: >-
+            Decide whether to pin those hosts (and how pins rotate) before a
+            public release, without blocking first-run quotes on pin expiry.
+        decision: >-
+          In the context of GET-only market HTTP, facing public CAs and an
+          API-key query string, we decided keep the host allowlist now and
+          treat certificate pinning as a release decision, to avoid shipping
+          a pin set that cannot rotate, accepting MITM of quote data until
+          pins land.
+        architecture:
+          target: OkHttp market client
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/remote
+            - app/src/main/res/xml/network_security_config.xml
+        acceptance_criteria:
+          - A recorded pin set or an explicit decision to stay on system CAs
+          - Pin failure fails closed for quotes and does not wipe the ledger
+          - Rotation path is documented (backup pins or a documented unpin window)
+        guardrail_refs:
+          - KT-SEC-002
+        tasks:
+          - id: FS-034-T1
+            status: open
+            title: Choose pinning vs system CAs and implement or record the decision
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/remote/HttpGetClient.kt
+                - app/src/main/res/xml/network_security_config.xml
+                - docs/issues.yml
+            verification:
+              - MITM with a user-installed CA cannot supply quotes if pins are on
+              - Or the Epic decision is updated to keep system CAs with why
+            guardrail_refs:
+              - KT-SEC-002
+
+      - id: FS-035
+        status: done
+        title: Drop unused nav rebuild metadata columns
+        overview:
+          problem: >-
+            nav_rebuild_state stored as_of and rebuilt_at_ms, but rebuild
+            decisions only read fingerprint. Those columns were written and
+            never read.
+          goal: >-
+            Drop the unread rebuild metadata via a v8 AutoMigration, without a
+            destructive fallback. Landed in PR #18.
+        decision: >-
+          In the context of leftover Room columns after NAV fingerprinting,
+          facing unread as_of/rebuilt_at_ms, we decided drop them in Room v8
+          with DeleteColumn AutoMigration so generated SQL stays out of
+          scanned source, accepting that existing v7 databases migrate on
+          next open.
+        architecture:
+          target: Encrypted Room nav_rebuild_state
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/local/NavRebuildStateEntity.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/RoomNavHistory.kt
+            - app/schemas
+        acceptance_criteria:
+          - Rebuild still skips when the fingerprint matches
+          - as_of and rebuilt_at_ms are no longer written, or are dropped via AutoMigration
+          - Schema JSON is exported for the new version
+        guardrail_refs:
+          - KT-API-002
+        tasks:
+          - id: FS-035-T1
+            status: done
+            title: Stop writing or migrate away unread nav rebuild columns
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local/NavRebuildStateEntity.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomNavHistory.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.RoomPortfolioRepositoryTest
+              - Schema export includes the post-change version
+            guardrail_refs:
+              - KT-API-002
 
 

@@ -13,6 +13,5 @@ plugins {
 allprojects {
     tasks.named<org.cyclonedx.gradle.CyclonedxDirectTask>("cyclonedxDirectBom") {
         includeConfigs = listOf("runtimeClasspath", "debugRuntimeClasspath", "releaseRuntimeClasspath")
-        skipConfigs = listOf("(?i).*test.*")
     }
 }

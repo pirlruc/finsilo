@@ -3,6 +3,10 @@ package com.pirlruc.finsilo.data.security
 import android.content.Context
 import android.content.SharedPreferences
 
+internal object CredentialKeys {
+    const val FILE = "finsilo_credentials"
+}
+
 /**
  * Keystore AES-256-GCM encrypted [SharedPreferences] for SQLCipher wraps, the app lock, and
  * widget NAV.

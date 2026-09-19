@@ -37,4 +37,11 @@ object QuoteSeed {
         .filter { it.analystRating != AnalystRating.NONE && !it.date.isBefore(asOf.minusDays(OVERVIEW_MAX_AGE_DAYS)) }
         .maxByOrNull { it.date }
         ?.analystRating
+
+    /** Copy the latest stored bar only when its rating changed. */
+    fun patchFreshRating(stored: List<DailyMarketData>, rating: AnalystRating): List<DailyMarketData> {
+        val latest = stored.maxByOrNull { it.date } ?: return emptyList()
+        if (latest.analystRating == rating) return emptyList()
+        return listOf(latest.copy(analystRating = rating))
+    }
 }

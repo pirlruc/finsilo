@@ -50,6 +50,9 @@ internal fun SignalRow(signal: MarketSignal) {
 }
 
 internal fun signalCaption(signal: MarketSignal): List<String> = buildList {
+    add(signal.asOf.toString())
+    signal.sma50?.let { add("SMA50 ${it.stripTrailingZeros().toPlainString()}") }
+    signal.sma200?.let { add("SMA200 ${it.stripTrailingZeros().toPlainString()}") }
     signal.vsSma50?.let { add("vs SMA50 ${it.label()}") }
     signal.vsSma200?.let { add("vs SMA200 ${it.label()}") }
     signal.cross?.let { add(it.label()) }

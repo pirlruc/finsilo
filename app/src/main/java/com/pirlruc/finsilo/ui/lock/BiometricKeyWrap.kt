@@ -22,6 +22,7 @@ internal object BiometricKeyWrap {
     }
 
     fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
+        require(blob.size > IV_BYTES) { "Biometric wrap is truncated." }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(
             Cipher.DECRYPT_MODE,

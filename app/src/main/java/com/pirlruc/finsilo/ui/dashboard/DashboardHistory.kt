@@ -25,6 +25,7 @@ import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.pirlruc.finsilo.domain.model.HistoryRange
+import com.pirlruc.finsilo.domain.model.HistoryReport
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.ui.formatEur
 import java.time.LocalDate
@@ -33,12 +34,12 @@ import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun HistoryCard(points: List<NavPoint>, range: HistoryRange, onRangeSelected: (HistoryRange) -> Unit) {
+internal fun HistoryCard(history: HistoryReport, range: HistoryRange, onRangeSelected: (HistoryRange) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text("Portfolio history", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "Total net asset value in EUR, rebuilt each day from the ledger, closes, and FX history.",
+                "Total net asset value in EUR, rebuilt each day from the ledger, closes, and FX history. ${historyWindowLabel(history)}.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -55,10 +56,10 @@ internal fun HistoryCard(points: List<NavPoint>, range: HistoryRange, onRangeSel
                     )
                 }
             }
-            if (points.size < 2) {
+            if (history.points.size < 2) {
                 Text("Need at least two dates of history.", modifier = Modifier.padding(top = 8.dp))
             } else {
-                HistoryLineChart(points, Modifier.fillMaxWidth().height(240.dp))
+                HistoryLineChart(history.points, Modifier.fillMaxWidth().height(240.dp))
             }
         }
     }
@@ -106,3 +107,5 @@ internal fun HistoryRange.chipLabel(): String = when (this) {
     HistoryRange.YTD -> "YTD"
     HistoryRange.ALL -> "All"
 }
+
+internal fun historyWindowLabel(history: HistoryReport): String = "${history.from} – ${history.to}"

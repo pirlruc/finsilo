@@ -2,8 +2,10 @@ package com.pirlruc.finsilo.data.local
 
 import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DeleteColumn
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -12,6 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * Additive changes from v2 onward are Room [AutoMigration]s so the generated
  * `ALTER`/`CREATE` SQL lives in KSP output (`build/`), not in scanned source.
+ * v8 drops unread `nav_rebuild_state` columns via [DropUnreadNavRebuildColumns].
  * v1 had no exported schema; [MIGRATION_1_2] is an empty version bump.
  */
 @Database(
@@ -29,7 +32,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WatchlistQuoteEntity::class,
         RatingAlertEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -37,11 +40,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8, spec = FinsiloDatabase.DropUnreadNavRebuildColumns::class),
     ],
 )
 @TypeConverters(FinsiloTypeConverters::class)
 abstract class FinsiloDatabase : RoomDatabase() {
     abstract fun portfolioDao(): PortfolioDao
+
+    @DeleteColumn.Entries(
+        DeleteColumn(tableName = "nav_rebuild_state", columnName = "as_of"),
+        DeleteColumn(tableName = "nav_rebuild_state", columnName = "rebuilt_at_ms"),
+    )
+    class DropUnreadNavRebuildColumns : AutoMigrationSpec
 
     companion object {
         val MIGRATION_1_2: Migration =

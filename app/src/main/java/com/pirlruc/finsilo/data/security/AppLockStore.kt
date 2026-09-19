@@ -1,6 +1,6 @@
 package com.pirlruc.finsilo.data.security
 
-import android.content.Context
+import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 
@@ -10,7 +10,7 @@ interface AppLockRepository {
 
     fun biometricEnabled(): Boolean
 
-    fun setBiometricEnabled(enabled: Boolean)
+    fun setBiometricEnabled(enabled: Boolean): Boolean
 
     fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean
 
@@ -32,31 +32,18 @@ interface AppLockRepository {
 }
 
 /** Encrypted PIN, recovery hash, and biometric flag for the app lock. */
-class AppLockStore(context: Context) : AppLockRepository {
-    private val prefs = SecurePreferences.open(context, PREFS_FILE)
-
+class AppLockStore(private val prefs: SharedPreferences) : AppLockRepository {
     override fun isSetup(): Boolean = prefs.contains(KEY_PIN_HASH)
 
     override fun biometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC, false)
 
-    override fun setBiometricEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).apply()
-    }
+    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commit()
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
         if (!AppLockCrypto.pinOk(pin)) return false
-        val pinSalt = AppLockCrypto.generateSalt()
-        val recoverySalt = AppLockCrypto.generateSalt()
-        val recovery = AppLockCrypto.normalizeRecovery(recoveryCode)
-        return prefs.edit()
-            .putString(KEY_PIN_SALT, AppLockCrypto.toHex(pinSalt))
-            .putString(KEY_PIN_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(pin, pinSalt)))
-            .putString(KEY_RECOVERY_SALT, AppLockCrypto.toHex(recoverySalt))
-            .putString(KEY_RECOVERY_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(recovery, recoverySalt)))
-            .putBoolean(KEY_BIOMETRIC, biometric)
-            .remove(KEY_FAILED_ATTEMPTS)
-            .remove(KEY_LOCKOUT_UNTIL)
-            .commit()
+        val editor = prefs.edit()
+        applySetup(editor, pin, recoveryCode, biometric)
+        return editor.commit()
     }
 
     override fun verifyPin(pin: String): Boolean = verifyStored(pin, KEY_PIN_SALT, KEY_PIN_HASH)
@@ -66,23 +53,17 @@ class AppLockStore(context: Context) : AppLockRepository {
 
     override fun resetPin(newPin: String): Boolean {
         if (!AppLockCrypto.pinOk(newPin)) return false
-        val salt = AppLockCrypto.generateSalt()
-        return prefs.edit()
-            .putString(KEY_PIN_SALT, AppLockCrypto.toHex(salt))
-            .putString(KEY_PIN_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(newPin, salt)))
-            .remove(KEY_FAILED_ATTEMPTS)
-            .remove(KEY_LOCKOUT_UNTIL)
-            .commit()
+        val editor = prefs.edit()
+        applyPinReset(editor, newPin)
+        return editor.commit()
     }
 
     override fun rotateRecovery(newCode: String): Boolean {
         val recovery = AppLockCrypto.normalizeRecovery(newCode)
         if (recovery.length < 16) return false
-        val salt = AppLockCrypto.generateSalt()
-        return prefs.edit()
-            .putString(KEY_RECOVERY_SALT, AppLockCrypto.toHex(salt))
-            .putString(KEY_RECOVERY_HASH, AppLockCrypto.toHex(AppLockCrypto.hashSecret(recovery, salt)))
-            .commit()
+        val editor = prefs.edit()
+        applyRecoveryHash(editor, newCode)
+        return editor.commit()
     }
 
     override fun failedUnlockAttempts(): Int = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
@@ -102,6 +83,30 @@ class AppLockStore(context: Context) : AppLockRepository {
         prefs.edit().remove(KEY_FAILED_ATTEMPTS).remove(KEY_LOCKOUT_UNTIL).commit()
     }
 
+    internal fun applySetup(editor: SharedPreferences.Editor, pin: String, recoveryCode: String, biometric: Boolean) {
+        applyHashedSecret(editor, KEY_PIN_SALT, KEY_PIN_HASH, pin)
+        applyHashedSecret(editor, KEY_RECOVERY_SALT, KEY_RECOVERY_HASH, AppLockCrypto.normalizeRecovery(recoveryCode))
+        editor.putBoolean(KEY_BIOMETRIC, biometric)
+        editor.remove(KEY_FAILED_ATTEMPTS)
+        editor.remove(KEY_LOCKOUT_UNTIL)
+    }
+
+    internal fun applyPinReset(editor: SharedPreferences.Editor, newPin: String) {
+        applyHashedSecret(editor, KEY_PIN_SALT, KEY_PIN_HASH, newPin)
+        editor.remove(KEY_FAILED_ATTEMPTS)
+        editor.remove(KEY_LOCKOUT_UNTIL)
+    }
+
+    internal fun applyRecoveryHash(editor: SharedPreferences.Editor, newCode: String) {
+        applyHashedSecret(editor, KEY_RECOVERY_SALT, KEY_RECOVERY_HASH, AppLockCrypto.normalizeRecovery(newCode))
+    }
+
+    private fun applyHashedSecret(editor: SharedPreferences.Editor, saltKey: String, hashKey: String, secret: String) {
+        val salt = AppLockCrypto.generateSalt()
+        editor.putString(saltKey, AppLockCrypto.toHex(salt))
+        editor.putString(hashKey, AppLockCrypto.toHex(AppLockCrypto.hashSecret(secret, salt)))
+    }
+
     private fun verifyStored(secret: String, saltKey: String, hashKey: String): Boolean {
         val salt = AppLockCrypto.fromHex(prefs.getString(saltKey, null).orEmpty()) ?: return false
         val expected = AppLockCrypto.fromHex(prefs.getString(hashKey, null).orEmpty()) ?: return false
@@ -109,7 +114,6 @@ class AppLockStore(context: Context) : AppLockRepository {
     }
 
     companion object {
-        private const val PREFS_FILE = "finsilo_lock"
         private const val KEY_PIN_SALT = "pin_salt"
         private const val KEY_PIN_HASH = "pin_hash"
         private const val KEY_RECOVERY_SALT = "recovery_salt"
