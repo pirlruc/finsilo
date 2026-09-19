@@ -2035,10 +2035,10 @@ milestones:
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
-            FLAG_SECURE is still cleared while a system document picker is
-            open, lock hashes and SQLCipher wraps remain two stores, the
-            SPDX allow list is empty (org default), and scanner fail bars stay
-            at High/ERROR.
+            Lock hashes and SQLCipher wraps remain two stores, the SPDX allow
+            list is empty (org default), and scanner fail bars stay at
+            High/ERROR. FLAG_SECURE still drops while a system picker is open;
+            ledger pixels are covered (FS-033-T1).
           goal: >-
             Close leftover design gaps that this pass identified but did not
             ship, without adding finding-level scanner ignores.
@@ -2060,14 +2060,15 @@ milestones:
           - CI-005
         tasks:
           - id: FS-033-T1
-            status: open
+            status: done
             title: Hide ledger content while a document picker holds FLAG_SECURE off
             instructions:
               files:
-                - app/src/main/java/com/pirlruc/finsilo/ui
-                - app/src/main/java/com/pirlruc/finsilo/MainActivity.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/FinsiloApp.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/AppLockGate.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/LockViewModel.kt
             verification:
-              - ./gradlew :app:testDebugUnitTest
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - Opening CreateDocument/OpenDocument does not leave Compose ledger pixels on screen
           - id: FS-033-T2
             status: open

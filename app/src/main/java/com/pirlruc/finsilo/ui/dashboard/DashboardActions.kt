@@ -41,5 +41,3 @@ internal data class DashboardClearActions(
     val onClearWatchlist: (Boolean) -> Unit,
     val onClearTemplates: (Boolean) -> Unit,
 )
-
-internal data class ClearFlags(val ledger: Boolean, val watchlist: Boolean, val templates: Boolean)

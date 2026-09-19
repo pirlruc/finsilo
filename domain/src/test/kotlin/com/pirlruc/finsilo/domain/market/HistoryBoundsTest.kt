@@ -95,6 +95,22 @@ class HistoryBoundsTest {
         assertEquals(3, QuoteSeed.fromBars("aapl", bars).size)
         assertTrue(QuoteSeed.fromBars("aapl", bars, asOf.plusDays(1)).isEmpty())
         assertTrue(QuoteSeed.fromBars("aapl", emptyList(), asOf).isEmpty())
+        val stored = DailyMarketData("aapl", asOf.minusDays(1), BigDecimal.TEN, analystRating = AnalystRating.BUY)
+        val rated =
+            QuoteSeed.fromBars(
+                "aapl",
+                bars,
+                rating = AnalystRating.HOLD,
+                storedByDate = mapOf(stored.date to stored),
+            )
+        assertEquals(AnalystRating.HOLD, rated.last().analystRating)
+        assertEquals(AnalystRating.BUY, rated.first { it.date == stored.date }.analystRating)
+        assertEquals(AnalystRating.BUY, QuoteSeed.storedOverview(listOf(stored), asOf))
+        assertEquals(
+            null,
+            QuoteSeed.storedOverview(listOf(stored), asOf.plusDays(QuoteSeed.OVERVIEW_MAX_AGE_DAYS + 1)),
+        )
+        assertEquals(null, QuoteSeed.storedOverview(emptyList(), asOf))
     }
 
     private fun tx(id: String, assetId: String, date: LocalDate, type: TransactionType) = Transaction(

@@ -62,7 +62,7 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 ## Privacy
 
 - Ledger is SQLCipher. PIN, recovery, and optional biometrics wrap the database key. Leaving the app shows PIN immediately; after 15 minutes in the background the in-memory key is wiped. Preference secrets use Keystore AES-GCM.
-- Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`), except while a system file picker is open.
+- Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`). While a system file picker is open the flag is cleared and an opaque cover hides ledger pixels.
 - No cloud backup of the database (`allowBackup=false`).
 - Network is HTTPS GET only to Frankfurter, Alpha Vantage, CoinGecko, and Stooq.
 

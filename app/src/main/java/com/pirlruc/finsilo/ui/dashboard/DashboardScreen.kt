@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 
@@ -135,7 +136,7 @@ internal fun DashboardScreen(
     }
     if (state.confirmClear) {
         ClearSelectionDialog(
-            flags = ClearFlags(state.clearLedger, state.clearWatchlist, state.clearTemplates),
+            flags = ClearSelection(ledger = state.clearLedger, watchlist = state.clearWatchlist, templates = state.clearTemplates),
             onLedger = clear.onClearLedger,
             onWatchlist = clear.onClearWatchlist,
             onTemplates = clear.onClearTemplates,

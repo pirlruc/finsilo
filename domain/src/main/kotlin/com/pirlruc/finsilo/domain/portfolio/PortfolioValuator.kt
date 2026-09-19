@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.domain.portfolio
 
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.AllocationReport
+import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.DailyMarketData
@@ -95,6 +96,6 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     }
 
     companion object {
-        val DRIFT_BAND_PERCENT: BigDecimal = BigDecimal("5")
+        val DRIFT_BAND_PERCENT: BigDecimal = AllocationSlice.DRIFT_BAND_PERCENT
     }
 }

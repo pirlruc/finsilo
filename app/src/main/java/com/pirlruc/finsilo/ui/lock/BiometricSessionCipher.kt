@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui.lock
 
 import androidx.biometric.BiometricPrompt
+import com.pirlruc.finsilo.data.security.KeystoreAesGcmKey
 import javax.crypto.Cipher
 
 /**

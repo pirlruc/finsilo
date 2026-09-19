@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui.lock
 
 import androidx.biometric.BiometricPrompt
+import com.pirlruc.finsilo.data.security.KeystoreAesGcmKey
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 
@@ -22,7 +23,11 @@ internal object BiometricKeyWrap {
 
     fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME), GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES)))
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            KeystoreAesGcmKey.getOrCreate(KEY_NAME),
+            GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES)),
+        )
         return BiometricPrompt.CryptoObject(cipher)
     }
 

@@ -48,6 +48,7 @@ data class LockUiState(
     val pinFallback: Boolean = false,
     val pendingBiometricSeal: Boolean = false,
     val sessionEvicted: Boolean = false,
+    val externalUiActive: Boolean = false,
 )
 
 class LockViewModel(
@@ -109,6 +110,8 @@ class LockViewModel(
         } else {
             externalUiDepth = (externalUiDepth - 1).coerceAtLeast(0)
         }
+        val busy = externalUiDepth > 0
+        _state.update { it.copy(externalUiActive = busy) }
         return externalUiDepth
     }
 
@@ -348,6 +351,8 @@ class LockViewModel(
             return false
         }
         if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
+            keys?.evictSession()
+            keys?.discardOrphanWraps()
             _state.update { it.copy(error = "Could not store the lock.") }
             return false
         }

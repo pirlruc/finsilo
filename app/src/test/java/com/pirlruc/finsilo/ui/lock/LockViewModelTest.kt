@@ -112,7 +112,9 @@ class LockViewModelTest {
         viewModel.setExternalUiActive(true)
         viewModel.onAppBackgrounded()
         assertTrue(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.externalUiActive)
         viewModel.setExternalUiActive(false)
+        assertFalse(viewModel.state.value.externalUiActive)
         viewModel.onAppBackgrounded()
         assertFalse(viewModel.state.value.unlocked)
     }
@@ -144,6 +146,23 @@ class LockViewModelTest {
         assertTrue(viewModel.state.value.unlocked)
         assertEquals(1, keys.provisionCalls)
         assertEquals(1, opened)
+    }
+
+    @Test
+    fun completeSetupRollsBackWrapsWhenLockStoreFails() {
+        val keys = FakeLedgerKeys()
+        val viewModel = LockViewModel(FakeAppLock(setup = false, failSetup = true), dispatcher, { 1L }, keys)
+        viewModel.setPin("1234")
+        viewModel.setPinConfirm("1234")
+        viewModel.setRecoveryConfirm(true)
+        viewModel.completeSetup()
+        assertFalse(viewModel.state.value.setupComplete)
+        assertFalse(viewModel.state.value.unlocked)
+        assertEquals(1, keys.provisionCalls)
+        assertEquals(1, keys.evictCalls)
+        assertTrue(keys.discardCalls >= 2)
+        assertFalse(keys.isSessionOpen())
+        assertEquals("Could not store the lock.", viewModel.state.value.error)
     }
 
     @Test
@@ -400,7 +419,11 @@ class LockViewModelTest {
     }
 }
 
-private class FakeAppLock(private var setup: Boolean = true, private val failRotate: Boolean = false) : AppLockRepository {
+private class FakeAppLock(
+    private var setup: Boolean = true,
+    private val failRotate: Boolean = false,
+    private val failSetup: Boolean = false,
+) : AppLockRepository {
     var pin: String = "1234"
     var recovery: String = INITIAL_RECOVERY
     var setupCalls: Int = 0
@@ -418,7 +441,7 @@ private class FakeAppLock(private var setup: Boolean = true, private val failRot
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
         setupCalls += 1
-        if (!AppLockCrypto.pinOk(pin)) return false
+        if (failSetup || !AppLockCrypto.pinOk(pin)) return false
         this.pin = pin
         recovery = AppLockCrypto.normalizeRecovery(recoveryCode)
         this.biometric = biometric
@@ -473,6 +496,8 @@ private class FakeLedgerKeys(
     var provisionCalls: Int = 0
     var finishMigrationCalls: Int = 0
     var rollbackRecoveryCalls: Int = 0
+    var discardCalls: Int = 0
+    var evictCalls: Int = 0
     var lastRewrapPin: String? = null
     var lastRewrapRecovery: String? = null
     private var sessionKey: ByteArray? = if (sessionOpen) ByteArray(32) else null
@@ -537,12 +562,17 @@ private class FakeLedgerKeys(
     }
 
     override fun evictSession() {
+        evictCalls += 1
         sessionOpen = false
         sessionKey?.fill(0)
         sessionKey = null
     }
 
-    override fun discardOrphanWraps(): Boolean = true
+    override fun discardOrphanWraps(): Boolean {
+        discardCalls += 1
+        if (sessionOpen) return true
+        return true
+    }
 
     override fun rollbackRecoveryWrap(): Boolean {
         rollbackRecoveryCalls += 1
