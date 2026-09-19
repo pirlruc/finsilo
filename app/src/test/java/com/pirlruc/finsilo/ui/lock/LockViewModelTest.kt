@@ -240,7 +240,7 @@ class LockViewModelTest {
         viewModel.requestRotateRecovery()
         viewModel.setPin("1234")
         viewModel.confirmSensitiveAction()
-        assertEquals(1, keys.rollbackRecoveryCalls)
+        assertEquals(1, keys.rollbackWrapCalls)
         assertTrue(viewModel.state.value.error!!.contains("rotate"))
     }
 
@@ -275,6 +275,73 @@ class LockViewModelTest {
         assertTrue(keys.sessionOpen)
         assertEquals(1, opened)
         assertFalse(viewModel.state.value.pinFallback)
+    }
+
+    @Test
+    fun wrapUpgradeRollsBackWhenRecoveryHashFails() {
+        val store = FakeAppLock(failRotate = true)
+        val keys = FakeLedgerKeys(upgrade = true)
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        viewModel.setPin("1234")
+        viewModel.unlockWithPin()
+        assertTrue(viewModel.state.value.wrapUpgradeRequired)
+        viewModel.setUpgradeRecoveryConfirm(true)
+        viewModel.completeWrapUpgrade()
+        assertEquals(1, keys.finishMigrationCalls)
+        assertEquals(1, keys.rollbackWrapCalls)
+        assertTrue(viewModel.state.value.error!!.contains("recovery"))
+        assertTrue(viewModel.state.value.wrapUpgradeRequired)
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
+    @Test
+    fun recoverRollsBackWrapWhenPinResetFails() {
+        val store = FakeAppLock(failReset = true)
+        val keys = FakeLedgerKeys()
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        viewModel.showRecover(true)
+        viewModel.setRecoveryTyped(FakeAppLock.INITIAL_RECOVERY)
+        viewModel.setPinConfirm("5678")
+        viewModel.recoverAndResetPin()
+        assertEquals("5678", keys.lastRewrapPin)
+        assertEquals(1, keys.rollbackWrapCalls)
+        assertFalse(viewModel.state.value.unlocked)
+        assertTrue(viewModel.state.value.error!!.contains("PIN"))
+    }
+
+    @Test
+    fun wrapUpgradeClearsAfterSessionEviction() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys(upgrade = true)
+        var evicted = 0
+        val viewModel = lockingViewModel(keys) { evicted += 1 }
+        viewModel.setPin("1234")
+        viewModel.unlockWithPin()
+        assertTrue(viewModel.state.value.wrapUpgradeRequired)
+        viewModel.onAppBackgrounded()
+        main.scheduler.advanceTimeBy(1_000)
+        main.scheduler.runCurrent()
+        assertEquals(1, evicted)
+        assertFalse(viewModel.state.value.wrapUpgradeRequired)
+        assertTrue(viewModel.state.value.sessionEvicted)
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
+    @Test
+    fun biometricUnwrapCopiesKeyBeforeCallerZerosIt() {
+        val main = StandardTestDispatcher()
+        Dispatchers.setMain(main)
+        val keys = FakeLedgerKeys()
+        var opened = 0
+        val viewModel = LockViewModel(FakeAppLock(), main, { 1L }, keys, openLedger = { opened += 1 })
+        val key = ByteArray(32) { 7 }
+        viewModel.unlockWithUnwrappedKey(key)
+        key.fill(0)
+        main.scheduler.advanceUntilIdle()
+        assertTrue(keys.capturedUnwrapped.contentEquals(ByteArray(32) { 7 }))
+        assertTrue(viewModel.state.value.unlocked)
+        assertEquals(1, opened)
     }
 
     @Test
@@ -423,6 +490,7 @@ private class FakeAppLock(
     private var setup: Boolean = true,
     private val failRotate: Boolean = false,
     private val failSetup: Boolean = false,
+    private val failReset: Boolean = false,
 ) : AppLockRepository {
     var pin: String = "1234"
     var recovery: String = INITIAL_RECOVERY
@@ -435,8 +503,9 @@ private class FakeAppLock(
 
     override fun biometricEnabled(): Boolean = biometric
 
-    override fun setBiometricEnabled(enabled: Boolean) {
+    override fun setBiometricEnabled(enabled: Boolean): Boolean {
         biometric = enabled
+        return true
     }
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
@@ -455,7 +524,7 @@ private class FakeAppLock(
     override fun verifyRecovery(code: String): Boolean = AppLockCrypto.normalizeRecovery(code) == recovery
 
     override fun resetPin(newPin: String): Boolean {
-        if (!AppLockCrypto.pinOk(newPin)) return false
+        if (failReset || !AppLockCrypto.pinOk(newPin)) return false
         pin = newPin
         clearUnlockFailures()
         return true
@@ -495,11 +564,12 @@ private class FakeLedgerKeys(
 ) : LedgerKeySession {
     var provisionCalls: Int = 0
     var finishMigrationCalls: Int = 0
-    var rollbackRecoveryCalls: Int = 0
+    var rollbackWrapCalls: Int = 0
     var discardCalls: Int = 0
     var evictCalls: Int = 0
     var lastRewrapPin: String? = null
     var lastRewrapRecovery: String? = null
+    var capturedUnwrapped: ByteArray? = null
     private var sessionKey: ByteArray? = if (sessionOpen) ByteArray(32) else null
     private var biometricWrap: ByteArray? = null
 
@@ -531,6 +601,7 @@ private class FakeLedgerKeys(
     }
 
     override fun unlockWithUnwrappedKey(key: ByteArray): Boolean {
+        capturedUnwrapped = key.copyOf()
         sessionOpen = true
         sessionKey = key.copyOf()
         return true
@@ -574,8 +645,8 @@ private class FakeLedgerKeys(
         return true
     }
 
-    override fun rollbackRecoveryWrap(): Boolean {
-        rollbackRecoveryCalls += 1
+    override fun rollbackLastWrap(): Boolean {
+        rollbackWrapCalls += 1
         return true
     }
 }

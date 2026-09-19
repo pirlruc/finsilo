@@ -43,20 +43,18 @@ interface LedgerKeySession {
 
     fun discardOrphanWraps(): Boolean
 
-    fun rollbackRecoveryWrap(): Boolean
+    fun rollbackLastWrap(): Boolean
 }
 
 class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
     @Volatile
     private var session: ByteArray? = null
 
-    private var previousRecoveryWrap: String? = null
+    private var lastWrapUndo: (SharedPreferences.Editor.() -> Unit)? = null
 
     fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
 
-    fun setAlphaVantageKey(key: String) {
-        prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).apply()
-    }
+    fun setAlphaVantageKey(key: String): Boolean = prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).commit()
 
     /** Copy of the unwrapped SQLCipher key; throws when this process has not unlocked. */
     fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
@@ -90,9 +88,12 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
             .commit()
     }
 
-    override fun rollbackRecoveryWrap(): Boolean {
-        val previous = previousRecoveryWrap ?: return false
-        return prefs.edit().putString(KEY_WRAP_RECOVERY, previous).commit()
+    override fun rollbackLastWrap(): Boolean {
+        val undo = lastWrapUndo ?: return false
+        lastWrapUndo = null
+        val editor = prefs.edit()
+        editor.undo()
+        return editor.commit()
     }
 
     override fun unlockWithPin(pin: String): Boolean {
@@ -125,14 +126,13 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
 
-    override fun rewrapRecovery(newRecovery: String): Boolean {
-        previousRecoveryWrap = prefs.getString(KEY_WRAP_RECOVERY, null)
-        return rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
-    }
+    override fun rewrapRecovery(newRecovery: String): Boolean =
+        rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
 
     override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
         val key = session ?: return false
         if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
+        rememberWrapState()
         if (!persistWraps(pin, recovery, key)) return false
         // Confirm-screen path: wraps were just written; only then drop hex.
         return prefs.edit().remove(KEY_PASSPHRASE).commit()
@@ -174,7 +174,30 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     private fun rewrap(prefsKey: String, secret: String): Boolean {
         val key = session ?: return false
+        rememberKey(prefsKey)
         return prefs.edit().putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key))).commit()
+    }
+
+    private fun rememberWrapState() {
+        val hex = prefs.getString(KEY_PASSPHRASE, null)
+        val pinWrap = prefs.getString(KEY_WRAP_PIN, null)
+        val recoveryWrap = prefs.getString(KEY_WRAP_RECOVERY, null)
+        val biometricWrap = prefs.getString(KEY_WRAP_BIOMETRIC, null)
+        lastWrapUndo = {
+            restore(KEY_PASSPHRASE, hex)
+            restore(KEY_WRAP_PIN, pinWrap)
+            restore(KEY_WRAP_RECOVERY, recoveryWrap)
+            restore(KEY_WRAP_BIOMETRIC, biometricWrap)
+        }
+    }
+
+    private fun rememberKey(prefsKey: String) {
+        val previous = prefs.getString(prefsKey, null)
+        lastWrapUndo = { restore(prefsKey, previous) }
+    }
+
+    private fun SharedPreferences.Editor.restore(key: String, value: String?) {
+        if (value == null) remove(key) else putString(key, value)
     }
 
     private fun storedBlob(prefsKey: String): ByteArray? {

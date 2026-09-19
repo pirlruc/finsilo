@@ -5,6 +5,8 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PersistableBundle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -17,24 +19,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 internal const val RECOVERY_CLIPBOARD_MS: Long = 60_000L
 
 @Composable
 internal fun rememberCopyRecovery(): (String) -> Unit {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    return remember(context, scope) { copyRecoveryAction(context, scope) }
+    return remember(context) { copyRecoveryAction(context) }
 }
 
 @Composable
@@ -58,17 +54,16 @@ internal fun RecoveryCodeRow(code: String, enabled: Boolean) {
     }
 }
 
-private fun copyRecoveryAction(context: Context, scope: CoroutineScope): (String) -> Unit {
-    var clearJob: Job? = null
+private val clipboardClearHandler = Handler(Looper.getMainLooper())
+
+private fun copyRecoveryAction(context: Context): (String) -> Unit {
+    val app = context.applicationContext
     return { code ->
         if (code.isNotBlank()) {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipboard = app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(sensitiveClip(code))
-            clearJob?.cancel()
-            clearJob = scope.launch {
-                delay(RECOVERY_CLIPBOARD_MS)
-                clearClip(clipboard)
-            }
+            clipboardClearHandler.removeCallbacksAndMessages(null)
+            clipboardClearHandler.postDelayed({ clearClip(clipboard) }, RECOVERY_CLIPBOARD_MS)
         }
     }
 }

@@ -179,5 +179,5 @@ internal object LedgerBackupParse {
         return RatingAlertPref.fromMask(cols[1], RatingAlertScope.valueOf(cols[2]), cols[3].toInt())
     }
 
-    private fun unesc(value: String): String = value.replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\")
+    private fun unesc(value: String): String = LedgerBackupEncode.unesc(value)
 }

@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.backup.LedgerBackupCodec
+import com.pirlruc.finsilo.domain.backup.LedgerBackupEncode
 import com.pirlruc.finsilo.domain.backup.LedgerBackupExtras
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.backup.LedgerBackupText
@@ -57,6 +58,14 @@ class BacklogBranchCoverageTest {
         val restored = LedgerBackupText.decode(LedgerBackupText.encode(snapshot)) as LedgerBackupResult.Restored
         assertEquals("Name\twith tab", restored.snapshot.assets.single().name)
         assertEquals("IE00", restored.snapshot.assets.single().isin)
+        val slashN = snapshot.copy(assets = listOf(snapshot.assets.single().copy(name = "Cash\\nReserve")))
+        val restoredSlash = LedgerBackupText.decode(LedgerBackupText.encode(slashN)) as LedgerBackupResult.Restored
+        assertEquals("Cash\\nReserve", restoredSlash.snapshot.assets.single().name)
+        val newline = snapshot.copy(assets = listOf(snapshot.assets.single().copy(name = "Line1\nLine2")))
+        val restoredNewline = LedgerBackupText.decode(LedgerBackupText.encode(newline)) as LedgerBackupResult.Restored
+        assertEquals("Line1\nLine2", restoredNewline.snapshot.assets.single().name)
+        assertEquals("\\x", LedgerBackupEncode.unesc("\\x"))
+        assertEquals("end\\", LedgerBackupEncode.unesc("end\\"))
         assertTrue(LedgerBackupText.decode("NOPE") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nZ\tbad") is LedgerBackupResult.Refused)
         assertTrue(LedgerBackupText.decode("FSILO-LEDGER-1\nA\tshort") is LedgerBackupResult.Refused)

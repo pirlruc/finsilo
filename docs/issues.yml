@@ -2178,12 +2178,13 @@ milestones:
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
-            Lock hashes and SQLCipher wraps remain two stores (including
-            persistMigratedWraps, which wraps then rotates recovery without
-            rollback). The SPDX allow list is empty (org default) and scanner
-            fail bars stay at High/ERROR. FLAG_SECURE still drops while a
-            system picker is open; ledger pixels are covered (FS-033-T1).
-            Holdings omit unit price and FIFO cost; YOC omits remaining cost.
+            Lock hashes and SQLCipher wraps remain two SharedPreferences files
+            (compensating rollback for persistMigratedWraps, recovery PIN rewrap,
+            and recovery rotation is in place). The SPDX allow list is empty
+            (org default) and scanner fail bars stay at High/ERROR. FLAG_SECURE
+            still drops while a system picker is open; ledger pixels and a11y
+            nodes are covered (FS-033-T1). Holdings omit unit price and FIFO
+            cost; YOC omits remaining cost.
           goal: >-
             Close leftover design gaps that this pass identified but did not
             ship, without adding finding-level scanner ignores.
@@ -2229,6 +2230,9 @@ milestones:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - A failed second write cannot leave PIN ready without matching wraps
               - persistMigratedWraps rolls back finishLegacyMigration if rotateRecovery fails
+              - Remaining: one SharedPreferences file so hash and wrap share a single commit, not only compensating rollback
+            guardrail_refs:
+              - KT-SEC-002
           - id: FS-033-T3
             status: open
             title: Evaluate medium-severity scanner fail bars and license allow-list
@@ -2259,5 +2263,48 @@ milestones:
               - HistoryReport.range/from/to and TwrReport.asOf are used or dropped as redundant with the chip and DashboardReport.asOf
             guardrail_refs:
               - KT-API-001
+
+      - id: FS-034
+        status: open
+        title: Pin market HTTPS certificates
+        overview:
+          problem: >-
+            Quote traffic is GET-only to four allowlisted hosts with system CAs.
+            A compromised CA or hostile network can still MITM Alpha Vantage,
+            CoinGecko, Frankfurter, or Stooq and feed false prices.
+          goal: >-
+            Decide whether to pin those hosts (and how pins rotate) before a
+            public release, without blocking first-run quotes on pin expiry.
+        decision: >-
+          In the context of GET-only market HTTP, facing public CAs and an
+          API-key query string, we decided keep the host allowlist now and
+          treat certificate pinning as a release decision, to avoid shipping
+          a pin set that cannot rotate, accepting MITM of quote data until
+          pins land.
+        architecture:
+          target: OkHttp market client
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/remote
+            - app/src/main/res/xml/network_security_config.xml
+        acceptance_criteria:
+          - A recorded pin set or an explicit decision to stay on system CAs
+          - Pin failure fails closed for quotes and does not wipe the ledger
+          - Rotation path is documented (backup pins or a documented unpin window)
+        guardrail_refs:
+          - KT-SEC-002
+        tasks:
+          - id: FS-034-T1
+            status: open
+            title: Choose pinning vs system CAs and implement or record the decision
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/remote/HttpGetClient.kt
+                - app/src/main/res/xml/network_security_config.xml
+                - docs/issues.yml
+            verification:
+              - MITM with a user-installed CA cannot supply quotes if pins are on
+              - Or the Epic decision is updated to keep system CAs with why
+            guardrail_refs:
+              - KT-SEC-002
 
 

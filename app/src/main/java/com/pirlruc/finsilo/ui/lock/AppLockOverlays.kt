@@ -80,7 +80,8 @@ internal fun LockScrim(content: @Composable () -> Unit) {
     }
 }
 
-internal fun hiddenFromA11y(unlocked: Boolean): Modifier = if (unlocked) Modifier else Modifier.semantics { hideFromAccessibility() }
+internal fun hiddenFromA11y(visibleToA11y: Boolean): Modifier =
+    if (visibleToA11y) Modifier else Modifier.semantics { hideFromAccessibility() }
 
 @Composable
 internal fun PickerPrivacyCover() {

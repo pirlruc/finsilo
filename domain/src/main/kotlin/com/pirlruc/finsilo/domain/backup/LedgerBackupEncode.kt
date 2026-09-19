@@ -92,4 +92,39 @@ internal object LedgerBackupEncode {
     fun ratingAlert(row: RatingAlertPref): String = listOf("R", row.targetId, row.scope.name, row.mask.toString()).joinToString("\t")
 
     fun esc(value: String): String = value.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+
+    fun unesc(value: String): String {
+        val out = StringBuilder(value.length)
+        var index = 0
+        while (index < value.length) {
+            val current = value[index]
+            val next = value.getOrNull(index + 1)
+            if (current != '\\' || next == null) {
+                out.append(current)
+                index += 1
+            } else {
+                index += appendEscape(out, next)
+            }
+        }
+        return out.toString()
+    }
+
+    private fun appendEscape(out: StringBuilder, next: Char): Int = when (next) {
+        'n' -> {
+            out.append('\n')
+            2
+        }
+        't' -> {
+            out.append('\t')
+            2
+        }
+        '\\' -> {
+            out.append('\\')
+            2
+        }
+        else -> {
+            out.append('\\')
+            1
+        }
+    }
 }

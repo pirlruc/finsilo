@@ -33,7 +33,7 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     }
     Box(Modifier.fillMaxSize()) {
         if (sessionReady) {
-            Box(Modifier.fillMaxSize().then(hiddenFromA11y(state.unlocked))) {
+            Box(Modifier.fillMaxSize().then(hiddenFromA11y(state.unlocked && !state.externalUiActive))) {
                 content()
             }
             if (state.externalUiActive) {

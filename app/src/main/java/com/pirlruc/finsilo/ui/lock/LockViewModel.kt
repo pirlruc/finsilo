@@ -149,10 +149,19 @@ class LockViewModel(
         evictJob =
             viewModelScope.launch {
                 delay(sessionGraceMs)
+                pendingUpgradePin = null
                 evictLedger()
-                _state.update { overlayLock(it).copy(sessionEvicted = true) }
+                _state.update { sessionEvictedLock(it) }
             }
     }
+
+    private fun sessionEvictedLock(state: LockUiState): LockUiState =
+        overlayLock(state).copy(
+            sessionEvicted = true,
+            wrapUpgradeRequired = false,
+            upgradeRecovery = "",
+            upgradeRecoveryConfirm = false,
+        )
 
     private fun sessionRetained() {
         retainSessionTimer()
@@ -181,7 +190,14 @@ class LockViewModel(
     }
 
     fun unlockWithUnwrappedKey(key: ByteArray) {
-        runLockAction { acceptUnwrappedKey(key) }
+        val owned = key.copyOf()
+        runLockAction {
+            try {
+                acceptUnwrappedKey(owned)
+            } finally {
+                owned.fill(0)
+            }
+        }
     }
 
     private fun acceptUnwrappedKey(key: ByteArray) {
@@ -206,11 +222,11 @@ class LockViewModel(
 
     fun finishBiometricSeal(blob: ByteArray) {
         val stored = keys?.persistBiometricWrap(blob) ?: true
-        if (!stored) {
+        if (!stored || !store.setBiometricEnabled(true)) {
+            keys?.persistBiometricWrap(null)
             _state.update { it.copy(error = "Could not store biometric unlock.", pendingBiometricSeal = false) }
             return
         }
-        store.setBiometricEnabled(true)
         _state.update {
             it.copy(
                 pendingBiometricSeal = false,
@@ -361,7 +377,7 @@ class LockViewModel(
 
     private fun applyRecovery() {
         val current = _state.value
-        val error = recoveryUnlockError(current) ?: recoveryKeyError(current) ?: resetPinError(current)
+        val error = recoveryUnlockError(current) ?: recoverLedger(current)
         if (error != null) {
             _state.update { it.copy(error = error) }
             return
@@ -372,6 +388,14 @@ class LockViewModel(
         _state.update { it.copy(unlocked = true, recovering = false, pin = "", pinConfirm = "", error = null) }
     }
 
+    private fun recoverLedger(current: LockUiState): String? {
+        val wrapError = recoveryKeyError(current)
+        if (wrapError != null) return wrapError
+        if (store.resetPin(current.pinConfirm)) return null
+        keys?.rollbackLastWrap()
+        return "Could not reset PIN."
+    }
+
     private fun recoveryUnlockError(current: LockUiState): String? {
         lockoutError()?.let { return it }
         if (!store.verifyRecovery(current.pin)) {
@@ -379,11 +403,6 @@ class LockViewModel(
             return failedSecretMessage("Recovery code does not match.")
         }
         if (!AppLockCrypto.pinOk(current.pinConfirm)) return "Choose a new 4–8 digit PIN."
-        return null
-    }
-
-    private fun resetPinError(current: LockUiState): String? {
-        if (!store.resetPin(current.pinConfirm)) return "Could not reset PIN."
         return null
     }
 
@@ -427,8 +446,9 @@ class LockViewModel(
 
     private fun persistMigratedWraps(gate: LedgerKeySession, pin: String, recovery: String): String? {
         if (!gate.finishLegacyMigration(pin, recovery)) return "Could not wrap the database key."
-        if (!store.rotateRecovery(recovery)) return "Could not store the new recovery code."
-        return null
+        if (store.rotateRecovery(recovery)) return null
+        gate.rollbackLastWrap()
+        return "Could not store the new recovery code."
     }
 
     private fun applySensitiveAction() {
@@ -452,7 +472,7 @@ class LockViewModel(
             return
         }
         if (!store.rotateRecovery(code)) {
-            keys?.rollbackRecoveryWrap()
+            keys?.rollbackLastWrap()
             _state.update { it.copy(error = "Could not rotate recovery code.") }
             return
         }

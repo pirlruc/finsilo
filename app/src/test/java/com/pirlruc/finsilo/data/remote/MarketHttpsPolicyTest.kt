@@ -26,6 +26,11 @@ class MarketHttpsPolicyTest {
     }
 
     @Test(expected = IOException::class)
+    fun rejectsNonDefaultHttpsPort() {
+        MarketHttpsPolicy.requireHttpsUrl("https://stooq.com:8443/q/d/l")
+    }
+
+    @Test(expected = IOException::class)
     fun rejectsUserinfo() {
         MarketHttpsPolicy.requireHttpsUrl("https://user:pass@api.frankfurter.app/latest")
     }

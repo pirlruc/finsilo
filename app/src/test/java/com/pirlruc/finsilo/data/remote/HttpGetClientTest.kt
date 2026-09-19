@@ -57,4 +57,20 @@ class HttpGetClientTest {
         assertTrue(message.contains("www.alphavantage.co"))
         assertTrue(message.contains("401"))
     }
+
+    @Test
+    fun sanitizedIoRedactsQueryAndApiKey() {
+        val url = "https://www.alphavantage.co/query?apikey=SECRET&function=OVERVIEW"
+        val leaked = sanitizedIo(IOException("Failed GET $url"), url)
+        assertFalse(leaked.message!!.contains("SECRET"))
+        assertFalse(leaked.message!!.contains("apikey"))
+        assertTrue(leaked.message!!.contains("www.alphavantage.co"))
+    }
+
+    @Test
+    fun sanitizedIoKeepsStatusAndSizeMessages() {
+        val url = "https://stooq.com/q/d/l"
+        assertEquals("HTTP 401 for stooq.com", sanitizedIo(IOException(httpFailureMessage(401, url)), url).message)
+        assertEquals("Quote response is too large", sanitizedIo(IOException("Quote response is too large"), url).message)
+    }
 }
