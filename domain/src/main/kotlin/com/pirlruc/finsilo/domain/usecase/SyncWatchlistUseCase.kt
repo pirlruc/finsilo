@@ -49,17 +49,11 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
         val last = QuoteSyncPlanner.lastBarDate(stored, item.id)
         val rating = ratingFor(item, stored, asOf, prefs, failures)
         if (QuoteSyncPlanner.isFresh(last, asOf)) {
-            return patchFreshRating(stored, rating)
+            return QuoteSeed.patchFreshRating(stored, rating)
         }
         val history = loadHistory(item, asOf, failures)
         if (history.isEmpty()) return emptyList()
         return QuoteSeed.fromBars(item.id, history, rating = rating, storedByDate = stored.associateBy { it.date })
-    }
-
-    private fun patchFreshRating(stored: List<DailyMarketData>, rating: AnalystRating): List<DailyMarketData> {
-        val latest = stored.maxByOrNull { it.date } ?: return emptyList()
-        if (latest.analystRating == rating) return emptyList()
-        return listOf(latest.copy(analystRating = rating))
     }
 
     private suspend fun loadHistory(item: WatchlistItem, asOf: LocalDate, failures: MutableList<String>): List<PriceBar> =

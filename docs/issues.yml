@@ -2178,16 +2178,15 @@ milestones:
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
-            Lock hashes and SQLCipher wraps remain two SharedPreferences files
-            (compensating rollback for persistMigratedWraps, recovery PIN rewrap,
-            and recovery rotation is in place). The SPDX allow list is empty
-            (org default) and scanner fail bars stay at High/ERROR. FLAG_SECURE
-            still drops while a system picker is open; ledger pixels and a11y
-            nodes are covered (FS-033-T1). Holdings omit unit price and FIFO
-            cost; YOC omits remaining cost.
+            Scanner fail bars stay at High/ERROR and the SPDX allow list is
+            still the empty org default. FLAG_SECURE still drops while a
+            system picker is open; ledger pixels and a11y nodes are covered
+            (FS-033-T1). Lock hashes and SQLCipher wraps now share
+            finsilo_credentials (FS-033-T2). Holdings, YOC, history, TWR, and
+            signal captions use the former unused report fields (FS-033-T4).
           goal: >-
-            Close leftover design gaps that this pass identified but did not
-            ship, without adding finding-level scanner ignores.
+            Close leftover scanner-policy gaps without adding finding-level
+            scanner ignores.
         architecture:
           target: Lock overlay, credential stores, dashboard reports, and scanner fail bars
           modules:
@@ -2220,17 +2219,16 @@ milestones:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - Opening CreateDocument/OpenDocument does not leave Compose ledger pixels on screen
           - id: FS-033-T2
-            status: open
+            status: done
             title: Unify lock hash and wrap persistence
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/security
                 - app/src/main/java/com/pirlruc/finsilo/ui/lock/LockViewModel.kt
             verification:
-              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.security.LockMaterialTest
               - A failed second write cannot leave PIN ready without matching wraps
-              - persistMigratedWraps rolls back finishLegacyMigration if rotateRecovery fails
-              - Remaining: one SharedPreferences file so hash and wrap share a single commit, not only compensating rollback
+              - Setup, recovery PIN reset, wrap upgrade, and recovery rotation write hashes and wraps in one SharedPreferences commit
             guardrail_refs:
               - KT-SEC-002
           - id: FS-033-T3
@@ -2248,7 +2246,7 @@ milestones:
               - CI-005
               - SC-LIC-001
           - id: FS-033-T4
-            status: open
+            status: done
             title: Surface or drop unused dashboard report fields
             instructions:
               files:
@@ -2258,9 +2256,9 @@ milestones:
                 - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardHistory.kt
             verification:
               - ./gradlew :domain:test :app:lintDebug
-              - Holdings show EUR unit price and FIFO cost, or HoldingValuation.priceEur/costEur are removed
-              - YOC shows remainingCostEur, or the field is removed
-              - HistoryReport.range/from/to and TwrReport.asOf are used or dropped as redundant with the chip and DashboardReport.asOf
+              - Holdings show EUR unit price and FIFO cost
+              - YOC shows remainingCostEur
+              - HistoryReport.range and TwrReport.asOf / AllocationReport.asOf dropped; HistoryReport.from/to and TwrSubPeriod dates/splits shown
             guardrail_refs:
               - KT-API-001
 
@@ -2306,5 +2304,49 @@ milestones:
               - Or the Epic decision is updated to keep system CAs with why
             guardrail_refs:
               - KT-SEC-002
+
+      - id: FS-035
+        status: done
+        title: Drop unused nav rebuild metadata columns
+        overview:
+          problem: >-
+            nav_rebuild_state stored as_of and rebuilt_at_ms, but rebuild
+            decisions only read fingerprint. Those columns were written and
+            never read.
+          goal: >-
+            Drop the unread rebuild metadata via a v8 AutoMigration, without a
+            destructive fallback.
+        decision: >-
+          In the context of leftover Room columns after NAV fingerprinting,
+          facing unread as_of/rebuilt_at_ms, we decided drop them in Room v8
+          with DeleteColumn AutoMigration so generated SQL stays out of
+          scanned source, accepting that existing v7 databases migrate on
+          next open.
+        architecture:
+          target: Encrypted Room nav_rebuild_state
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/data/local/NavRebuildStateEntity.kt
+            - app/src/main/java/com/pirlruc/finsilo/data/RoomNavHistory.kt
+            - app/schemas
+        acceptance_criteria:
+          - Rebuild still skips when the fingerprint matches
+          - as_of and rebuilt_at_ms are no longer written, or are dropped via AutoMigration
+          - Schema JSON is exported for the new version
+        guardrail_refs:
+          - KT-API-002
+        tasks:
+          - id: FS-035-T1
+            status: done
+            title: Stop writing or migrate away unread nav rebuild columns
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/local/NavRebuildStateEntity.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomNavHistory.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/local/FinsiloDatabase.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.RoomPortfolioRepositoryTest
+              - Schema export includes the post-change version
+            guardrail_refs:
+              - KT-API-002
 
 

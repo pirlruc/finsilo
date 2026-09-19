@@ -6,7 +6,9 @@ import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
 import com.pirlruc.finsilo.data.security.AppLockStore
+import com.pirlruc.finsilo.data.security.CredentialKeys
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
+import com.pirlruc.finsilo.data.security.SecurePreferences
 import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
@@ -25,11 +27,12 @@ class FinsiloApplication : Application() {
 }
 
 class AppContainer(val application: Application) {
-    val keys: DatabaseKeyStore = DatabaseKeyStore.create(application)
+    private val credentials = SecurePreferences.open(application, CredentialKeys.FILE)
+    val keys: DatabaseKeyStore = DatabaseKeyStore(credentials)
     val widgetNav = WidgetNavCache(application)
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
     val marketFeed = CompositeMarketFeed(keys = keys)
-    val lockStore = AppLockStore(application)
+    val lockStore = AppLockStore(credentials)
 
     @Volatile
     private var database: FinsiloDatabase? = null

@@ -80,7 +80,7 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     fun allocation(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport {
         val holdings = valueHoldings(snapshot, asOf)
         val cash = cashEur(snapshot, asOf)
-        return AllocationComposer.compose(snapshot, asOf, holdings, cash)
+        return AllocationComposer.compose(snapshot, holdings, cash)
     }
 
     private fun holdingFor(

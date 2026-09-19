@@ -102,7 +102,7 @@ private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold
             Column(Modifier.weight(1f)) {
                 Text(holding.asset.symbol, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "${holding.asset.name} · ${holding.asset.assetType.label()} · qty ${holding.quantity.stripTrailingZeros().toPlainString()}",
+                    holdingDetails(holding).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -126,4 +126,10 @@ private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold
             }
         }
     }
+}
+
+internal fun holdingDetails(holding: HoldingValuation): List<String> = buildList {
+    add("${holding.asset.name} · ${holding.asset.assetType.label()} · qty ${holding.quantity.stripTrailingZeros().toPlainString()}")
+    holding.priceEur?.let { add("EUR unit ${formatEur(it)}") }
+    add("FIFO cost ${formatEur(holding.costEur)}")
 }

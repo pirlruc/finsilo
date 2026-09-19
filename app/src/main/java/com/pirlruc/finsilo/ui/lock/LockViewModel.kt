@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.security.AppLockRepository
+import com.pirlruc.finsilo.data.security.AppLockStore
+import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
@@ -361,17 +363,24 @@ class LockViewModel(
 
     private fun persistSetup(current: LockUiState): Boolean {
         keys?.discardOrphanWraps()
+        productionStores()?.let { (dbKeys, lock) ->
+            if (dbKeys.provisionWithLock(lock, current.pin, current.recoveryCode)) return true
+            _state.update { it.copy(error = "Could not store the lock.") }
+            return false
+        }
+        return persistSetupTwoStep(current)
+    }
+
+    private fun persistSetupTwoStep(current: LockUiState): Boolean {
         if (keys != null && !keys.provision(current.pin, current.recoveryCode)) {
             _state.update { it.copy(error = "Could not wrap the database key.") }
             return false
         }
-        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
-            keys?.evictSession()
-            keys?.discardOrphanWraps()
-            _state.update { it.copy(error = "Could not store the lock.") }
-            return false
-        }
-        return true
+        if (store.setup(current.pin, current.recoveryCode, biometric = false)) return true
+        keys?.evictSession()
+        keys?.discardOrphanWraps()
+        _state.update { it.copy(error = "Could not store the lock.") }
+        return false
     }
 
     private fun applyRecovery() {
@@ -388,8 +397,21 @@ class LockViewModel(
     }
 
     private fun recoverLedger(current: LockUiState): String? {
-        val wrapError = recoveryKeyError(current)
-        if (wrapError != null) return wrapError
+        val gate = keys
+        if (gate != null && !gate.unlockWithRecovery(current.pin)) return "Could not unlock the ledger."
+        productionStores()?.let { (dbKeys, lock) -> return recoverLedgerAtomic(dbKeys, lock, current) }
+        return recoverLedgerTwoStep(gate, current)
+    }
+
+    private fun recoverLedgerAtomic(dbKeys: DatabaseKeyStore, lock: AppLockStore, current: LockUiState): String? {
+        if (dbKeys.needsWrapUpgrade()) {
+            return wrapOrError(dbKeys.finishLegacyMigrationWithPinHash(lock, current.pinConfirm, current.pin))
+        }
+        return if (dbKeys.rewrapPinWithLock(lock, current.pinConfirm)) null else "Could not reset PIN."
+    }
+
+    private fun recoverLedgerTwoStep(gate: LedgerKeySession?, current: LockUiState): String? {
+        if (gate != null) rewrapAfterRecovery(gate, current)?.let { return it }
         if (store.resetPin(current.pinConfirm)) return null
         keys?.rollbackLastWrap()
         return "Could not reset PIN."
@@ -403,12 +425,6 @@ class LockViewModel(
         }
         if (!AppLockCrypto.pinOk(current.pinConfirm)) return "Choose a new 4–8 digit PIN."
         return null
-    }
-
-    private fun recoveryKeyError(current: LockUiState): String? {
-        val gate = keys ?: return null
-        if (!gate.unlockWithRecovery(current.pin)) return "Could not unlock the ledger."
-        return rewrapAfterRecovery(gate, current)
     }
 
     private fun rewrapAfterRecovery(gate: LedgerKeySession, current: LockUiState): String? {
@@ -444,10 +460,25 @@ class LockViewModel(
     }
 
     private fun persistMigratedWraps(gate: LedgerKeySession, pin: String, recovery: String): String? {
+        productionStores()?.let { (dbKeys, lock) ->
+            return wrapOrError(dbKeys.finishLegacyMigrationWithRecoveryHash(lock, pin, recovery))
+        }
+        return persistMigratedWrapsTwoStep(gate, pin, recovery)
+    }
+
+    private fun persistMigratedWrapsTwoStep(gate: LedgerKeySession, pin: String, recovery: String): String? {
         if (!gate.finishLegacyMigration(pin, recovery)) return "Could not wrap the database key."
         if (store.rotateRecovery(recovery)) return null
         gate.rollbackLastWrap()
         return "Could not store the new recovery code."
+    }
+
+    private fun wrapOrError(ok: Boolean): String? = if (ok) null else "Could not wrap the database key."
+
+    private fun productionStores(): Pair<DatabaseKeyStore, AppLockStore>? {
+        val dbKeys = keys as? DatabaseKeyStore
+        val lock = store as? AppLockStore
+        return if (dbKeys != null && lock != null) dbKeys to lock else null
     }
 
     private fun applySensitiveAction() {
@@ -466,15 +497,7 @@ class LockViewModel(
 
     private fun rotateRecoveryAfterPin() {
         val code = AppLockCrypto.generateRecoveryCode()
-        if (keys != null && !keys.rewrapRecovery(code)) {
-            _state.update { it.copy(error = "Could not rewrap the database key.") }
-            return
-        }
-        if (!store.rotateRecovery(code)) {
-            keys?.rollbackLastWrap()
-            _state.update { it.copy(error = "Could not rotate recovery code.") }
-            return
-        }
+        if (!persistRotatedRecovery(code)) return
         _state.update {
             it.copy(
                 pendingSensitiveAction = null,
@@ -484,6 +507,26 @@ class LockViewModel(
                 status = "Save this new recovery code. The previous code no longer works.",
             )
         }
+    }
+
+    private fun persistRotatedRecovery(code: String): Boolean {
+        productionStores()?.let { (dbKeys, lock) ->
+            if (dbKeys.rewrapRecoveryWithLock(lock, code)) return true
+            _state.update { it.copy(error = "Could not rotate recovery code.") }
+            return false
+        }
+        return persistRotatedRecoveryTwoStep(code)
+    }
+
+    private fun persistRotatedRecoveryTwoStep(code: String): Boolean {
+        if (keys != null && !keys.rewrapRecovery(code)) {
+            _state.update { it.copy(error = "Could not rewrap the database key.") }
+            return false
+        }
+        if (store.rotateRecovery(code)) return true
+        keys?.rollbackLastWrap()
+        _state.update { it.copy(error = "Could not rotate recovery code.") }
+        return false
     }
 
     private fun persistBiometricAfterPin(enabled: Boolean) {

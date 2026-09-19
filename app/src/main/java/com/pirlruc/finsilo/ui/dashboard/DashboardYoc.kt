@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.domain.model.YocReport
+import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 
 @Composable
@@ -25,14 +26,15 @@ internal fun YocCard(yoc: List<YocReport>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             yoc.forEach { row ->
-                val ttm = row.ttmPercent?.let { formatPercent(it) } ?: "—"
-                val last = row.lastTimesFrequencyPercent?.let { formatPercent(it) } ?: "—"
-                val freq = row.paymentsPerYear?.toString() ?: "—"
-                Text(
-                    "${row.asset.symbol}  TTM $ttm  ·  last×$freq $last",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Text(yocLine(row), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
+}
+
+internal fun yocLine(row: YocReport): String {
+    val ttm = row.ttmPercent?.let { formatPercent(it) } ?: "—"
+    val last = row.lastTimesFrequencyPercent?.let { formatPercent(it) } ?: "—"
+    val freq = row.paymentsPerYear?.toString() ?: "—"
+    return "${row.asset.symbol}  cost ${formatEur(row.remainingCostEur)}  TTM $ttm  ·  last×$freq $last"
 }

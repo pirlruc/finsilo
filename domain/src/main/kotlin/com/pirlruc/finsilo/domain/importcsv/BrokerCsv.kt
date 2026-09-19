@@ -29,7 +29,6 @@ data class BrokerCsvLine(
     val currency: Currency,
     val feesEur: BigDecimal,
     val eurPerUsd: BigDecimal?,
-    val externalId: String?,
     val sourceLine: Int,
     val format: BrokerCsvFormat,
 )

@@ -36,15 +36,7 @@ internal object LedgerBackupEncode {
         tx.sequence.toString(),
     ).joinToString("\t")
 
-    fun market(row: DailyMarketData): String = listOf(
-        "M",
-        row.assetId,
-        row.date.toString(),
-        row.closingPriceNative.toPlainString(),
-        row.analystRating.name,
-        row.sma50?.toPlainString().orEmpty(),
-        row.sma200?.toPlainString().orEmpty(),
-    ).joinToString("\t")
+    fun market(row: DailyMarketData): String = quoteRow("M", row)
 
     fun fx(rate: CurrencyRate): String = listOf("X", rate.date.toString(), rate.eurPerUsd.toPlainString()).joinToString("\t")
 
@@ -61,8 +53,10 @@ internal object LedgerBackupEncode {
         esc(item.quoteSymbol.orEmpty()),
     ).joinToString("\t")
 
-    fun watchlistQuote(row: DailyMarketData): String = listOf(
-        "Q",
+    fun watchlistQuote(row: DailyMarketData): String = quoteRow("Q", row)
+
+    private fun quoteRow(kind: String, row: DailyMarketData): String = listOf(
+        kind,
         row.assetId,
         row.date.toString(),
         row.closingPriceNative.toPlainString(),

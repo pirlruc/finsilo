@@ -118,10 +118,8 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return CoinGeckoParser.dailyCloses(json)
     }
 
-    private suspend fun stooq(symbol: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
-        val csv = http.get(MarketFeedUrls.stooqDaily(ListedQuoteRouting.stooqTicker(symbol), compactFrom(compact, asOf)))
-        return StooqParser.dailyCloses(csv)
-    }
+    private suspend fun stooq(symbol: String, compact: Boolean, asOf: LocalDate): List<PriceBar> =
+        stooqBars(ListedQuoteRouting.stooqTicker(symbol), compact, asOf)
 
     private suspend fun alphaVantageDaily(symbol: String, compact: Boolean): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
@@ -167,6 +165,10 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
 
     private suspend fun stooqCommodity(asset: Asset, compact: Boolean, asOf: LocalDate): List<PriceBar> {
         val ticker = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
+        return stooqBars(ticker, compact, asOf)
+    }
+
+    private suspend fun stooqBars(ticker: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
         val csv = http.get(MarketFeedUrls.stooqDaily(ticker, compactFrom(compact, asOf)))
         return StooqParser.dailyCloses(csv)
     }

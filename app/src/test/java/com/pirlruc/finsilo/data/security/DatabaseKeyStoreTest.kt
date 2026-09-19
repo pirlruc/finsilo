@@ -41,7 +41,17 @@ class DatabaseKeyStoreTest {
         assertTrue(reopened.unlockWithPin("1234"))
         assertTrue(first.contentEquals(reopened.sessionPassphrase()))
         assertFalse(DatabaseKeyStore(prefs).unlockWithPin("0000"))
-        assertTrue(prefs.contains("sqlcipher_wrap_pin"))
+    }
+
+    @Test
+    fun corruptWrapHexFailsClosedAndIgnoresLegacyHex() {
+        assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
+        prefs.edit()
+            .putString("sqlcipher_wrap_pin", "zz")
+            .putString("sqlcipher_passphrase", AppLockCrypto.toHex(ByteArray(32) { 9 }))
+            .commit()
+        assertFalse(keys.unlockWithPin("1234"))
+        assertFalse(DatabaseKeyStore(prefs).unlockWithPin("1234"))
     }
 
     @Test

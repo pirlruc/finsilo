@@ -1,6 +1,5 @@
 package com.pirlruc.finsilo.data.security
 
-import android.content.Context
 import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PassphraseWrap
@@ -70,14 +69,13 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     override fun needsWrapUpgrade(): Boolean = hasLegacyPassphrase() && !hasWrappedPassphrase()
 
-    override fun provision(pin: String, recovery: String): Boolean {
-        session?.let { return persistWraps(pin, recovery, it) }
-        if (hasWrappedPassphrase() || hasLegacyPassphrase()) return false
-        val key = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
-        if (!persistWraps(pin, recovery, key)) return false
-        session = key
-        return true
-    }
+    override fun provision(pin: String, recovery: String): Boolean =
+        provisionKey { persistWraps(pin, recovery, it) }
+
+    fun provisionWithLock(lock: AppLockStore, pin: String, recovery: String): Boolean =
+        provisionKey {
+            persistWraps(pin, recovery, it) { lock.applySetup(this, pin, recovery, biometric = false) }
+        }
 
     override fun discardOrphanWraps(): Boolean {
         if (session != null) return true
@@ -96,20 +94,10 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         return editor.commit()
     }
 
-    override fun unlockWithPin(pin: String): Boolean {
-        if (session != null) return true
-        val wrapped = storedBlob(KEY_WRAP_PIN)
-        if (wrapped != null) return acceptWrapped(PassphraseWrap.unwrap(pin, wrapped))
-        return unlockLegacy()
-    }
+    override fun unlockWithPin(pin: String): Boolean = unlockWithSecret(pin, KEY_WRAP_PIN)
 
-    override fun unlockWithRecovery(recovery: String): Boolean {
-        if (session != null) return true
-        val secret = AppLockCrypto.normalizeRecovery(recovery)
-        val wrapped = storedBlob(KEY_WRAP_RECOVERY)
-        if (wrapped != null) return acceptWrapped(PassphraseWrap.unwrap(secret, wrapped))
-        return unlockLegacy()
-    }
+    override fun unlockWithRecovery(recovery: String): Boolean =
+        unlockWithSecret(AppLockCrypto.normalizeRecovery(recovery), KEY_WRAP_RECOVERY)
 
     override fun unlockWithUnwrappedKey(key: ByteArray): Boolean {
         if (key.size != PASSPHRASE_BYTES) return false
@@ -120,22 +108,34 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     override fun persistBiometricWrap(blob: ByteArray?): Boolean {
         val editor = prefs.edit()
-        if (blob == null) editor.remove(KEY_WRAP_BIOMETRIC) else editor.putString(KEY_WRAP_BIOMETRIC, AppLockCrypto.toHex(blob))
+        if (blob == null) {
+            editor.remove(KEY_WRAP_BIOMETRIC)
+        } else {
+            editor.putString(KEY_WRAP_BIOMETRIC, AppLockCrypto.toHex(blob))
+        }
         return editor.commit()
     }
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
 
-    override fun rewrapRecovery(newRecovery: String): Boolean = rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
+    override fun rewrapRecovery(newRecovery: String): Boolean =
+        rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
 
-    override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
-        val key = session ?: return false
-        if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
-        rememberWrapState()
-        if (!persistWraps(pin, recovery, key)) return false
-        // Confirm-screen path: wraps were just written; only then drop hex.
-        return prefs.edit().remove(KEY_PASSPHRASE).commit()
-    }
+    override fun finishLegacyMigration(pin: String, recovery: String): Boolean = migrateLegacy(pin, recovery)
+
+    fun finishLegacyMigrationWithRecoveryHash(lock: AppLockStore, pin: String, recovery: String): Boolean =
+        migrateLegacy(pin, recovery) { lock.applyRecoveryHash(this, recovery) }
+
+    fun finishLegacyMigrationWithPinHash(lock: AppLockStore, newPin: String, recovery: String): Boolean =
+        migrateLegacy(newPin, recovery) { lock.applyPinReset(this, newPin) }
+
+    fun rewrapRecoveryWithLock(lock: AppLockStore, recovery: String): Boolean =
+        rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(recovery)) {
+            lock.applyRecoveryHash(this, recovery)
+        }
+
+    fun rewrapPinWithLock(lock: AppLockStore, newPin: String): Boolean =
+        rewrap(KEY_WRAP_PIN, newPin) { lock.applyPinReset(this, newPin) }
 
     fun hasLegacyPassphrase(): Boolean = prefs.contains(KEY_PASSPHRASE)
 
@@ -163,18 +163,79 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         return true
     }
 
-    private fun persistWraps(pin: String, recovery: String, key: ByteArray): Boolean {
-        val recoverySecret = AppLockCrypto.normalizeRecovery(recovery)
-        return prefs.edit()
-            .putString(KEY_WRAP_PIN, AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
-            .putString(KEY_WRAP_RECOVERY, AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
-            .commit()
+    private fun provisionKey(persist: (ByteArray) -> Boolean): Boolean {
+        val existing = session
+        if (existing != null) return persist(existing)
+        if (hasWrappedPassphrase() || hasLegacyPassphrase()) return false
+        val key = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
+        val stored = persist(key)
+        if (stored) session = key
+        return stored
     }
 
-    private fun rewrap(prefsKey: String, secret: String): Boolean {
+    private fun unlockWithSecret(secret: String, wrapKey: String): Boolean {
+        val hex = prefs.getString(wrapKey, null) ?: return unlockWithoutWrap()
+        val wrapped = AppLockCrypto.fromHex(hex) ?: return false
+        if (session != null) return pinMatchesWrap(secret, wrapped)
+        return acceptWrapped(PassphraseWrap.unwrap(secret, wrapped))
+    }
+
+    private fun unlockWithoutWrap(): Boolean = session != null || unlockLegacy()
+
+    private fun persistWraps(
+        pin: String,
+        recovery: String,
+        key: ByteArray,
+        extra: SharedPreferences.Editor.() -> Unit = {},
+    ): Boolean {
+        val editor = prefs.edit()
+        applyWraps(editor, pin, recovery, key)
+        editor.extra()
+        return editor.commit()
+    }
+
+    private fun migrateLegacy(
+        pin: String,
+        recovery: String,
+        extra: SharedPreferences.Editor.() -> Unit = {},
+    ): Boolean {
+        val key = session ?: return false
+        if (!hasLegacyPassphrase()) return hasWrappedPassphrase()
+        rememberWrapState()
+        val editor = prefs.edit()
+        applyWraps(editor, pin, recovery, key)
+        editor.remove(KEY_PASSPHRASE)
+        editor.extra()
+        return editor.commit()
+    }
+
+    private fun applyWraps(editor: SharedPreferences.Editor, pin: String, recovery: String, key: ByteArray) {
+        val recoverySecret = AppLockCrypto.normalizeRecovery(recovery)
+        editor.putString(KEY_WRAP_PIN, AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
+        editor.putString(KEY_WRAP_RECOVERY, AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
+    }
+
+    private fun rewrap(
+        prefsKey: String,
+        secret: String,
+        extra: SharedPreferences.Editor.() -> Unit = {},
+    ): Boolean {
         val key = session ?: return false
         rememberKey(prefsKey)
-        return prefs.edit().putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key))).commit()
+        val editor = prefs.edit()
+        applyRewrap(editor, prefsKey, secret, key)
+        editor.extra()
+        return editor.commit()
+    }
+
+    private fun applyRewrap(editor: SharedPreferences.Editor, prefsKey: String, secret: String, key: ByteArray) {
+        editor.putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key)))
+    }
+
+    private fun pinMatchesWrap(secret: String, wrapped: ByteArray): Boolean {
+        val unwrapped = PassphraseWrap.unwrap(secret, wrapped) ?: return false
+        unwrapped.fill(0)
+        return true
     }
 
     private fun rememberWrapState() {
@@ -205,14 +266,11 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     }
 
     companion object {
-        private const val PREFS_FILE = "finsilo_secure"
         private const val KEY_PASSPHRASE = "sqlcipher_passphrase"
         private const val KEY_WRAP_PIN = "sqlcipher_wrap_pin"
         private const val KEY_WRAP_RECOVERY = "sqlcipher_wrap_recovery"
         private const val KEY_WRAP_BIOMETRIC = "sqlcipher_wrap_biometric"
         private const val KEY_ALPHA_VANTAGE = "alpha_vantage_key"
         private const val PASSPHRASE_BYTES: Int = 32
-
-        fun create(context: Context): DatabaseKeyStore = DatabaseKeyStore(SecurePreferences.open(context, PREFS_FILE))
     }
 }

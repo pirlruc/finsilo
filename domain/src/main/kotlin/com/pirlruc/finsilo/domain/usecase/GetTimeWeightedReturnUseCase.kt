@@ -31,7 +31,7 @@ class GetTimeWeightedReturnUseCase(
     operator fun invoke(snapshot: PortfolioSnapshot, asOf: LocalDate, storedNav: List<NavPoint> = emptyList()): TwrReport {
         val ordered = ledger.transactionsOnOrBefore(snapshot.transactions, asOf)
         if (ordered.isEmpty()) {
-            return TwrReport(asOf = asOf, twrPercent = ZERO, subPeriods = emptyList())
+            return TwrReport(twrPercent = ZERO, subPeriods = emptyList())
         }
         val walk = TwrWalk(snapshot, asOf, storedNav.associateBy { it.date })
         for (tx in ordered) {
@@ -81,7 +81,6 @@ class GetTimeWeightedReturnUseCase(
                     times(acc, plus(BigDecimal.ONE, div(period.returnPercent, HUNDRED)))
                 }
             return TwrReport(
-                asOf = asOf,
                 twrPercent = times(minus(product, BigDecimal.ONE), HUNDRED),
                 subPeriods = periods,
             )

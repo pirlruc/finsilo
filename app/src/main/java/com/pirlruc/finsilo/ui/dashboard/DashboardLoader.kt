@@ -31,7 +31,6 @@ internal object DashboardLoader {
             repository.loadRatingAlerts()
                 .filter { it.scope == RatingAlertScope.HOLDING }
                 .associateBy { it.targetId }
-        val counts = loaded.transactions.groupingBy { it.assetId }.eachCount()
         return DashboardUiState(
             loading = false,
             empty = false,
@@ -41,7 +40,6 @@ internal object DashboardLoader {
             hasAlphaVantageKey = hasKey,
             thresholds = thresholds,
             ratingPrefs = ratingPrefs,
-            transactionsByAsset = counts,
         )
     }
 

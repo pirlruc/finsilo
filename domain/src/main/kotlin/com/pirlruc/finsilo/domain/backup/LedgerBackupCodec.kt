@@ -66,6 +66,10 @@ object LedgerBackupCodec {
 
     private fun key(passphrase: String, salt: ByteArray): SecretKeySpec {
         val secret = AppLockCrypto.hashSecret(AppLockCrypto.normalizeRecovery(passphrase), salt)
-        return SecretKeySpec(secret, "AES")
+        return try {
+            SecretKeySpec(secret, "AES")
+        } finally {
+            secret.fill(0)
+        }
     }
 }
