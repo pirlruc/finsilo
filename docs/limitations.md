@@ -16,7 +16,7 @@ Closed this pass (kept here so the “stops when” is visible):
 | ID | Limitation | Status | Stops being a limitation when (met) |
 | --- | --- | --- | --- |
 | LIM-COV | `:domain` Kover branch below 95 | **Closed** | `./gradlew :domain:koverVerify` green at profile 95/95 (branch ~95.1%, line ~99.7%) |
-| LIM-SUB | `GITHUB_TOKEN` cannot clone private analog | **Closed** | Required jobs run `scripts/ci-init-guardrails.sh` with `GUARDRAILS_READ_TOKEN` and init **only** `docs/guardrails`. `.github/scaffold` is not cloned in CI (templates are synced). Dependabot/forks without the secret still read the consumer copy. |
+| LIM-SUB | `GITHUB_TOKEN` cannot clone private analog | **Closed** | Required jobs run `scripts/ci-init-guardrails.sh` with `GUARDRAILS_READ_TOKEN` and init **only** `docs/guardrails`. Clone failure (stale PAT) falls back to the consumer copy, same as an unset secret. `.github/scaffold` is not cloned in CI (templates are synced). analog-pins still asserts the gitlink SHA. |
 | LIM-MI | No Kotlin MI tool | **Closed** | `scripts/check-maintainability.py` runs multimetric SEI on `:domain` vs `min_maintainability_index` |
 | LIM-MI-UI | Compose file MI below 40 | **Closed** | Dashboard/ledger screens split; `scripts/check-maintainability.py` scans `:app` as well as `:domain`; min SEI ≥ 40 |
 | LIM-HOOK | gitleaks CI-only | **Closed** | `.pre-commit-config.yaml` + Dependabot `pre-commit` ecosystem |

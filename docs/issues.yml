@@ -1271,6 +1271,52 @@ milestones:
               - KT-SEC-004
               - SC-LIC-001
 
+      - id: GATE-006
+        status: done
+        title: Keep CI green on analog clone miss and Android SDK runner drift
+        overview:
+          problem: >-
+            quality/kover/kdoc hard-failed when GUARDRAILS_READ_TOKEN was set
+            but invalid, and android-actions/setup-android v4.0.1 ran
+            `sdkmanager tools` against runner cmdline-tools 20.0.
+          goal: >-
+            Analog clone failure falls back to the consumer threshold copy
+            (same as an unset token). Android jobs use setup-android v4.0.4.
+            analog-pins still asserts the gitlink SHA.
+        decision: >-
+          In the context of a stale analog PAT and runner cmdline-tools 20,
+          facing red quality and Android jobs, we decided fall back on clone
+          failure plus pin setup-android 4.0.4, to keep CI-022 consumer-copy
+          gates runnable, accepting that analog key matching is skipped until
+          the PAT is renewed.
+        architecture:
+          target: Analog init script and Android SDK action pin
+          modules:
+            - scripts/ci-init-guardrails.sh
+            - .github/workflows/android.yml
+            - .github/workflows/security.yml
+        acceptance_criteria:
+          - ci-init-guardrails.sh exits 0 and uses the consumer copy when analog clone fails
+          - setup-android is pinned at v4.0.4
+          - analog-pins still checks gitlink SHA without cloning
+        guardrail_refs:
+          - CI-001
+          - CI-022
+          - SC-DEP-004
+        tasks:
+          - id: GATE-006-T1
+            status: done
+            title: Fall back analog clone and bump setup-android to 4.0.4
+            instructions:
+              files:
+                - scripts/ci-init-guardrails.sh
+                - .github/workflows/android.yml
+                - .github/workflows/security.yml
+            verification:
+              - bash scripts/check-analog-pins.sh
+              - bash scripts/run-shellcheck.sh
+              - rg -n "setup-android@be39fa83" .github/workflows
+
   - name: Backlog — next product value
     epics:
       - id: FS-017
