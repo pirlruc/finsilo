@@ -59,12 +59,11 @@ internal class AesGcmPrefsAead(private val key: SecretKey) : PrefsAead {
 internal object AndroidPrefsKeystore {
     const val ALIAS = "com.pirlruc.finsilo.prefs_aes256_gcm"
 
-    fun getOrCreateKey(): SecretKey =
-        KeystoreAesGcmKey.getOrCreate(
-            ALIAS,
-            userAuthenticationRequired = false,
-            invalidatedByBiometricEnrollment = false,
-        )
+    fun getOrCreateKey(): SecretKey = KeystoreAesGcmKey.getOrCreate(
+        ALIAS,
+        userAuthenticationRequired = false,
+        invalidatedByBiometricEnrollment = false,
+    )
 }
 
 internal class AndroidKeystoreAesGcmAead : PrefsAead {
