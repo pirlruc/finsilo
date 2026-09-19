@@ -48,4 +48,13 @@ class HttpGetClientTest {
             assertTrue(error.message!!.contains("too large"))
         }
     }
+
+    @Test
+    fun httpFailureMessageOmitsQuerySecrets() {
+        val message = httpFailureMessage(401, "https://www.alphavantage.co/query?apikey=SECRET&function=OVERVIEW")
+        assertFalse(message.contains("SECRET"))
+        assertFalse(message.contains("apikey"))
+        assertTrue(message.contains("www.alphavantage.co"))
+        assertTrue(message.contains("401"))
+    }
 }

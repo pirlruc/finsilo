@@ -8,7 +8,7 @@
 | **Package** | `com.pirlruc.finsilo` |
 | **Type** | Native Android (Kotlin, Compose), offline-first portfolio tracker |
 | **Docs** | `docs/ai-agent-handoff.md`, `docs/issues.yml`, `docs/limitations.md` |
-| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr) (Epic = decision record, no ADR markdown files) |
+| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.5.0/github-issue-adr) (Epic = decision record, no ADR markdown files) |
 
 ## Current slice
 
@@ -25,6 +25,7 @@ Product phases **1–6** are implemented. Guardrails (Phase 7): quality (includi
 bash scripts/ci-local.sh
 ./gradlew :domain:koverVerify
 bash scripts/issues-sync.sh --validate-only
+bash scripts/check-analog-pins.sh
 ```
 
 CI: `.github/workflows/quality.yml`, `domain-tests.yml` (tests + Kover verify), `android.yml`, `docs.yml`, `security.yml`. Actions are SHA-pinned. Numeric gates read analog `docs/guardrails/kotlin/profile.thresholds.yml` after `scripts/ci-init-guardrails.sh` (`GUARDRAILS_READ_TOKEN`); otherwise the consumer copy `config/kotlin.profile.thresholds.yml`. Do not clone `.github/scaffold` in CI.
@@ -35,9 +36,9 @@ Toolchain notes that already bit this repo: AGP **9.3.1** (built-in Kotlin — d
 
 | Companion | How it is pinned |
 | --- | --- |
-| `pirlruc/guardrails` | Git submodule SHA at `docs/guardrails/` (tag **1.3.0**) |
-| `pirlruc/github-scaffold` | Git submodule SHA at `.github/scaffold/` (tag **1.2.0**); templates synced into `.github/` and `.cursor/rules/` |
-| `pirlruc/methodologies` | Cited by tag in docs (`tree/1.2.0/github-issue-adr`). Not a submodule. Folders: `docs/guardrails/`, `.github/scaffold/`. |
+| `pirlruc/guardrails` | Git submodule SHA at `docs/guardrails/` (tag **1.6.0**); `scripts/analog-pins.env` |
+| `pirlruc/github-scaffold` | Git submodule SHA at `.github/scaffold/` (tag **1.5.0**); templates synced into `.github/` and `.cursor/rules/` |
+| `pirlruc/methodologies` | Cited by tag in docs (`tree/1.5.0/github-issue-adr`). Not a submodule. Folders: `docs/guardrails/`, `.github/scaffold/`. |
 
 Private clones need `CURSOR_REPO_READ_TOKEN` (GitHub PAT) at VM start. `git submodule update --init` uses the public HTTPS URLs in `.gitmodules`.
 
@@ -45,7 +46,7 @@ Heimdall (`pirlruc/heimdall`) is an Android **SDK** stack (app → kit → core)
 
 ## github-issue-adr
 
-Authored backlog: [`docs/issues.yml`](issues.yml). Targets: [`docs/issues-sync-targets.yml`](issues-sync-targets.yml). Deviations (none): [`docs/guardrail-deviations.yml`](guardrail-deviations.yml). Do not invent `approved_by`.
+Authored backlog: [`docs/issues.yml`](issues.yml). Targets: [`docs/issues-sync-targets.yml`](issues-sync-targets.yml). Deviations (none): [`docs/guardrail-deviations.yml`](guardrail-deviations.yml). Do not invent `approved_by`. Analog 1.4.0 dropped numeric `doc_coverage` / `min_maintainability_index`; FinSilo keeps both as extra-strict gates in `config/kotlin.profile.thresholds.yml`. KT-SEC-004 is checksum-pinned **grype** on the Gradle CycloneDX BOM (OSV Scanner stays complementary).
 
 Root wrappers call the submodule (do not vendor cppdevops CI):
 
@@ -72,13 +73,13 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API. Closed this pass leftovers: backup [FS-017](issues.yml) (v6 extras, confirm restore, new-phone wrapping key), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml), Keystore AES-GCM prefs [FS-028](issues.yml), quote probe / biometric DB wrap / rating prefs / backup export [FS-030](issues.yml), first-purchase daily history / range dashboard loads / hybrid lock [FS-031](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml). FS-027's "biometric does not unwrap on a cold process" is superseded by FS-030.
+- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API, [FS-033](issues.yml) picker FLAG_SECURE / unified lock stores / medium scanner bars. Closed this pass leftovers: analog bump [TOOL-002](issues.yml), CI 1.4–1.6 gaps [GATE-005](issues.yml), dead-code and lock/HTTP hardening [FS-032](issues.yml), backup [FS-017](issues.yml) (v6 extras, confirm restore, new-phone wrapping key), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml), Keystore AES-GCM prefs [FS-028](issues.yml), quote probe / biometric DB wrap / rating prefs / backup export [FS-030](issues.yml), first-purchase daily history / range dashboard loads / hybrid lock [FS-031](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml). FS-027's "biometric does not unwrap on a cold process" is superseded by FS-030.
 
 FS-030 follow-up in this branch: rating alerts ignore `NONE` priors; overlapping pickers keep `FLAG_SECURE` until depth 0; tax/backup CreateDocument writes tax CSV/PDF even when no backup name is pending; restore/quote HTTP bodies are size-capped; quote probes use compact AV/Stooq/CoinGecko windows and reuse a ticker cache on CSV review.
 
 FS-031 in this branch: daily closes from first purchase are stored in full (about 0.06–0.1 MB/holding/year; not pruned or stepped — tens of MB for a 20-name decade is not material, and SMA-200/NAV need consecutive dailies). Charts draw every daily in the selected range; dashboard loads the selected HistoryRange; hybrid lock evicts SQLCipher after 15 minutes in the background.
 
-Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone and detekt `@Composable` ignore leftovers are [GATE-003](issues.yml) (done). Gradle 9 `ReportingExtension.file` deprecation is [GATE-004](issues.yml) (done; detekt 2.x).
+Phase 7 quality/coverage/security gates are [GATE-001](issues.yml) (done, including Kover 95/95). Analog clone and detekt `@Composable` ignore leftovers are [GATE-003](issues.yml) (done). Gradle 9 `ReportingExtension.file` deprecation is [GATE-004](issues.yml) (done; detekt 2.x). Guardrails 1.6.0 CI alignment is [GATE-005](issues.yml) (done: ShellCheck, doc-links, analog pins, grype, SPDX license gate).
 
 Untracked limits (Semgrep registry, signing/release, emulator/SQLCipher, AV quota, GitHub Issues write): [limitations.md](limitations.md).
 
@@ -103,7 +104,7 @@ The OkHttp client refuses non-GET and non-allowlisted HTTPS hosts. SMA is comput
 ## Security
 
 - SQLCipher wraps, optional Alpha Vantage key, PIN hashes, and widget NAV in Keystore AES-256-GCM SharedPreferences (`SecurePreferences`).
-- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks when the **process** goes to the background (`ProcessLifecycleOwner` `ON_STOP`; skipped while the biometric prompt or an external picker is showing). Relock overlays the PIN screen so in-progress ledger fields are kept. After **15 minutes** still in the background, Room is closed and the SQLCipher session key is wiped even if the overlay was skipped for a picker or biometric sheet; returning to the PIN screen before that keeps the session. Night sync no-ops when the session is closed. An empty Unlock tap does not count as a failed attempt. Recovery code screens show a copy icon beside the code; the clipboard is cleared after 60s if it still holds the code (`FLAG_SECURE` stays on the activity except while a document picker is open).
+- First-launch PIN (4–8 digits), optional biometrics, and a one-time recovery code that resets the PIN. Recovery cannot reconstruct the PIN. PIN/recovery hashes use PBKDF2-HMAC-SHA256 at 210k iterations (off the main thread). Five failed PIN/recovery attempts start a 30s lockout that doubles, cap 15 minutes. Settings changes to biometrics or the recovery code require the current PIN. The session re-locks when the **process** goes to the background (`ProcessLifecycleOwner` `ON_STOP`; skipped while the biometric prompt or an external picker is showing). Relock overlays the PIN screen so in-progress ledger fields are kept. After **15 minutes** still in the background, Room is closed and the SQLCipher session key is wiped even if the overlay was skipped for a picker or biometric sheet; returning to the PIN screen before that keeps the session. Night sync no-ops when the session is closed. An empty Unlock tap does not count as a failed attempt. Recovery code screens show a copy icon beside the code; the clipboard is cleared after 60s (`FLAG_SECURE` stays on the activity except while a document picker is open).
 - SQLCipher passphrase parsing uses the same hex decoder as the lock (corrupt prefs fail closed; they do not throw `NumberFormatException`). PIN and recovery wrap the 32-byte key; a third wrap is Keystore AES-GCM with `setUserAuthenticationRequired(true)` and `setInvalidatedByBiometricEnrollment(true)`. Cold start can unwrap with biometrics; **Use PIN** or failure falls back to PIN. Enrollment change shows “Biometrics changed. Enter PIN.” then reseals. Backup files are FSILO-LEDGER-3 (rating alert rows); decode still accepts v1/v2.
 - Room v2→v7 additive schema changes are `AutoMigration` (no `execSQL` in `src/main`). Scanner scope filters are listed in [`docs/scanner-exceptions.md`](scanner-exceptions.md); there are no finding-level ignores.
 - `FLAG_SECURE` and `filterTouchesWhenObscured` on the main activity (no screenshots of the ledger/PIN; ignore overlay taps).
@@ -123,11 +124,13 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 | **syft** CycloneDX (already in `android.yml`) | SBOM inventory, not a vuln gate | OSV can consume that SBOM when it exists. |
 | **Android lint / detekt** | API/quality | Not MobSF. lint may catch some manifest issues; mobsfscan is MASVS-oriented. |
 | **CodeQL** (new) | Interprocedural SAST (`java-kotlin`, `security-extended`) | Not previously included. CI-only (`github/codeql-action`). |
-| **OSV Scanner** (new) | Dependency vulns (OSV.dev) against the Gradle CycloneDX BOM (`cyclonedxBom`, runtime classpaths) | Not previously included. Local: `scripts/run-osv-scanner.sh`. Complements PR-only dependency-review. |
+| **OSV Scanner** (new) | Dependency vulns (OSV.dev) against the Gradle CycloneDX BOM (`cyclonedxBom`, runtime classpaths) | Complements PR-only dependency-review. Local: `scripts/run-osv-scanner.sh`. |
+| **grype** (GATE-005) | KT-SEC-004 dependency vuln scan on the same CycloneDX BOM | Named org tool; OSV stays complementary. Local: `scripts/run-grype.sh`. |
+| **SPDX license gate** (GATE-005) | SC-LIC-001 against analog `license_deny_list` / `license_allow_list` | Org defaults are empty lists (gate runs, denies nothing) until a release allow-list is filled. |
 | **MobSF mobsfscan** (new) | Mobile Security Framework source SAST | Not previously included. Full MobSF Docker APK analysis is not in CI (no Docker in this flow); mobsfscan is the CI-practical MobSF gate. |
 
 ## Sample data
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
-*Last updated: 2026-08-21 (recovery copy icon beside the code)*
+*Last updated: 2026-09-19 (guardrails 1.6.0 / scaffold 1.5.0; FS-032/GATE-005)*

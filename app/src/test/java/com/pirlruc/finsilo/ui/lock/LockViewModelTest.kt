@@ -197,6 +197,35 @@ class LockViewModelTest {
     }
 
     @Test
+    fun provisionFailureDoesNotMarkLockReady() {
+        val store = FakeAppLock(setup = false)
+        val keys = FakeLedgerKeys(provisionOk = false)
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        viewModel.setPin("1234")
+        viewModel.setPinConfirm("1234")
+        viewModel.setRecoveryConfirm(true)
+        viewModel.completeSetup()
+        assertFalse(store.isSetup())
+        assertEquals(0, store.setupCalls)
+        assertEquals(1, keys.provisionCalls)
+        assertFalse(viewModel.state.value.setupComplete)
+        assertFalse(viewModel.state.value.unlocked)
+    }
+
+    @Test
+    fun rotateRecoveryRollsBackWrapWhenHashStoreFails() {
+        val store = FakeAppLock(failRotate = true)
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestRotateRecovery()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertEquals(1, keys.rollbackRecoveryCalls)
+        assertTrue(viewModel.state.value.error!!.contains("rotate"))
+    }
+
+    @Test
     fun recoverRewrapsPin() {
         val keys = FakeLedgerKeys()
         var opened = 0
@@ -371,9 +400,10 @@ class LockViewModelTest {
     }
 }
 
-private class FakeAppLock(private var setup: Boolean = true) : AppLockRepository {
+private class FakeAppLock(private var setup: Boolean = true, private val failRotate: Boolean = false) : AppLockRepository {
     var pin: String = "1234"
     var recovery: String = INITIAL_RECOVERY
+    var setupCalls: Int = 0
     private var biometric = false
     private var attempts = 0
     private var lockoutUntil = 0L
@@ -387,6 +417,7 @@ private class FakeAppLock(private var setup: Boolean = true) : AppLockRepository
     }
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
+        setupCalls += 1
         if (!AppLockCrypto.pinOk(pin)) return false
         this.pin = pin
         recovery = AppLockCrypto.normalizeRecovery(recoveryCode)
@@ -408,6 +439,7 @@ private class FakeAppLock(private var setup: Boolean = true) : AppLockRepository
     }
 
     override fun rotateRecovery(newCode: String): Boolean {
+        if (failRotate) return false
         val normalized = AppLockCrypto.normalizeRecovery(newCode)
         if (normalized.length < 16) return false
         recovery = normalized
@@ -436,9 +468,11 @@ private class FakeAppLock(private var setup: Boolean = true) : AppLockRepository
 private class FakeLedgerKeys(
     var sessionOpen: Boolean = false,
     var upgrade: Boolean = false,
+    var provisionOk: Boolean = true,
 ) : LedgerKeySession {
     var provisionCalls: Int = 0
     var finishMigrationCalls: Int = 0
+    var rollbackRecoveryCalls: Int = 0
     var lastRewrapPin: String? = null
     var lastRewrapRecovery: String? = null
     private var sessionKey: ByteArray? = if (sessionOpen) ByteArray(32) else null
@@ -452,6 +486,7 @@ private class FakeLedgerKeys(
 
     override fun provision(pin: String, recovery: String): Boolean {
         provisionCalls += 1
+        if (!provisionOk) return false
         sessionOpen = true
         sessionKey = ByteArray(32)
         upgrade = false
@@ -505,5 +540,12 @@ private class FakeLedgerKeys(
         sessionOpen = false
         sessionKey?.fill(0)
         sessionKey = null
+    }
+
+    override fun discardOrphanWraps(): Boolean = true
+
+    override fun rollbackRecoveryWrap(): Boolean {
+        rollbackRecoveryCalls += 1
+        return true
     }
 }

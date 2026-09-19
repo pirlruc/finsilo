@@ -40,11 +40,17 @@ interface LedgerKeySession {
     fun persistBiometricWrap(blob: ByteArray?): Boolean
 
     fun evictSession()
+
+    fun discardOrphanWraps(): Boolean
+
+    fun rollbackRecoveryWrap(): Boolean
 }
 
 class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
     @Volatile
     private var session: ByteArray? = null
+
+    private var previousRecoveryWrap: String? = null
 
     fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
 
@@ -67,12 +73,26 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     override fun needsWrapUpgrade(): Boolean = hasLegacyPassphrase() && !hasWrappedPassphrase()
 
     override fun provision(pin: String, recovery: String): Boolean {
-        if (session != null) return true
+        session?.let { return persistWraps(pin, recovery, it) }
         if (hasWrappedPassphrase() || hasLegacyPassphrase()) return false
         val key = ByteArray(PASSPHRASE_BYTES).also { SecureRandom().nextBytes(it) }
         if (!persistWraps(pin, recovery, key)) return false
         session = key
         return true
+    }
+
+    override fun discardOrphanWraps(): Boolean {
+        if (session != null) return true
+        return prefs.edit()
+            .remove(KEY_WRAP_PIN)
+            .remove(KEY_WRAP_RECOVERY)
+            .remove(KEY_WRAP_BIOMETRIC)
+            .commit()
+    }
+
+    override fun rollbackRecoveryWrap(): Boolean {
+        val previous = previousRecoveryWrap ?: return false
+        return prefs.edit().putString(KEY_WRAP_RECOVERY, previous).commit()
     }
 
     override fun unlockWithPin(pin: String): Boolean {
@@ -105,7 +125,10 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
 
-    override fun rewrapRecovery(newRecovery: String): Boolean = rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
+    override fun rewrapRecovery(newRecovery: String): Boolean {
+        previousRecoveryWrap = prefs.getString(KEY_WRAP_RECOVERY, null)
+        return rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
+    }
 
     override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
         val key = session ?: return false

@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.data.remote
 
 import java.io.IOException
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,7 +14,7 @@ import okio.BufferedSource
 
 internal fun validateMarketGet(request: Request) {
     if (request.method != "GET") {
-        throw IOException("FinSilo allows GET only; refused ${request.method} ${request.url}")
+        throw IOException("FinSilo allows GET only; refused ${request.method}")
     }
     MarketHttpsPolicy.requireHttpsUrl(request.url.toString())
 }
@@ -35,6 +36,11 @@ internal fun marketHttpClient(): OkHttpClient = OkHttpClient.Builder()
 
 internal const val MARKET_RESPONSE_MAX_BYTES: Long = 8L * 1024 * 1024
 
+internal fun httpFailureMessage(code: Int, url: String): String {
+    val host = runCatching { URI(url).host }.getOrNull()?.takeIf { it.isNotBlank() } ?: "unknown"
+    return "HTTP $code for $host"
+}
+
 internal fun readUtf8Capped(source: BufferedSource, maxBytes: Long): String {
     val buffer = Buffer()
     while (!source.exhausted()) {
@@ -50,7 +56,7 @@ class HttpGetClient(private val client: OkHttpClient = marketHttpClient()) {
         val request = Request.Builder().url(url).get().build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code} for $url")
+                throw IOException(httpFailureMessage(response.code, url))
             }
             readUtf8Capped(response.body.source(), MARKET_RESPONSE_MAX_BYTES)
         }

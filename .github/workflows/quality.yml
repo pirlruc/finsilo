@@ -63,3 +63,40 @@ jobs:
 
       - name: Kotlin format and detekt
         run: ./gradlew :domain:ktlintCheck :domain:detekt :app:ktlintCheck :app:detekt --stacktrace
+
+  analog-pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Submodule pins match documented refs
+        run: bash scripts/check-analog-pins.sh
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: ShellCheck
+        run: bash scripts/run-shellcheck.sh
+
+  doc-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Relative markdown links
+        run: python3 scripts/lint-doc-links.py --root "$GITHUB_WORKSPACE"
+

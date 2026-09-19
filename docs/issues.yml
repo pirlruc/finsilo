@@ -1,7 +1,7 @@
 # Authored backlog for FinSilo. Source of truth for GitHub Epic/Task issues.
 #
-# Schema: https://github.com/pirlruc/github-scaffold/blob/1.2.0/docs/issues-schema.md
-# Methodology: https://github.com/pirlruc/methodologies/tree/1.2.0/github-issue-adr
+# Schema: https://github.com/pirlruc/github-scaffold/blob/1.5.0/docs/issues-schema.md
+# Methodology: https://github.com/pirlruc/methodologies/tree/1.5.0/github-issue-adr
 #
 # The Epic is the decision record — there are no ADR markdown files.
 # Deviations from guardrails go in docs/guardrail-deviations.yml, not here.
@@ -83,6 +83,53 @@ milestones:
             verification:
               - bash scripts/issues-sync.sh --validate-only
               - test -x scripts/setup-issue-scaffold.sh
+
+      - id: TOOL-002
+        status: done
+        title: Bump analog pins to guardrails 1.6.0 and github-scaffold 1.5.0
+        overview:
+          problem: >-
+            FinSilo was still on guardrails 1.3.0 and github-scaffold 1.2.0 after
+            1.4–1.6 added KT-SEC-004, SHELL-*, DOC-LINT-*, SC-DEP-004, and
+            dropped unmeasurable Kotlin keys.
+          goal: >-
+            Pin both analog gitlinks at the current annotated tags, sync
+            templates, and assert pin freshness in CI.
+        decision: >-
+          In the context of analog drift, facing silent pin lag, we decided
+          annotated tags 1.6.0 / 1.5.0 plus a documented SHA assert
+          (SC-DEP-004), to achieve the same pack CI thinks it has, accepting
+          extra-strict KDoc and SEI MI gates analog no longer numbers.
+        architecture:
+          target: Analog gitlinks plus consumer threshold copies
+          modules:
+            - docs/guardrails
+            - .github/scaffold
+            - scripts/analog-pins.env
+            - config/kotlin.profile.thresholds.yml
+        acceptance_criteria:
+          - docs/guardrails is pinned at tag 1.6.0
+          - .github/scaffold is pinned at tag 1.5.0
+          - methodologies citations use tag 1.5.0
+          - bash scripts/check-analog-pins.sh is green
+        guardrail_refs:
+          - SC-DEP-004
+          - KT-DELIV-001
+        tasks:
+          - id: TOOL-002-T1
+            status: done
+            title: Checkout analog tags and sync scaffold templates
+            instructions:
+              files:
+                - docs/guardrails
+                - .github/scaffold
+                - .cursor/rules
+                - .github/pull_request_template.md
+                - scripts/analog-pins.env
+            verification:
+              - git -C docs/guardrails describe --tags --exact-match HEAD
+              - git -C .github/scaffold describe --tags --exact-match HEAD
+              - bash scripts/check-analog-pins.sh
 
   - name: Phase 1 — Foundation
     epics:
@@ -1151,6 +1198,79 @@ milestones:
               - KT-CPLX-001
               - CI-009
 
+      - id: GATE-005
+        status: done
+        title: Close guardrails 1.4–1.6 CI gaps
+        overview:
+          problem: >-
+            After analog 1.4–1.6, FinSilo still lacked ShellCheck, relative
+            markdown-link lint, a documented gitlink assert, a named KT-SEC-004
+            dependency vuln scanner, and an SC-LIC-001 job.
+          goal: >-
+            Quality and security workflows enforce SHELL-LINT-001, DOC-LINT-001,
+            SC-DEP-004, KT-SEC-004 (grype), and SC-LIC-001 without recording a
+            deviation. Extra-strict KDoc coverage and SEI MI stay.
+        decision: >-
+          In the context of analog 1.6.0, facing KT-SEC-004 naming OWASP or
+          grype, we decided checksum-pinned grype on the Gradle CycloneDX BOM
+          alongside OSV Scanner, to achieve the named tool plus complementary
+          OSV coverage, accepting a second SBOM scan on the same job.
+        architecture:
+          target: GitHub Actions quality and security workflows
+          modules:
+            - .github/workflows/quality.yml
+            - .github/workflows/security.yml
+            - scripts/run-shellcheck.sh
+            - scripts/run-grype.sh
+            - scripts/check-licenses.py
+            - scripts/lint-doc-links.py
+            - scripts/check-analog-pins.sh
+        acceptance_criteria:
+          - quality.yml runs analog-pins, shellcheck, and doc-links jobs
+          - security.yml runs grype and the SPDX license gate on the CycloneDX BOM
+          - docs/guardrail-deviations.yml stays empty
+        guardrail_refs:
+          - SHELL-LINT-001
+          - DOC-LINT-001
+          - SC-DEP-004
+          - KT-SEC-004
+          - SC-LIC-001
+          - CI-009
+        tasks:
+          - id: GATE-005-T1
+            status: done
+            title: Add ShellCheck, doc-link lint, and analog pin assert
+            instructions:
+              files:
+                - .github/workflows/quality.yml
+                - scripts/run-shellcheck.sh
+                - scripts/lint-doc-links.py
+                - scripts/check-analog-pins.sh
+            verification:
+              - bash scripts/check-analog-pins.sh
+              - bash scripts/run-shellcheck.sh
+              - python3 scripts/lint-doc-links.py --root .
+            guardrail_refs:
+              - SHELL-LINT-001
+              - DOC-LINT-001
+              - SC-DEP-004
+          - id: GATE-005-T2
+            status: done
+            title: Add grype and SPDX license gate on the CycloneDX BOM
+            instructions:
+              files:
+                - .github/workflows/security.yml
+                - scripts/run-grype.sh
+                - scripts/check-licenses.py
+                - config/supply-chain.profile.thresholds.yml
+            verification:
+              - bash scripts/run-osv-scanner.sh
+              - bash scripts/run-grype.sh
+              - python3 scripts/check-licenses.py
+            guardrail_refs:
+              - KT-SEC-004
+              - SC-LIC-001
+
   - name: Backlog — next product value
     epics:
       - id: FS-017
@@ -1847,5 +1967,131 @@ milestones:
             verification:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - Overlay lock on background; session still open if foregrounded before 15 minutes; key wiped after grace
+
+      - id: FS-032
+        status: done
+        title: Remove dead code and close lock/HTTP security bugs
+        overview:
+          problem: >-
+            Unused chart-stepping and repository helpers remained after FS-031.
+            HTTP errors embedded Alpha Vantage query strings, lock setup could
+            mark PIN ready without SQLCipher wraps, recovery clipboard clear
+            no-op'd on API 29+, and CSV import was unbounded.
+          goal: >-
+            Delete unused production paths, share rating/NAV/Keystore helpers,
+            and fail closed on those security bugs without adding scanner
+            suppressions.
+        decision: >-
+          In the context of a quality/security pass, facing unused APIs and
+          dual-write lock bugs, we decided delete-first plus wrap-then-hash
+          setup with recovery-wrap rollback, to reduce executed surface and
+          keep lock and SQLCipher wraps consistent, accepting that FLAG_SECURE
+          still drops while a system picker is open (FS-033).
+        architecture:
+          target: Domain market/lock plus app security and remote HTTP
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            - app/src/main/java/com/pirlruc/finsilo/data
+            - app/src/main/java/com/pirlruc/finsilo/ui/lock
+            - app/src/main/java/com/pirlruc/finsilo/data/remote
+        acceptance_criteria:
+          - HistoryPeriodicity and unused repository helpers are gone
+          - HTTP failure messages include host and status only
+          - Setup provisions wraps before lock hashes; recovery wrap rolls back if the hash write fails
+          - Recovery clipboard is cleared after 60s without reading it back
+          - Broker CSV reads go through BoundedBytes
+        guardrail_refs:
+          - KT-SEC-002
+          - KT-CPLX-002
+          - KT-API-001
+        tasks:
+          - id: FS-032-T1
+            status: done
+            title: Delete unused helpers and share rating, NAV, and Keystore bootstrap
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+                - app/src/main/java/com/pirlruc/finsilo/data
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - ./gradlew :app:testDebugUnitTest
+          - id: FS-032-T2
+            status: done
+            title: Redact HTTP errors, atomic lock setup, clipboard, and CSV cap
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/remote/HttpGetClient.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+                - app/src/main/java/com/pirlruc/finsilo/data/security/DatabaseKeyStore.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/importcsv/BrokerImportCard.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.remote.HttpGetClientTest
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.security.DatabaseKeyStoreTest
+
+      - id: FS-033
+        status: open
+        title: Remaining security and quality follow-ups
+        overview:
+          problem: >-
+            FLAG_SECURE is still cleared while a system document picker is
+            open, lock hashes and SQLCipher wraps remain two stores, the
+            SPDX allow list is empty (org default), and scanner fail bars stay
+            at High/ERROR.
+          goal: >-
+            Close leftover design gaps that this pass identified but did not
+            ship, without adding finding-level scanner ignores.
+        architecture:
+          target: Lock overlay, credential stores, and scanner fail bars
+          modules:
+            - app/src/main/java/com/pirlruc/finsilo/ui
+            - app/src/main/java/com/pirlruc/finsilo/data/security
+            - docs/scanner-exceptions.md
+            - .github/workflows/security.yml
+        acceptance_criteria:
+          - Ledger content is not visible in the window while FLAG_SECURE is off for a picker
+          - PIN hash and SQLCipher wrap writes share one commit/rollback path
+          - Medium-severity OSV/CodeQL/MobSF fail bar is evaluated with a green run or a recorded deviation
+          - License allow-list is populated before the first published artifact
+        guardrail_refs:
+          - KT-SEC-002
+          - SC-LIC-001
+          - CI-005
+        tasks:
+          - id: FS-033-T1
+            status: open
+            title: Hide ledger content while a document picker holds FLAG_SECURE off
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui
+                - app/src/main/java/com/pirlruc/finsilo/MainActivity.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - Opening CreateDocument/OpenDocument does not leave Compose ledger pixels on screen
+          - id: FS-033-T2
+            status: open
+            title: Unify lock hash and wrap persistence
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
+              - A failed second write cannot leave PIN ready without matching wraps
+          - id: FS-033-T3
+            status: open
+            title: Evaluate medium-severity scanner fail bars and license allow-list
+            instructions:
+              files:
+                - .github/workflows/security.yml
+                - docs/scanner-exceptions.md
+                - config/supply-chain.profile.thresholds.yml
+            verification:
+              - python3 scripts/fail-on-sarif-severity.py --min-severity medium on a green local SARIF
+              - python3 scripts/check-licenses.py with a non-empty allow list or a recorded deviation
+            guardrail_refs:
+              - CI-005
+              - SC-LIC-001
 
 

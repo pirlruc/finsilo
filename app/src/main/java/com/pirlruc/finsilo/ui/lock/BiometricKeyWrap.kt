@@ -1,12 +1,7 @@
 package com.pirlruc.finsilo.ui.lock
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.biometric.BiometricPrompt
-import java.security.KeyStore
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
@@ -16,19 +11,18 @@ import javax.crypto.spec.GCMParameterSpec
 internal object BiometricKeyWrap {
     private const val KEY_NAME: String = "finsilo_biometric_db"
     private const val TRANSFORMATION: String = "AES/GCM/NoPadding"
-    private const val ANDROID_KEYSTORE: String = "AndroidKeyStore"
     private const val IV_BYTES: Int = 12
     private const val TAG_BITS: Int = 128
 
     fun encryptObject(): BiometricPrompt.CryptoObject {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
+        cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
         return BiometricPrompt.CryptoObject(cipher)
     }
 
     fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES)))
+        cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME), GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES)))
         return BiometricPrompt.CryptoObject(cipher)
     }
 
@@ -45,26 +39,6 @@ internal object BiometricKeyWrap {
     }
 
     fun deleteKey() {
-        val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        if (store.containsAlias(KEY_NAME)) store.deleteEntry(KEY_NAME)
-    }
-
-    private fun secretKey(): SecretKey {
-        val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        val existing = store.getKey(KEY_NAME, null) as? SecretKey
-        if (existing != null) return existing
-        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-        generator.init(
-            KeyGenParameterSpec.Builder(
-                KEY_NAME,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setUserAuthenticationRequired(true)
-                .setInvalidatedByBiometricEnrollment(true)
-                .build(),
-        )
-        return generator.generateKey()
+        KeystoreAesGcmKey.delete(KEY_NAME)
     }
 }

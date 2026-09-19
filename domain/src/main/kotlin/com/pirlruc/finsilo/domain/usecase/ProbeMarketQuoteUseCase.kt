@@ -18,7 +18,7 @@ sealed interface QuoteProbeResult {
  */
 class ProbeMarketQuoteUseCase(private val feed: MarketFeed) {
     suspend operator fun invoke(asset: Asset, asOf: LocalDate = LocalDate.now()): QuoteProbeResult {
-        if (asset.locallyValued || asset.assetType.isLocallyValued) {
+        if (asset.locallyValued) {
             return QuoteProbeResult.Found(emptyList())
         }
         val bars =

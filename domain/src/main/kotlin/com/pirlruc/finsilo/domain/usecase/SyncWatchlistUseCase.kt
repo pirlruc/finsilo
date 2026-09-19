@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.market.MovingAverages
+import com.pirlruc.finsilo.domain.market.QuoteRating
 import com.pirlruc.finsilo.domain.market.QuoteSyncPlanner
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.DailyMarketData
@@ -84,17 +85,11 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
                 assetId = item.id,
                 date = bar.date,
                 closingPriceNative = bar.closeNative,
-                analystRating = ratingOnBar(isLatest, rating, storedByDate[bar.date]),
+                analystRating = QuoteRating.onBar(isLatest, rating, storedByDate[bar.date]),
                 sma50 = MovingAverages.sma(closes, 50),
                 sma200 = MovingAverages.sma(closes, 200),
             )
         }
-    }
-
-    private fun ratingOnBar(isLatest: Boolean, latest: AnalystRating, stored: DailyMarketData?): AnalystRating {
-        if (isLatest) return latest
-        val previous = stored?.analystRating
-        return if (previous != null && previous != AnalystRating.NONE) previous else AnalystRating.NONE
     }
 
     private suspend fun ratingFor(

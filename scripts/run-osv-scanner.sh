@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Local/CI runner for a checksum-pinned OSV Scanner binary (KT-SEC-002).
+# Local/CI runner for a checksum-pinned OSV Scanner binary (KT-SEC-002 complement).
+# KT-SEC-004 is grype (scripts/run-grype.sh) on the same CycloneDX BOM.
 # Complements GitHub dependency-review (PR diff / GH Advisory). Gradle has no
 # lockfile, so this gate scans the CycloneDX BOM from the Gradle plugin
 # (resolved direct + transitive graph).

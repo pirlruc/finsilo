@@ -342,12 +342,13 @@ class LockViewModel(
     }
 
     private fun persistSetup(current: LockUiState): Boolean {
-        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
-            _state.update { it.copy(error = "Could not store the lock.") }
-            return false
-        }
+        keys?.discardOrphanWraps()
         if (keys != null && !keys.provision(current.pin, current.recoveryCode)) {
             _state.update { it.copy(error = "Could not wrap the database key.") }
+            return false
+        }
+        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
+            _state.update { it.copy(error = "Could not store the lock.") }
             return false
         }
         return true
@@ -446,6 +447,7 @@ class LockViewModel(
             return
         }
         if (!store.rotateRecovery(code)) {
+            keys?.rollbackRecoveryWrap()
             _state.update { it.copy(error = "Could not rotate recovery code.") }
             return
         }

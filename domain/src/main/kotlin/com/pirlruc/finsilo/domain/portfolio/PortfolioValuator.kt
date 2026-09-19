@@ -4,7 +4,6 @@ import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
-import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HoldingValuation
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
@@ -83,14 +82,6 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         return AllocationComposer.compose(snapshot, asOf, holdings, cash)
     }
 
-    fun syntheticCashAsset(): Asset = Asset(
-        id = CASH_ASSET_ID,
-        symbol = "EUR",
-        name = "Cash",
-        assetType = AssetType.CASH,
-        baseCurrency = Currency.EUR,
-    )
-
     private fun holdingFor(
         asset: Asset,
         txs: List<Transaction>,
@@ -104,7 +95,6 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     }
 
     companion object {
-        const val CASH_ASSET_ID: String = "cash"
         val DRIFT_BAND_PERCENT: BigDecimal = BigDecimal("5")
     }
 }

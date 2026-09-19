@@ -15,6 +15,7 @@ fi
 # Rewrite only the analog HTTPS URL so other GitHub fetches do not see the PAT.
 git -c "url.https://x-access-token:${GUARDRAILS_READ_TOKEN}@github.com/pirlruc/guardrails.git.insteadOf=https://github.com/pirlruc/guardrails.git" \
   submodule update --init docs/guardrails
+git -C docs/guardrails fetch --tags --force origin >/dev/null 2>&1 || true
 
 if [[ ! -f "${ANALOG}" ]]; then
   echo "missing ${ANALOG} after analog clone" >&2

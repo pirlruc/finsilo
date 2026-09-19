@@ -141,6 +141,12 @@ jobs:
       - name: Scan CycloneDX SBOM
         run: bash scripts/run-osv-scanner.sh
 
+      - name: Grype (KT-SEC-004)
+        run: bash scripts/run-grype.sh
+
+      - name: SPDX license gate (SC-LIC-001)
+        run: python3 scripts/check-licenses.py
+
   mobsfscan:
     name: MobSF (mobsfscan)
     runs-on: ubuntu-latest

@@ -67,16 +67,10 @@ private fun copyRecoveryAction(context: Context, scope: CoroutineScope): (String
             clearJob?.cancel()
             clearJob = scope.launch {
                 delay(RECOVERY_CLIPBOARD_MS)
-                if (clipText(clipboard) == code) clearClip(clipboard)
+                clearClip(clipboard)
             }
         }
     }
-}
-
-private fun clipText(clipboard: ClipboardManager): String? {
-    val clip = clipboard.primaryClip ?: return null
-    if (clip.itemCount == 0) return null
-    return clip.getItemAt(0).text?.toString()
 }
 
 private fun sensitiveClip(code: String): ClipData {

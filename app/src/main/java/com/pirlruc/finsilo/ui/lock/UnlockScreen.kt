@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 
 @Composable
@@ -116,6 +117,7 @@ fun RecoverPinScreen(
             label = { Text("Recovery code") },
             singleLine = true,
             enabled = enabled,
+            visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
         )

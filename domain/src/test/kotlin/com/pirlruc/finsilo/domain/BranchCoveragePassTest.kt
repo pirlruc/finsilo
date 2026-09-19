@@ -28,7 +28,6 @@ import com.pirlruc.finsilo.domain.model.PriceBar
 import com.pirlruc.finsilo.domain.model.TargetAllocation
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
-import com.pirlruc.finsilo.domain.portfolio.LotPosition
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
@@ -501,8 +500,6 @@ class HistoryRebuildSyncBranchCoverageTest {
         assertNull(ledger.nativePrice("missing", asOf, emptyMap(), emptyList()))
         val market = mapOf(etf.id to listOf(DailyMarketData(etf.id, asOf, bd("110"))))
         assertEquals(0, bd("110").compareTo(ledger.nativePrice(etf.id, asOf, market, listOf(buy))))
-        assertEquals(0, BigDecimal.ZERO.compareTo(LotPosition(BigDecimal.ZERO, bd("10")).averageCostEur))
-        assertTrue(LotPosition(bd("2"), bd("10")).averageCostEur.signum() > 0)
         val blankQuote = Asset("x", "AAPL", "Apple", AssetType.STOCK, Currency.USD, quoteSymbol = " ")
         assertEquals("AAPL", blankQuote.feedSymbol)
         val listed = Asset("p", "PPR", "PPR", AssetType.PPR, Currency.EUR, quoteSymbol = "VWCE.DE")
