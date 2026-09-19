@@ -9,14 +9,14 @@ This file is only for **known limits that are not issues** (product/API/CI facts
 | LIM-REL | No cosign signing or SLSA provenance (SC-SIGN-001, SC-PROV-001). No GitHub Release yet. SPDX license gate runs in CI with empty org-default allow/deny lists. | Tag/release workflow with keyless cosign and `actions/attest-build-provenance`; attach the CI CycloneDX SBOM; populate `license_allow_list` before publish. | **Open — no published artifact** | A signed, attested GitHub Release is produced from CI |
 | LIM-EMU | CI runs **Robolectric** Room tests, not an emulator. SQLCipher native is not exercised. | Instrumented emulator/device job. | **Open — device CI** | A failing SQLCipher/Compose test fails that job |
 | LIM-AV | Alpha Vantage free tier is about 25 calls/day. | Paid AV tier, fewer US names, or another GET-only US history source that is not unofficial Yahoo. | **Open — API quota** | Quota no longer blocks a normal US book, without unofficial Yahoo |
-| LIM-GH | GitHub issue publish 403s: token is `issues=read`. | PAT/App with **Issues: Read and write**; then scaffold + `issues-sync.sh`. | **Open — token scope** | Labels, milestones, and issues sync from `docs/issues.yml` without 403 |
+| LIM-GH | GitHub issue publish 403s: token is `issues=read`. Planned work is [TOOL-003](issues.yml). | PAT/App with **Issues: Read and write**; then scaffold + `issues-sync.sh`. | **Open — token scope** | Labels, milestones, and issues sync from `docs/issues.yml` without 403 |
 
 Closed this pass (kept here so the “stops when” is visible):
 
 | ID | Limitation | Status | Stops being a limitation when (met) |
 | --- | --- | --- | --- |
 | LIM-COV | `:domain` Kover branch below 95 | **Closed** | `./gradlew :domain:koverVerify` green at profile 95/95 (branch ~95.1%, line ~99.7%) |
-| LIM-SUB | `GITHUB_TOKEN` cannot clone private analog | **Closed** | Required jobs run `scripts/ci-init-guardrails.sh` with `GUARDRAILS_READ_TOKEN` and init **only** `docs/guardrails`. Clone failure (stale PAT) falls back to the consumer copy, same as an unset secret. `.github/scaffold` is not cloned in CI (templates are synced). analog-pins still asserts the gitlink SHA. |
+| LIM-SUB | `GITHUB_TOKEN` cannot clone private analog | **Closed** (matching still open as [GATE-007](issues.yml)) | Required jobs run `scripts/ci-init-guardrails.sh` with `GUARDRAILS_READ_TOKEN` and init **only** `docs/guardrails`. Clone failure (stale PAT) falls back to the consumer copy, same as an unset secret. `.github/scaffold` is not cloned in CI (templates are synced). analog-pins still asserts the gitlink SHA. Analog-versus-consumer key matching waits on a renewed PAT. |
 | LIM-MI | No Kotlin MI tool | **Closed** | `scripts/check-maintainability.py` runs multimetric SEI on `:domain` vs `min_maintainability_index` |
 | LIM-MI-UI | Compose file MI below 40 | **Closed** | Dashboard/ledger screens split; `scripts/check-maintainability.py` scans `:app` as well as `:domain`; min SEI ≥ 40 |
 | LIM-HOOK | gitleaks CI-only | **Closed** | `.pre-commit-config.yaml` + Dependabot `pre-commit` ecosystem |
