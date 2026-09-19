@@ -39,8 +39,7 @@ class AppLockStore(context: Context) : AppLockRepository {
 
     override fun biometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC, false)
 
-    override fun setBiometricEnabled(enabled: Boolean): Boolean =
-        prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commit()
+    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commit()
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
         if (!AppLockCrypto.pinOk(pin)) return false

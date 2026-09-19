@@ -126,8 +126,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
 
-    override fun rewrapRecovery(newRecovery: String): Boolean =
-        rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
+    override fun rewrapRecovery(newRecovery: String): Boolean = rewrap(KEY_WRAP_RECOVERY, AppLockCrypto.normalizeRecovery(newRecovery))
 
     override fun finishLegacyMigration(pin: String, recovery: String): Boolean {
         val key = session ?: return false

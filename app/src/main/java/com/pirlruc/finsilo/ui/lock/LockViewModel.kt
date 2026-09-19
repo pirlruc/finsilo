@@ -155,13 +155,12 @@ class LockViewModel(
             }
     }
 
-    private fun sessionEvictedLock(state: LockUiState): LockUiState =
-        overlayLock(state).copy(
-            sessionEvicted = true,
-            wrapUpgradeRequired = false,
-            upgradeRecovery = "",
-            upgradeRecoveryConfirm = false,
-        )
+    private fun sessionEvictedLock(state: LockUiState): LockUiState = overlayLock(state).copy(
+        sessionEvicted = true,
+        wrapUpgradeRequired = false,
+        upgradeRecovery = "",
+        upgradeRecoveryConfirm = false,
+    )
 
     private fun sessionRetained() {
         retainSessionTimer()
