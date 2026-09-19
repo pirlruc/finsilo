@@ -140,7 +140,8 @@ milestones:
             GitHub issues, epic/task labels, or github-issue-adr milestones.
             LIM-GH: the cloud token is issues=read, so setup-issue-scaffold and
             issues-sync 403. Closed work from PR #15 (TOOL-002, GATE-005,
-            GATE-006, FS-032, FS-033-T1) exists only in the YAML.
+            GATE-006, FS-032, FS-033-T1) and PR #18 (FS-033-T2, FS-033-T4,
+            FS-035) exists only in the YAML. FS-033 stays open for T3.
           goal: >-
             After Issues: Read and write is granted on the PAT or GitHub App,
             bootstrap labels and milestones, then sync so GitHub matches
@@ -2182,8 +2183,10 @@ milestones:
             still the empty org default. FLAG_SECURE still drops while a
             system picker is open; ledger pixels and a11y nodes are covered
             (FS-033-T1). Lock hashes and SQLCipher wraps now share
-            finsilo_credentials (FS-033-T2). Holdings, YOC, history, TWR, and
-            signal captions use the former unused report fields (FS-033-T4).
+            finsilo_credentials (FS-033-T2, PR #18). Holdings, YOC, history,
+            TWR, and signal captions use the former unused report fields
+            (FS-033-T4, PR #18). T3 (medium scanner bars / SPDX allow-list)
+            stays open.
           goal: >-
             Close leftover scanner-policy gaps without adding finding-level
             scanner ignores.
@@ -2315,7 +2318,7 @@ milestones:
             never read.
           goal: >-
             Drop the unread rebuild metadata via a v8 AutoMigration, without a
-            destructive fallback.
+            destructive fallback. Landed in PR #18.
         decision: >-
           In the context of leftover Room columns after NAV fingerprinting,
           facing unread as_of/rebuilt_at_ms, we decided drop them in Room v8
