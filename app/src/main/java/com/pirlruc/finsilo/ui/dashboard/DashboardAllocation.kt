@@ -28,7 +28,7 @@ import com.patrykandpatrick.vico.compose.pie.PieChartHost
 import com.patrykandpatrick.vico.compose.pie.PieSize
 import com.patrykandpatrick.vico.compose.pie.data.PieChartModelProducer
 import com.patrykandpatrick.vico.compose.pie.data.PieValueFormatter
-import com.patrykandpatrick.vico.compose.pie.data.pieSeries
+import com.patrykandpatrick.vico.compose.pie.data.pieModel
 import com.patrykandpatrick.vico.compose.pie.rememberPieChart
 import com.pirlruc.finsilo.domain.model.AllocationSlice
 import com.pirlruc.finsilo.ui.formatEur
@@ -76,7 +76,7 @@ internal fun AllocationPie(slices: List<AllocationSlice>, modifier: Modifier = M
     val modelProducer = remember { PieChartModelProducer() }
     LaunchedEffect(slices) {
         modelProducer.runTransaction {
-            pieSeries { series(slices.map { it.weightPercent.toDouble() }) }
+            pieModel { series(slices.map { it.weightPercent.toDouble() }) }
         }
     }
     val sliceStyles =
