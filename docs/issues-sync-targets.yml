@@ -34,5 +34,7 @@ milestones:
     description: Kotlin/Android quality, coverage, security, Android lint
   - name: Phase 8 — Quotes, lock, and alerts
     description: Quote probe, biometric DB wrap, rating prefs, backup export
+  - name: Backlog — next product value
+    description: Next product work after phases 1–6 (backup, reports, import, lock leftovers)
   - name: Tooling — Analog & methodology
     description: Guardrails, github-scaffold, github-issue-adr

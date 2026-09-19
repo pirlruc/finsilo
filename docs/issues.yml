@@ -131,6 +131,56 @@ milestones:
               - git -C .github/scaffold describe --tags --exact-match HEAD
               - bash scripts/check-analog-pins.sh
 
+      - id: TOOL-003
+        status: open
+        title: Publish the authored backlog to GitHub issues
+        overview:
+          problem: >-
+            docs/issues.yml is the decision log, but this repository has no
+            GitHub issues, epic/task labels, or github-issue-adr milestones.
+            LIM-GH: the cloud token is issues=read, so setup-issue-scaffold and
+            issues-sync 403. Closed work from PR #15 (TOOL-002, GATE-005,
+            GATE-006, FS-032, FS-033-T1) exists only in the YAML.
+          goal: >-
+            After Issues: Read and write is granted on the PAT or GitHub App,
+            bootstrap labels and milestones, then sync so GitHub matches
+            docs/issues.yml (create, close done ids, link tasks to epics).
+        decision: >-
+          In the context of an unpublished decision log, facing issues=read on
+          the cloud token, we decided keep YAML as source of truth and treat
+          GitHub publish as a gated bootstrap, to avoid hand-created issues
+          that drift from the manifest, accepting an empty GitHub issue list
+          until write scope lands.
+        architecture:
+          target: GitHub issues, labels, and milestones for pirlruc/finsilo
+          modules:
+            - docs/issues.yml
+            - docs/issues-sync-targets.yml
+            - scripts/setup-issue-scaffold.sh
+            - scripts/issues-sync.sh
+        acceptance_criteria:
+          - GitHub has epic/task/ai-* labels and every milestone named in docs/issues.yml
+          - Every epic and task id in docs/issues.yml has a matching GitHub issue title
+          - status done issues are closed; status open issues are open
+          - No issues are created by hand outside issues-sync
+        guardrail_refs:
+          - KT-DELIV-001
+        tasks:
+          - id: TOOL-003-T1
+            status: open
+            title: Grant Issues write and run scaffold plus issues-sync
+            instructions:
+              files:
+                - docs/issues.yml
+                - docs/issues-sync-targets.yml
+                - scripts/setup-issue-scaffold.sh
+                - scripts/issues-sync.sh
+            verification:
+              - bash scripts/setup-issue-scaffold.sh
+              - bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
+              - bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
+              - gh issue list --state all --limit 5 is non-empty
+
   - name: Phase 1 — Foundation
     epics:
       - id: FS-DEC-001
@@ -1317,6 +1367,53 @@ milestones:
               - bash scripts/run-shellcheck.sh
               - rg -n "setup-android@be39fa83" .github/workflows
 
+      - id: GATE-007
+        status: open
+        title: Restore analog threshold matching in CI
+        overview:
+          problem: >-
+            GATE-006 falls back to the consumer copy when GUARDRAILS_READ_TOKEN
+            cannot clone pirlruc/guardrails. analog-pins still asserts the
+            gitlink SHA, but CI-022 analog-versus-consumer key matching never
+            runs while the PAT is stale.
+          goal: >-
+            Renew GUARDRAILS_READ_TOKEN with contents:read on pirlruc/guardrails.
+            quality, kover, and kdoc then clone analog and compare keys. Keep
+            the clone-failure fallback so a future stale token does not red CI.
+        decision: >-
+          In the context of CI-022 analog matching skipped after GATE-006,
+          facing a stale analog PAT, we decided renew the secret rather than
+          fail closed on clone miss, to restore key matching without reopening
+          GATE-006's fall-open, accepting that matching stays skippable until
+          the owner pastes a valid token.
+        architecture:
+          target: Analog init in quality, kover, and kdoc jobs
+          modules:
+            - scripts/ci-init-guardrails.sh
+            - .github/workflows/quality.yml
+            - .github/workflows/domain-tests.yml
+            - .github/workflows/docs.yml
+        acceptance_criteria:
+          - A CI run with a valid GUARDRAILS_READ_TOKEN clones docs/guardrails
+          - Analog and consumer threshold keys are compared (CI-022)
+          - Clone failure still falls back to config/kotlin.profile.thresholds.yml
+        guardrail_refs:
+          - CI-022
+          - SC-DEP-004
+        tasks:
+          - id: GATE-007-T1
+            status: open
+            title: Renew GUARDRAILS_READ_TOKEN and confirm analog clone in CI
+            instructions:
+              files:
+                - scripts/ci-init-guardrails.sh
+                - .github/workflows/quality.yml
+            verification:
+              - quality/kover/kdoc logs show analog clone, not the consumer-copy fallback
+              - bash scripts/check-analog-pins.sh
+            guardrail_refs:
+              - CI-022
+
   - name: Backlog — next product value
     epics:
       - id: FS-017
@@ -2081,29 +2178,34 @@ milestones:
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
-            Lock hashes and SQLCipher wraps remain two stores, the SPDX allow
-            list is empty (org default), and scanner fail bars stay at
-            High/ERROR. FLAG_SECURE still drops while a system picker is open;
-            ledger pixels are covered (FS-033-T1).
+            Lock hashes and SQLCipher wraps remain two stores (including
+            persistMigratedWraps, which wraps then rotates recovery without
+            rollback). The SPDX allow list is empty (org default) and scanner
+            fail bars stay at High/ERROR. FLAG_SECURE still drops while a
+            system picker is open; ledger pixels are covered (FS-033-T1).
+            Holdings omit unit price and FIFO cost; YOC omits remaining cost.
           goal: >-
             Close leftover design gaps that this pass identified but did not
             ship, without adding finding-level scanner ignores.
         architecture:
-          target: Lock overlay, credential stores, and scanner fail bars
+          target: Lock overlay, credential stores, dashboard reports, and scanner fail bars
           modules:
             - app/src/main/java/com/pirlruc/finsilo/ui
             - app/src/main/java/com/pirlruc/finsilo/data/security
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/model/Reports.kt
             - docs/scanner-exceptions.md
             - .github/workflows/security.yml
         acceptance_criteria:
           - Ledger content is not visible in the window while FLAG_SECURE is off for a picker
-          - PIN hash and SQLCipher wrap writes share one commit/rollback path
+          - PIN hash and SQLCipher wrap writes share one commit/rollback path, including persistMigratedWraps
           - Medium-severity OSV/CodeQL/MobSF fail bar is evaluated with a green run or a recorded deviation
           - License allow-list is populated before the first published artifact
+          - HoldingValuation.priceEur/costEur and YocReport.remainingCostEur are shown or removed
         guardrail_refs:
           - KT-SEC-002
           - SC-LIC-001
           - CI-005
+          - KT-API-001
         tasks:
           - id: FS-033-T1
             status: done
@@ -2122,10 +2224,11 @@ milestones:
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data/security
-                - app/src/main/java/com/pirlruc/finsilo/ui/lock
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/LockViewModel.kt
             verification:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.lock.LockViewModelTest
               - A failed second write cannot leave PIN ready without matching wraps
+              - persistMigratedWraps rolls back finishLegacyMigration if rotateRecovery fails
           - id: FS-033-T3
             status: open
             title: Evaluate medium-severity scanner fail bars and license allow-list
@@ -2140,5 +2243,21 @@ milestones:
             guardrail_refs:
               - CI-005
               - SC-LIC-001
+          - id: FS-033-T4
+            status: open
+            title: Surface or drop unused dashboard report fields
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/model/Reports.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardHoldings.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardYoc.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/dashboard/DashboardHistory.kt
+            verification:
+              - ./gradlew :domain:test :app:lintDebug
+              - Holdings show EUR unit price and FIFO cost, or HoldingValuation.priceEur/costEur are removed
+              - YOC shows remainingCostEur, or the field is removed
+              - HistoryReport.range/from/to and TwrReport.asOf are used or dropped as redundant with the chip and DashboardReport.asOf
+            guardrail_refs:
+              - KT-API-001
 
 
