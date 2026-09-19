@@ -1,7 +1,7 @@
 package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.market.MarketFeed
-import com.pirlruc.finsilo.domain.market.MovingAverages
+import com.pirlruc.finsilo.domain.market.QuoteSeed
 import com.pirlruc.finsilo.domain.market.QuoteSyncPlanner
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.DailyMarketData
@@ -53,7 +53,7 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
         }
         val history = loadHistory(item, asOf, failures)
         if (history.isEmpty()) return emptyList()
-        return barsFor(item, history, stored, rating)
+        return QuoteSeed.fromBars(item.id, history, rating = rating, storedByDate = stored.associateBy { it.date })
     }
 
     private fun patchFreshRating(stored: List<DailyMarketData>, rating: AnalystRating): List<DailyMarketData> {
@@ -69,34 +69,6 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
             .orEmpty()
             .filter { !it.date.isAfter(asOf) }
 
-    private fun barsFor(
-        item: WatchlistItem,
-        history: List<PriceBar>,
-        stored: List<DailyMarketData>,
-        rating: AnalystRating,
-    ): List<DailyMarketData> {
-        val storedByDate = stored.associateBy { it.date }
-        return history.indices.map { index ->
-            val bar = history[index]
-            val closes = history.subList(0, index + 1).map { it.closeNative }
-            val isLatest = index == history.lastIndex
-            DailyMarketData(
-                assetId = item.id,
-                date = bar.date,
-                closingPriceNative = bar.closeNative,
-                analystRating = ratingOnBar(isLatest, rating, storedByDate[bar.date]),
-                sma50 = MovingAverages.sma(closes, 50),
-                sma200 = MovingAverages.sma(closes, 200),
-            )
-        }
-    }
-
-    private fun ratingOnBar(isLatest: Boolean, latest: AnalystRating, stored: DailyMarketData?): AnalystRating {
-        if (isLatest) return latest
-        val previous = stored?.analystRating
-        return if (previous != null && previous != AnalystRating.NONE) previous else AnalystRating.NONE
-    }
-
     private suspend fun ratingFor(
         item: WatchlistItem,
         stored: List<DailyMarketData>,
@@ -106,17 +78,9 @@ class SyncWatchlistUseCase(private val feed: MarketFeed) {
     ): AnalystRating {
         val pref = prefs.firstOrNull { it.scope == RatingAlertScope.WATCHLIST && it.targetId == item.id }
         if (RatingAlertPref.effective(pref, RatingAlertScope.WATCHLIST).isEmpty()) return AnalystRating.NONE
-        val fresh =
-            stored
-                .filter { it.analystRating != AnalystRating.NONE && !it.date.isBefore(asOf.minusDays(OVERVIEW_MAX_AGE_DAYS)) }
-                .maxByOrNull { it.date }
-        if (fresh != null) return fresh.analystRating
+        QuoteSeed.storedOverview(stored, asOf)?.let { return it }
         return runCatching { feed.analystRating(item.asFeedAsset()) }
             .onFailure { failures += "${item.symbol} rating: ${it.message}" }
             .getOrDefault(AnalystRating.NONE)
-    }
-
-    companion object {
-        private const val OVERVIEW_MAX_AGE_DAYS: Long = 7
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.ui.dashboard.DashboardRoute
@@ -106,17 +107,20 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
 @Composable
 private fun rememberPickerBusy(lock: LockViewModel): (Boolean) -> Unit {
     val activity = LocalActivity.current
+    val state by lock.state.collectAsStateWithLifecycle()
+    val covering = state.externalUiActive
+    LaunchedEffect(covering, activity) {
+        val window = activity?.window ?: return@LaunchedEffect
+        if (covering) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
     return remember(lock, activity) {
         { busy ->
-            val depth = lock.setExternalUiActive(busy)
-            val window = activity?.window
-            if (window != null) {
-                if (depth > 0) {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
+            if (!busy) {
+                activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
+            lock.setExternalUiActive(busy)
         }
     }
 }

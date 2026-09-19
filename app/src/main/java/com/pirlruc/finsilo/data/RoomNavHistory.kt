@@ -14,8 +14,6 @@ internal object RoomNavHistory {
 
     suspend fun load(dao: PortfolioDao): List<NavPoint> = dao.getNavHistory().map { it.toDomain() }
 
-    suspend fun lastPoint(dao: PortfolioDao): NavPoint? = dao.getNavHistory().maxByOrNull { it.date }?.toDomain()
-
     suspend fun rebuildIfNeeded(
         dao: PortfolioDao,
         widgetNav: WidgetNavCache?,

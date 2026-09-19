@@ -2,7 +2,7 @@ package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.market.HoldingHistory
 import com.pirlruc.finsilo.domain.market.MarketFeed
-import com.pirlruc.finsilo.domain.market.MovingAverages
+import com.pirlruc.finsilo.domain.market.QuoteSeed
 import com.pirlruc.finsilo.domain.market.QuoteSyncPlanner
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
@@ -88,10 +88,7 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
             return overlaySpotOnStoredSma(asset, relevant.last(), stored)
         }
         val rating = ratingFor(asset, stored, asOf, failures)
-        val storedByDate = stored.associateBy { it.date }
-        return relevant.indices.map { index ->
-            barRow(asset, relevant, index, rating, storedByDate)
-        }
+        return QuoteSeed.fromBars(asset.id, relevant, rating = rating, storedByDate = stored.associateBy { it.date })
     }
 
     private fun heldBars(asset: Asset, history: List<PriceBar>, snapshot: PortfolioSnapshot, asOf: LocalDate): List<PriceBar> {
@@ -99,31 +96,6 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         return history.filter { bar ->
             !bar.date.isAfter(asOf) && (from == null || !bar.date.isBefore(from))
         }
-    }
-
-    private fun barRow(
-        asset: Asset,
-        relevant: List<PriceBar>,
-        index: Int,
-        rating: AnalystRating,
-        storedByDate: Map<LocalDate, DailyMarketData>,
-    ): DailyMarketData {
-        val bar = relevant[index]
-        val closes = relevant.subList(0, index + 1).map { it.closeNative }
-        return DailyMarketData(
-            assetId = asset.id,
-            date = bar.date,
-            closingPriceNative = bar.closeNative,
-            analystRating = ratingOnBar(index == relevant.lastIndex, rating, storedByDate[bar.date]),
-            sma50 = MovingAverages.sma(closes, 50),
-            sma200 = MovingAverages.sma(closes, 200),
-        )
-    }
-
-    private fun ratingOnBar(isLatest: Boolean, latest: AnalystRating, stored: DailyMarketData?): AnalystRating {
-        if (isLatest) return latest
-        val previous = stored?.analystRating
-        return if (previous != null && previous != AnalystRating.NONE) previous else AnalystRating.NONE
     }
 
     private fun overlaySpotOnStoredSma(asset: Asset, bar: PriceBar, stored: List<DailyMarketData>): List<DailyMarketData> {
@@ -148,11 +120,7 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         asOf: LocalDate,
         failures: MutableList<String>,
     ): AnalystRating {
-        val fresh =
-            stored
-                .filter { it.analystRating != AnalystRating.NONE && !it.date.isBefore(asOf.minusDays(OVERVIEW_MAX_AGE_DAYS)) }
-                .maxByOrNull { it.date }
-        if (fresh != null) return fresh.analystRating
+        QuoteSeed.storedOverview(stored, asOf)?.let { return it }
         return runCatching { feed.analystRating(asset) }
             .onFailure { failures += "${asset.symbol} rating: ${it.message}" }
             .getOrDefault(AnalystRating.NONE)
@@ -167,9 +135,5 @@ class SyncMarketDataUseCase(private val feed: MarketFeed) {
         return runCatching { listOf(CurrencyRate(asOf, feed.eurPerUsd())) }
             .onFailure { failures += "FX: ${it.message}" }
             .getOrDefault(emptyList())
-    }
-
-    companion object {
-        const val OVERVIEW_MAX_AGE_DAYS: Long = 7
     }
 }

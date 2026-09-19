@@ -107,9 +107,6 @@ interface PortfolioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTemplates(items: List<LedgerTemplateEntity>)
 
-    @Query("DELETE FROM ledger_template WHERE template_id = :id")
-    suspend fun deleteTemplate(id: String)
-
     @Query("SELECT * FROM watchlist_item")
     suspend fun getWatchlistItems(): List<WatchlistItemEntity>
 

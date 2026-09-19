@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.domain.importcsv.ImportSymbolDraft
+import com.pirlruc.finsilo.ui.settings.BoundedBytes
 import java.nio.charset.Charset
 
 @Composable
@@ -118,7 +119,7 @@ private val CSV_MIME_TYPES = arrayOf(
 )
 
 private fun readCsv(context: android.content.Context, uri: Uri): String? = context.contentResolver.openInputStream(uri)?.use { input ->
-    decodeCsv(input.readBytes())
+    decodeCsv(BoundedBytes.read(input))
 }
 
 internal fun decodeCsv(bytes: ByteArray): String {

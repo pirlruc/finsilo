@@ -110,4 +110,24 @@ class DatabaseKeyStoreTest {
         keys.setAlphaVantageKey(" demo-key ")
         assertEquals("demo-key", keys.alphaVantageKey())
     }
+
+    @Test
+    fun discardOrphanWrapsClearsUnopenedWraps() {
+        assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
+        val reopened = DatabaseKeyStore(prefs)
+        assertTrue(reopened.discardOrphanWraps())
+        assertFalse(prefs.contains("sqlcipher_wrap_pin"))
+        assertFalse(prefs.contains("sqlcipher_wrap_recovery"))
+        assertTrue(DatabaseKeyStore(prefs).provision("5678", "ZZZZ9999YYYY8888"))
+    }
+
+    @Test
+    fun rollbackRecoveryWrapRestoresPreviousBlob() {
+        assertTrue(keys.provision("1234", "ABCD1234EFGH5678"))
+        assertTrue(keys.rewrapRecovery("ZZZZ9999YYYY8888"))
+        assertTrue(keys.rollbackRecoveryWrap())
+        val reopened = DatabaseKeyStore(prefs)
+        assertTrue(reopened.unlockWithRecovery("ABCD1234EFGH5678"))
+        assertFalse(DatabaseKeyStore(prefs).unlockWithRecovery("ZZZZ9999YYYY8888"))
+    }
 }

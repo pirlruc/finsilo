@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.domain.usecase
 
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.portfolio.NavHistoryWalk
 import com.pirlruc.finsilo.domain.portfolio.NavInputsFingerprint
 import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.time.LocalDate
@@ -107,13 +108,6 @@ class RebuildNavHistoryUseCase {
 
     private fun latest(points: List<NavPoint>): LocalDate? = points.maxByOrNull { it.date }?.date
 
-    private fun walk(valuator: PortfolioValuator, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> {
-        val points = ArrayList<NavPoint>()
-        var date = from
-        while (!date.isAfter(to)) {
-            points += NavPoint(date = date, valueEur = valuator.totalNavEur(snapshot, date))
-            date = date.plusDays(1)
-        }
-        return points
-    }
+    private fun walk(valuator: PortfolioValuator, snapshot: PortfolioSnapshot, from: LocalDate, to: LocalDate): List<NavPoint> =
+        NavHistoryWalk.points(valuator, snapshot, from, to)
 }

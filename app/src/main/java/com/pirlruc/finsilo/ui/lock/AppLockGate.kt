@@ -36,6 +36,9 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
             Box(Modifier.fillMaxSize().then(hiddenFromA11y(state.unlocked))) {
                 content()
             }
+            if (state.externalUiActive) {
+                PickerPrivacyCover()
+            }
         }
         LockChromeLayer(state, viewModel, prompt)
     }

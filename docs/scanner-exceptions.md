@@ -11,7 +11,7 @@ There are currently **no finding suppressions** in application source. Remaining
 
 | Tool | ID / annotation | Location | Why this is not a code fix | Review |
 | --- | --- | --- | --- | --- |
-| — | — | — | No `mobsf-ignore`, `.semgrepignore` findings, `osv-scanner.toml` ignores, or `.gitleaks.toml` allowlists. | 2026-08-18 |
+| — | — | — | No `mobsf-ignore`, `.semgrepignore` findings, `osv-scanner.toml` ignores, or `.gitleaks.toml` allowlists. | 2026-09-19 |
 
 Room `execSQL` on static DDL used to trip MobSF `android_kotlin_sql_raw_query` (the rule is
 `$D.execSQL(...)`, not taint). That was **not SQL injection**: the four statements were

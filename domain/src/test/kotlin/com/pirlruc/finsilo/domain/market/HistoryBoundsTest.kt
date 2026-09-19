@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.market
 
+import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HistoryRange
@@ -42,17 +43,15 @@ class HistoryBoundsTest {
     }
 
     @Test
-    fun thinIncreasesStepInsteadOfDroppingAWindow() {
-        val values = (1..10).toList()
-        assertEquals(values, HistoryPeriodicity.thin(values, 20, 10))
-        val thinned = HistoryPeriodicity.thin(values, 3, 10)
-        assertEquals(listOf(1, 5, 9, 10), thinned)
-        assertEquals(listOf(1, 5, 9), HistoryPeriodicity.thin(values, 3, null))
-        assertEquals(1, thinned.first())
-        assertEquals(10, thinned.last())
-        assertEquals(emptyList<Int>(), HistoryPeriodicity.thin(emptyList(), 4, null))
-        assertEquals(listOf(1, 10), HistoryPeriodicity.thin(values, 0, 10))
-        assertEquals(listOf(1, 4, 7, 10), HistoryPeriodicity.thin(values, 4, 10))
+    fun quoteRatingKeepsStoredNonNoneOnOlderBars() {
+        val stored = DailyMarketData("a", asOf, BigDecimal.ONE, analystRating = AnalystRating.BUY)
+        assertEquals(AnalystRating.HOLD, QuoteRating.onBar(true, AnalystRating.HOLD, stored))
+        assertEquals(AnalystRating.BUY, QuoteRating.onBar(false, AnalystRating.HOLD, stored))
+        assertEquals(AnalystRating.NONE, QuoteRating.onBar(false, AnalystRating.HOLD, null))
+        assertEquals(
+            AnalystRating.NONE,
+            QuoteRating.onBar(false, AnalystRating.HOLD, DailyMarketData("a", asOf, BigDecimal.ONE)),
+        )
     }
 
     @Test
@@ -96,6 +95,22 @@ class HistoryBoundsTest {
         assertEquals(3, QuoteSeed.fromBars("aapl", bars).size)
         assertTrue(QuoteSeed.fromBars("aapl", bars, asOf.plusDays(1)).isEmpty())
         assertTrue(QuoteSeed.fromBars("aapl", emptyList(), asOf).isEmpty())
+        val stored = DailyMarketData("aapl", asOf.minusDays(1), BigDecimal.TEN, analystRating = AnalystRating.BUY)
+        val rated =
+            QuoteSeed.fromBars(
+                "aapl",
+                bars,
+                rating = AnalystRating.HOLD,
+                storedByDate = mapOf(stored.date to stored),
+            )
+        assertEquals(AnalystRating.HOLD, rated.last().analystRating)
+        assertEquals(AnalystRating.BUY, rated.first { it.date == stored.date }.analystRating)
+        assertEquals(AnalystRating.BUY, QuoteSeed.storedOverview(listOf(stored), asOf))
+        assertEquals(
+            null,
+            QuoteSeed.storedOverview(listOf(stored), asOf.plusDays(QuoteSeed.OVERVIEW_MAX_AGE_DAYS + 1)),
+        )
+        assertEquals(null, QuoteSeed.storedOverview(emptyList(), asOf))
     }
 
     private fun tx(id: String, assetId: String, date: LocalDate, type: TransactionType) = Transaction(

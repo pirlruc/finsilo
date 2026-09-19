@@ -26,7 +26,11 @@ data class AllocationSlice(
     val driftPercent: BigDecimal?,
 ) {
     val exceedsDriftBand: Boolean
-        get() = driftPercent != null && driftPercent.abs() > BigDecimal("5")
+        get() = driftPercent != null && driftPercent.abs() > DRIFT_BAND_PERCENT
+
+    companion object {
+        val DRIFT_BAND_PERCENT: BigDecimal = BigDecimal("5")
+    }
 }
 
 /** Portfolio allocation at an as-of date. */

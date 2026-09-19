@@ -14,10 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.pirlruc.finsilo.data.ClearSelection
 
 @Composable
 internal fun ClearSelectionDialog(
-    flags: ClearFlags,
+    flags: ClearSelection,
     onLedger: (Boolean) -> Unit,
     onWatchlist: (Boolean) -> Unit,
     onTemplates: (Boolean) -> Unit,
@@ -55,7 +56,7 @@ internal fun ClearSelectionDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = flags.ledger || flags.watchlist || flags.templates) {
+            TextButton(onClick = onConfirm, enabled = flags.any) {
                 Text(if (flags.ledger && flags.watchlist && flags.templates) "Clear all" else "Clear selected")
             }
         },

@@ -28,7 +28,4 @@ object PinLockoutPolicy {
 
     /** Remaining cooldown at [nowMs]; zero when not locked out. */
     fun remainingMs(nowMs: Long, lockoutUntilMs: Long): Long = (lockoutUntilMs - nowMs).coerceAtLeast(0L)
-
-    /** True when [lockoutUntilMs] is still in the future. */
-    fun isLockedOut(nowMs: Long, lockoutUntilMs: Long): Boolean = remainingMs(nowMs, lockoutUntilMs) > 0L
 }

@@ -22,11 +22,7 @@ interface SamplePortfolioWriter {
 interface LedgerWriteRepository {
     suspend fun upsertAsset(asset: Asset)
 
-    suspend fun insertTransaction(transaction: Transaction)
-
     suspend fun replaceTargets(targets: List<TargetAllocation>)
-
-    suspend fun upsertFxRate(rate: CurrencyRate)
 
     /** Persist a new instrument, its first (or next) row, and optional FX seed atomically. */
     suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?)

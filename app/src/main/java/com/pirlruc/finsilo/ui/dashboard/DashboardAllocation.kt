@@ -42,8 +42,9 @@ internal fun AllocationCard(slices: List<AllocationSlice>, total: BigDecimal) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text("Allocation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            val driftBand = AllocationSlice.DRIFT_BAND_PERCENT.toPlainString()
             Text(
-                "${formatEur(total)} · current EUR weight by asset class versus target. Drift beyond ±5% is highlighted.",
+                "${formatEur(total)} · current EUR weight by asset class versus target. Drift beyond ±$driftBand% is highlighted.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

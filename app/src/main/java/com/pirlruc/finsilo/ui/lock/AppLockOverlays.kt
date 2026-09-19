@@ -81,3 +81,13 @@ internal fun LockScrim(content: @Composable () -> Unit) {
 }
 
 internal fun hiddenFromA11y(unlocked: Boolean): Modifier = if (unlocked) Modifier else Modifier.semantics { hideFromAccessibility() }
+
+@Composable
+internal fun PickerPrivacyCover() {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .semantics { hideFromAccessibility() },
+    )
+}

@@ -38,7 +38,7 @@ internal object BoundedBytes {
             val n = stream.read(buf)
             if (n < 0) break
             total += n
-            if (total > maxBytes) throw IOException("Backup file is too large.")
+            if (total > maxBytes) throw IOException("File is too large.")
             out.write(buf, 0, n)
         }
         return out.toByteArray()

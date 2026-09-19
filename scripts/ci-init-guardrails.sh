@@ -13,8 +13,14 @@ if [[ -z "${GUARDRAILS_READ_TOKEN:-}" ]]; then
 fi
 
 # Rewrite only the analog HTTPS URL so other GitHub fetches do not see the PAT.
-git -c "url.https://x-access-token:${GUARDRAILS_READ_TOKEN}@github.com/pirlruc/guardrails.git.insteadOf=https://github.com/pirlruc/guardrails.git" \
-  submodule update --init docs/guardrails
+# A stale/invalid token must not fail the job: analog-pins already asserts the
+# gitlink SHA, and threshold scripts fall back to the consumer copy.
+if ! git -c "url.https://x-access-token:${GUARDRAILS_READ_TOKEN}@github.com/pirlruc/guardrails.git.insteadOf=https://github.com/pirlruc/guardrails.git" \
+  submodule update --init docs/guardrails; then
+  echo "GUARDRAILS_READ_TOKEN could not clone analog; reading config/kotlin.profile.thresholds.yml" >&2
+  exit 0
+fi
+git -C docs/guardrails fetch --tags --force origin >/dev/null 2>&1 || true
 
 if [[ ! -f "${ANALOG}" ]]; then
   echo "missing ${ANALOG} after analog clone" >&2

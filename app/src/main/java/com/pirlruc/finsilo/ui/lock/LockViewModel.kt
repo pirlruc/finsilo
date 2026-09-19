@@ -48,6 +48,7 @@ data class LockUiState(
     val pinFallback: Boolean = false,
     val pendingBiometricSeal: Boolean = false,
     val sessionEvicted: Boolean = false,
+    val externalUiActive: Boolean = false,
 )
 
 class LockViewModel(
@@ -109,6 +110,8 @@ class LockViewModel(
         } else {
             externalUiDepth = (externalUiDepth - 1).coerceAtLeast(0)
         }
+        val busy = externalUiDepth > 0
+        _state.update { it.copy(externalUiActive = busy) }
         return externalUiDepth
     }
 
@@ -342,12 +345,15 @@ class LockViewModel(
     }
 
     private fun persistSetup(current: LockUiState): Boolean {
-        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
-            _state.update { it.copy(error = "Could not store the lock.") }
-            return false
-        }
+        keys?.discardOrphanWraps()
         if (keys != null && !keys.provision(current.pin, current.recoveryCode)) {
             _state.update { it.copy(error = "Could not wrap the database key.") }
+            return false
+        }
+        if (!store.setup(current.pin, current.recoveryCode, biometric = false)) {
+            keys?.evictSession()
+            keys?.discardOrphanWraps()
+            _state.update { it.copy(error = "Could not store the lock.") }
             return false
         }
         return true
@@ -446,6 +452,7 @@ class LockViewModel(
             return
         }
         if (!store.rotateRecovery(code)) {
+            keys?.rollbackRecoveryWrap()
             _state.update { it.copy(error = "Could not rotate recovery code.") }
             return
         }

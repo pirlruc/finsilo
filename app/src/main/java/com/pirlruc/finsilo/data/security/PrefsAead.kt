@@ -1,10 +1,6 @@
 package com.pirlruc.finsilo.data.security
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import java.security.KeyStore
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
@@ -63,27 +59,11 @@ internal class AesGcmPrefsAead(private val key: SecretKey) : PrefsAead {
 internal object AndroidPrefsKeystore {
     const val ALIAS = "com.pirlruc.finsilo.prefs_aes256_gcm"
 
-    fun getOrCreateKey(): SecretKey {
-        val keystore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keystore.getKey(ALIAS, null) as? SecretKey)?.let { return it }
-        synchronized(this) {
-            keystore.load(null)
-            (keystore.getKey(ALIAS, null) as? SecretKey)?.let { return it }
-            val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-            generator.init(
-                KeyGenParameterSpec.Builder(
-                    ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .setRandomizedEncryptionRequired(true)
-                    .build(),
-            )
-            return generator.generateKey()
-        }
-    }
+    fun getOrCreateKey(): SecretKey = KeystoreAesGcmKey.getOrCreate(
+        ALIAS,
+        userAuthenticationRequired = false,
+        invalidatedByBiometricEnrollment = false,
+    )
 }
 
 internal class AndroidKeystoreAesGcmAead : PrefsAead {

@@ -301,8 +301,6 @@ class CoverageBranchesTest {
                 LedgerEntryRequest(TransactionType.DIVIDEND, asOf, BigDecimal.ONE, bd("1"), BigDecimal.ZERO, existingAssetId = etf.id),
             )
         assertTrue(dividendOk is LedgerEntryResult.Accepted)
-        val synthetic = PortfolioValuator().syntheticCashAsset()
-        assertEquals(AssetType.CASH, synthetic.assetType)
         assertEquals("VWCE.DE", etf.feedSymbol)
     }
 

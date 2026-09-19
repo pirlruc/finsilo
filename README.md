@@ -7,7 +7,7 @@ Requires **Android 8** or later. This is a personal tool, not tax advice or a br
 ## First launch
 
 1. Choose a **PIN** (4–8 digits). Optional: turn on **biometrics**.
-2. Write down the **recovery code**. It resets the PIN; it cannot reconstruct the PIN. Copy is allowed; the clipboard is cleared after 60 seconds if it still holds the code.
+2. Write down the **recovery code**. It resets the PIN; it cannot reconstruct the PIN. Copy is allowed; the clipboard is cleared after 60 seconds.
 3. After a cold start you can unlock with biometrics when enrolled. **Use PIN** if biometrics fail or after you add a new fingerprint/face (then confirm once so the ledger key can be wrapped again).
 
 The app shows the PIN screen when you leave it. A document picker or the biometric prompt will not count as leaving. If it stays in the background for **15 minutes**, the database key is wiped and you unlock into a fresh session. Coming back to the PIN screen before that keeps the open ledger in memory.
@@ -62,7 +62,7 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 ## Privacy
 
 - Ledger is SQLCipher. PIN, recovery, and optional biometrics wrap the database key. Leaving the app shows PIN immediately; after 15 minutes in the background the in-memory key is wiped. Preference secrets use Keystore AES-GCM.
-- Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`), except while a system file picker is open.
+- Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`). While a system file picker is open the flag is cleared and an opaque cover hides ledger pixels.
 - No cloud backup of the database (`allowBackup=false`).
 - Network is HTTPS GET only to Frankfurter, Alpha Vantage, CoinGecko, and Stooq.
 

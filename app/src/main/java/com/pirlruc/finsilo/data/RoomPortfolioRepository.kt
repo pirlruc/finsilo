@@ -151,18 +151,8 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         rebuildNavHistoryIfNeeded(load())
     }
 
-    override suspend fun insertTransaction(transaction: Transaction) {
-        dao.insertTransactions(listOf(TransactionEntity.from(transaction)))
-        rebuildNavHistoryIfNeeded(load(), changedFrom = transaction.date)
-    }
-
     override suspend fun replaceTargets(targets: List<TargetAllocation>) {
         dao.replaceTargets(targets.map(TargetAllocationEntity::from))
-    }
-
-    override suspend fun upsertFxRate(rate: CurrencyRate) {
-        dao.insertFxRates(listOf(CurrencyRateEntity.from(rate)))
-        rebuildNavHistoryIfNeeded(load(), changedFrom = rate.date)
     }
 
     override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
@@ -198,10 +188,6 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         RoomPortfolioExtras.saveTemplate(dao, template)
     }
 
-    suspend fun deleteTemplate(id: String) {
-        dao.deleteTemplate(id)
-    }
-
     suspend fun loadWatchlist(): WatchlistSnapshot = RoomPortfolioExtras.loadWatchlist(dao)
 
     suspend fun saveWatchlistItem(item: WatchlistItem) {
@@ -221,6 +207,4 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     suspend fun saveRatingAlert(pref: RatingAlertPref) {
         RoomPortfolioExtras.saveRatingAlert(dao, pref)
     }
-
-    suspend fun lastNavPoint(): NavPoint? = RoomNavHistory.lastPoint(dao)
 }
