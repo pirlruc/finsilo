@@ -46,6 +46,38 @@ class BrokerCsvCoverageTest {
     }
 
     @Test
+    fun untaggedDepositFingerprintFallbacks() {
+        val skip = BrokerLines.skip(BrokerCsvFormat.TRADING_212, 1, "Ignored")
+        assertEquals("", ImportFingerprints.untaggedDeposit(skip))
+        val blankIsin = line(TransactionType.INTEREST, "EUR-CASH", AssetType.CASH, isin = "  ")
+        assertTrue(ImportFingerprints.untaggedDeposit(blankIsin).contains("EUR-CASH"))
+        val withIsin = line(TransactionType.INTEREST, "EUR-CASH", AssetType.CASH, isin = "EU00CASH")
+        assertTrue(ImportFingerprints.untaggedDeposit(withIsin).contains("EU00CASH"))
+        val orphan =
+            com.pirlruc.finsilo.domain.model.Transaction(
+                id = "orphan",
+                assetId = "gone",
+                date = LocalDate.of(2024, 1, 17),
+                type = TransactionType.DEPOSIT_CASH,
+                quantity = bd("1"),
+                unitPriceNative = bd("1"),
+                exchangeRateAtExecution = bd("1"),
+                unitPriceEur = bd("1"),
+                feesEur = BigDecimal.ZERO,
+                source = null,
+            )
+        val snapshot =
+            com.pirlruc.finsilo.domain.model.PortfolioSnapshot(
+                assets = emptyList(),
+                transactions = listOf(orphan),
+                marketData = emptyList(),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        assertTrue(ImportFingerprints.counts(snapshot).keys.single().contains("GONE"))
+    }
+
+    @Test
     fun splitCashLayoutDetectsIsinOnlyHeaders() {
         val headers = listOf("Col0", "Col1", "Col2", "Col3", "ISIN", "Col5", "FX", "X", "", "Y", "", "Z")
         assertEquals(BrokerCsvFormat.DEGIRO_ACCOUNT, BrokerCsvDetect.from(headers))

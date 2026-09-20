@@ -2,10 +2,16 @@ package com.pirlruc.finsilo.domain.importcsv
 
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.backup.LedgerBackupText
+import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.BrokerSource
+import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
+import java.math.BigDecimal
+import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -22,12 +28,21 @@ class BrokerCsvFollowUpTest {
             01-02-2024,09:00,01-02-2024,,,Deposit,,EUR,1000,EUR,1000,
             02-02-2024,09:00,02-02-2024,,,Flatex Interest,,EUR,1.25,EUR,1001.25,
             03-02-2024,09:00,03-02-2024,VWCE,IE00BK5BQT80,Dividend,,EUR,2.50,EUR,1003.75,D1
+            04-02-2024,09:00,04-02-2024,,,Auszahlung Flatex Depot,,EUR,-10,EUR,993.75,
+            05-02-2024,09:00,05-02-2024,,,Frais de dépôt,,EUR,-2,EUR,991.75,
+            06-02-2024,09:00,06-02-2024,,,Dépôt,,EUR,20,EUR,1011.75,
+            07-02-2024,09:00,07-02-2024,,,Flatex Interest,,EUR,-0.40,EUR,1011.35,
+            08-02-2024,09:00,08-02-2024,VWCE,IE00BK5BQT80,Dividend,,USD,2.50,EUR,1011.35,D2
             """.trimIndent()
         val parsed = BrokerCsv.parse(english)
         assertEquals(BrokerCsvFormat.DEGIRO_ACCOUNT, parsed.format)
         assertEquals(TransactionType.DEPOSIT_CASH, parsed.lines.first { it.type == TransactionType.DEPOSIT_CASH }.type)
         assertEquals(0, bd("1000").compareTo(parsed.lines.first { it.type == TransactionType.DEPOSIT_CASH }.quantity))
         assertEquals(TransactionType.INTEREST, parsed.lines.first { it.type == TransactionType.INTEREST }.type)
+        assertTrue(parsed.lines.any { it.type == TransactionType.WITHDRAWAL })
+        assertTrue(parsed.lines.any { it.skipReason?.contains("Debit interest") == true })
+        assertTrue(parsed.lines.any { it.skipReason?.contains("Dividend currency") == true })
+        assertTrue(parsed.lines.any { it.type == TransactionType.DEPOSIT_CASH && it.quantity.compareTo(bd("20")) == 0 })
         val portuguese =
             """
             Data;Hora;Data valor;Produto;ISIN;Descrição;FX;Alteração;;Saldo;;ID da ordem
@@ -113,6 +128,24 @@ class BrokerCsvFollowUpTest {
     }
 
     @Test
+    fun sameDayCashAtTwoBrokersIsNotADuplicate() {
+        val t212 =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Deposit,2024-03-01 09:00:00,,,,,,,100.00,EUR,DEP1
+            """.trimIndent()
+        val degiro =
+            """
+            Date,Time,Value date,Product,ISIN,Description,FX,Change,,Balance,,Order Id
+            01-03-2024,09:00,01-03-2024,,,Deposit,,EUR,100,EUR,100,
+            """.trimIndent()
+        val first = importer(empty, listOf(t212))
+        val second = importer(first.snapshot, listOf(degiro))
+        assertEquals(0, second.duplicates)
+        assertEquals(2, second.snapshot.transactions.count { it.type == TransactionType.DEPOSIT_CASH })
+    }
+
+    @Test
     fun previouslyBookedInterestDepositIsNotDuplicated() {
         val asDeposit =
             """
@@ -128,6 +161,41 @@ class BrokerCsvFollowUpTest {
         val second = importer(first.snapshot, listOf(asInterest))
         assertEquals(1, second.duplicates)
         assertEquals(first.snapshot.transactions.size, second.snapshot.transactions.size)
+    }
+
+    @Test
+    fun previouslyUntaggedDepositIsNotDuplicatedAsInterest() {
+        val cash = Asset("asset-cash", "EUR-CASH", "Euro cash", AssetType.CASH, Currency.EUR)
+        val snapshot =
+            PortfolioSnapshot(
+                assets = listOf(cash),
+                transactions =
+                listOf(
+                    Transaction(
+                        id = "legacy",
+                        assetId = cash.id,
+                        date = LocalDate.of(2024, 1, 17),
+                        type = TransactionType.DEPOSIT_CASH,
+                        quantity = bd("1"),
+                        unitPriceNative = BigDecimal.ONE,
+                        exchangeRateAtExecution = BigDecimal.ONE,
+                        unitPriceEur = BigDecimal.ONE,
+                        feesEur = BigDecimal.ZERO,
+                        source = null,
+                    ),
+                ),
+                marketData = emptyList(),
+                fxRates = emptyList(),
+                targets = emptyList(),
+            )
+        val asInterest =
+            """
+            Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Total,Currency (Total),ID
+            Interest on cash,2024-01-17 10:30:00,,,,,,,1.00,EUR,INT1
+            """.trimIndent()
+        val result = importer(snapshot, listOf(asInterest))
+        assertEquals(1, result.duplicates)
+        assertEquals(1, result.snapshot.transactions.size)
     }
 
     @Test

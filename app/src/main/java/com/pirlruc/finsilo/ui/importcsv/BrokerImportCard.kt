@@ -142,6 +142,14 @@ internal fun pickerError(bytes: ByteArray): String? {
     if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()) {
         return "Excel (.xlsx) is not supported. Export CSV from the broker."
     }
+    if (bytes.size >= 4 &&
+        bytes[0] == 0xD0.toByte() &&
+        bytes[1] == 0xCF.toByte() &&
+        bytes[2] == 0x11.toByte() &&
+        bytes[3] == 0xE0.toByte()
+    ) {
+        return "Excel (.xls) is not supported. Export CSV from the broker."
+    }
     return null
 }
 

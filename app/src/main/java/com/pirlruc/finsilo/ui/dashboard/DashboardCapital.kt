@@ -24,8 +24,9 @@ internal fun CapitalCard(allocation: AllocationReport) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Capital", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "Money put in is deposits minus withdrawals. Uninvested cash is the current EUR cash balance. " +
-                    "Cash interest is sweep income on that cash, not extra deposits.",
+                "Money put in is deposits minus withdrawals. Uninvested cash is leftover EUR after that broker's trades; " +
+                    "a later import can spend cash you deposited at another broker. " +
+                    "Cash interest is sweep income on uninvested cash, not extra deposits.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

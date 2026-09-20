@@ -63,5 +63,9 @@ class BrokerImportSummaryTest {
             pickerError(byteArrayOf(0x50, 0x4B, 0x03, 0x04)),
         )
         assertEquals(null, pickerError("Action,Time".toByteArray()))
+        assertEquals(
+            "Excel (.xls) is not supported. Export CSV from the broker.",
+            pickerError(byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11.toByte(), 0xE0.toByte())),
+        )
     }
 }

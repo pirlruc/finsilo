@@ -187,7 +187,8 @@ private class ImportWalk(
             return false
         }
         val asDeposit = ImportFingerprints.of(line.copy(type = TransactionType.DEPOSIT_CASH))
-        return n <= (already[asDeposit] ?: 0)
+        if (n <= (already[asDeposit] ?: 0)) return true
+        return n <= (already[ImportFingerprints.untaggedDeposit(line)] ?: 0)
     }
 
     private fun ordered(lines: List<BrokerCsvLine>): List<BrokerCsvLine> =

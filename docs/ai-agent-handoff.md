@@ -136,6 +136,6 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 ## Recent history
 
-Broker CSV follow-up (this branch): DEGIRO/Revolut locale + split cash columns so later imports work; cash-sweep `INTEREST` vs deposits; dashboard capital card (money put in, leftover cash, interest, signed gain/loss per `BrokerSource`); Room v9 `broker_source`; Stooq daily CSV on `stooq.pl/q/d/l/` with redirects for XAU 301s. Kover still 95/95 on `:domain`.
+Broker CSV follow-up (this branch): DEGIRO/Revolut locale + split cash columns so later imports work; cash-sweep `INTEREST` vs deposits; dashboard capital card (money put in, leftover cash, interest, signed gain/loss per `BrokerSource`); Room v9 `broker_source`; Stooq daily CSV on `stooq.pl/q/d/l/` with redirects for XAU 301s. Per-broker leftover cash/lots come from a **global FIFO walk** (`CapitalAttributor`) so a later import that spends another broker’s EUR-CASH does not invent a phantom gain. Import fingerprints include `BrokerSource` (v8 untagged deposits still match a later interest row). Kover still 95/95 on `:domain`. Android UI was not emulator-checked in this pass.
 
-*Last updated: 2026-09-20 (broker CSV re-import, capital split, Stooq XAU 301)*
+*Last updated: 2026-09-20 (broker CSV re-import, global cash attribution, Stooq XAU 301)*

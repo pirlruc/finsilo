@@ -21,9 +21,9 @@ internal object DegiroAccountParser {
             AccountKind.SKIP -> BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Ignored $description", date)
             AccountKind.DEPOSIT -> cash(sourceLine, date, TransactionType.DEPOSIT_CASH, change.abs(), currency, row)
             AccountKind.WITHDRAWAL -> cash(sourceLine, date, TransactionType.WITHDRAWAL, change.abs(), currency, row)
-            AccountKind.INTEREST -> cash(sourceLine, date, TransactionType.INTEREST, change.abs(), currency, row)
-            AccountKind.DIVIDEND -> dividend(sourceLine, date, row, change.abs())
-            AccountKind.BUY, AccountKind.SELL -> trade(sourceLine, date, kind, row, change)
+            AccountKind.INTEREST -> creditInterest(sourceLine, date, change, currency, row)
+            AccountKind.DIVIDEND -> dividend(sourceLine, date, row, change.abs(), currency)
+            AccountKind.BUY, AccountKind.SELL -> trade(sourceLine, date, kind, row, change, currency)
         }
     }
 
@@ -43,14 +43,29 @@ internal object DegiroAccountParser {
         return BrokerLines.cash(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, date, type, eur)
     }
 
-    private fun dividend(sourceLine: Int, date: java.time.LocalDate, row: CsvRow, amount: BigDecimal): BrokerCsvLine {
+    private fun creditInterest(
+        sourceLine: Int,
+        date: java.time.LocalDate,
+        change: BigDecimal,
+        currency: String,
+        row: CsvRow,
+    ): BrokerCsvLine {
+        if (change.signum() <= 0) {
+            return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Debit interest ignored", date)
+        }
+        return cash(sourceLine, date, TransactionType.INTEREST, change, currency, row)
+    }
+
+    private fun dividend(sourceLine: Int, date: java.time.LocalDate, row: CsvRow, amount: BigDecimal, currency: String): BrokerCsvLine {
         val product = row.getAny(BrokerHeaders.PRODUCT)
         val isin = row.get("ISIN").ifBlank { null }
         if ((product.isBlank() && isin == null) || amount.signum() <= 0) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Dividend missing product or amount", date)
         }
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
-        val booked = BookedAmounts(BigDecimal.ONE, amount, com.pirlruc.finsilo.domain.model.Currency.EUR, BigDecimal.ZERO, null)
+        val eur = BrokerMoney.toEurCash(amount, currency, row.getAny(BrokerHeaders.FX))
+            ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Dividend currency cannot be booked in EUR", date)
+        val booked = BookedAmounts(BigDecimal.ONE, eur, com.pirlruc.finsilo.domain.model.Currency.EUR, BigDecimal.ZERO, null)
         return BrokerLines.holding(
             HoldingDraft(
                 format = BrokerCsvFormat.DEGIRO_ACCOUNT,
@@ -66,7 +81,14 @@ internal object DegiroAccountParser {
         )
     }
 
-    private fun trade(sourceLine: Int, date: java.time.LocalDate, kind: AccountKind, row: CsvRow, change: BigDecimal): BrokerCsvLine {
+    private fun trade(
+        sourceLine: Int,
+        date: java.time.LocalDate,
+        kind: AccountKind,
+        row: CsvRow,
+        change: BigDecimal,
+        currency: String,
+    ): BrokerCsvLine {
         val match = buySellQty.find(row.getAny(BrokerHeaders.DESCRIPTION))
         if (match == null) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account buy/sell needs Transactions.csv", date)
@@ -74,9 +96,10 @@ internal object DegiroAccountParser {
         val qty = match.groupValues[1]
         val product = row.getAny(BrokerHeaders.PRODUCT)
         val isin = row.get("ISIN").ifBlank { null }
+        val ccy = currency.ifBlank { "EUR" }
         val booked =
             BrokerMoney.book(
-                MoneyParts(qty, "", "EUR", change.abs().toPlainString(), "EUR", row.get("FX"), "", "EUR"),
+                MoneyParts(qty, "", ccy, change.abs().toPlainString(), ccy, row.getAny(BrokerHeaders.FX), "", "EUR"),
             ) ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account trade missing amount", date)
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         return BrokerLines.holding(
@@ -114,13 +137,15 @@ internal object DegiroAccountParser {
         listOf("interest", "rente", "juros", "intereses", "interets", "zinsen", "interessi", "flatex interest").any { it in text }
 
     private fun cashKind(text: String): AccountKind? = when {
-        depositWord(text) -> AccountKind.DEPOSIT
         withdrawWord(text) -> AccountKind.WITHDRAWAL
+        depositWord(text) -> AccountKind.DEPOSIT
         else -> null
     }
 
-    private fun depositWord(text: String): Boolean =
-        listOf("storting", "deposit", "deposito", "ingreso", "einzahlung", "depot").any { it in text }
+    private fun depositWord(text: String): Boolean {
+        if (listOf("storting", "deposit", "deposito", "ingreso", "einzahlung").any { it in text }) return true
+        return "depot" in text && listOf("frais", "fee", "kosten", "gebuhr", "custod", "wertpapier").none { it in text }
+    }
 
     private fun withdrawWord(text: String): Boolean =
         listOf("opname", "withdrawal", "levantamento", "retirada", "retrait", "auszahlung", "prelievo").any { it in text }
