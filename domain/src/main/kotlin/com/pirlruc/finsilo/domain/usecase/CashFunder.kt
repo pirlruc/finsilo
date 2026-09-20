@@ -33,6 +33,7 @@ class CashFunder(private val ledger: PositionLedger = PositionLedger()) {
             quantity = gap,
             unitPriceNative = BigDecimal.ONE,
             feesEur = BigDecimal.ZERO,
+            source = request.source,
         )
     }
 

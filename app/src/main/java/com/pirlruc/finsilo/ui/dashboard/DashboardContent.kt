@@ -30,6 +30,8 @@ import com.pirlruc.finsilo.domain.model.TwrSplit
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportCard
+import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 
 @Composable
 internal fun DashboardContent(
@@ -40,6 +42,8 @@ internal fun DashboardContent(
     ratingPrefs: Map<String, RatingAlertPref>,
     onRangeSelected: (HistoryRange) -> Unit,
     holdings: HoldingActions,
+    importState: BrokerImportUiState? = null,
+    importNav: ImportNavActions? = null,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -52,6 +56,7 @@ internal fun DashboardContent(
             Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         SummaryColumn(report)
+        CapitalCard(report.allocation)
         HoldingsCard(
             report.allocation.holdings,
             report.allocation.cashEur,
@@ -68,6 +73,17 @@ internal fun DashboardContent(
         }
         if (report.signals.isNotEmpty()) {
             SignalsCard(report.signals)
+        }
+        if (importState != null && importNav != null) {
+            BrokerImportCard(
+                state = importState,
+                onImportCsvs = importNav.onImportCsvs,
+                onPickerBusy = importNav.onPickerBusy,
+                onQuoteSymbol = importNav.onQuoteSymbol,
+                onConfirmReview = importNav.onConfirmReview,
+                onCancelReview = importNav.onCancelReview,
+                onPickerError = importNav.onPickerError,
+            )
         }
     }
 }
@@ -89,7 +105,7 @@ internal fun SummaryColumn(report: DashboardReport) {
                 label = "Unrealized",
                 value = formatSignedEur(pnl),
                 caption = if (pnl.signum() >= 0) "Open gains" else "Open losses",
-                valueColor = if (pnl.signum() < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                valueColor = signedAmountColor(pnl),
                 description = "Unrealized ${formatSignedEur(pnl)}",
             )
             MetricCard(
@@ -97,6 +113,7 @@ internal fun SummaryColumn(report: DashboardReport) {
                 label = "TWR",
                 value = formatPercent(report.twr.twrPercent),
                 caption = twrCaption(report.twr),
+                valueColor = signedAmountColor(report.twr.twrPercent),
                 description = "Time-weighted return ${formatPercent(report.twr.twrPercent)}",
             )
         }

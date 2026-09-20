@@ -40,6 +40,19 @@ data class AllocationReport(
     val cashEur: BigDecimal,
     val slices: List<AllocationSlice>,
     val holdings: List<HoldingValuation>,
+    val contributedEur: BigDecimal = BigDecimal.ZERO,
+    val cashInterestEur: BigDecimal = BigDecimal.ZERO,
+    val totalGainEur: BigDecimal = BigDecimal.ZERO,
+    val brokers: List<BrokerCapital> = emptyList(),
+)
+
+/** Money put in, leftover cash, sweep interest, and gain/loss for one import broker. */
+data class BrokerCapital(
+    val source: BrokerSource,
+    val contributedEur: BigDecimal,
+    val cashInterestEur: BigDecimal,
+    val cashEur: BigDecimal = BigDecimal.ZERO,
+    val gainEur: BigDecimal = BigDecimal.ZERO,
 )
 
 /** One dense NAV observation. */

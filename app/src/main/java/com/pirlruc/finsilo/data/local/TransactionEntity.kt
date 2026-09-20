@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.math.BigDecimal
@@ -33,6 +34,7 @@ data class TransactionEntity(
     @ColumnInfo(name = "unit_price_eur") val unitPriceEur: BigDecimal,
     @ColumnInfo(name = "fees_eur") val feesEur: BigDecimal,
     @ColumnInfo(name = "ledger_sequence", defaultValue = "0") val sequence: Long = 0,
+    @ColumnInfo(name = "broker_source", defaultValue = "") val brokerSource: String = "",
 ) {
     fun toDomain(): Transaction = Transaction(
         id = transactionId,
@@ -45,6 +47,7 @@ data class TransactionEntity(
         unitPriceEur = unitPriceEur,
         feesEur = feesEur,
         sequence = sequence,
+        source = brokerSource.takeIf { it.isNotBlank() }?.let { runCatching { BrokerSource.valueOf(it) }.getOrNull() },
     )
 
     companion object {
@@ -59,6 +62,7 @@ data class TransactionEntity(
             unitPriceEur = tx.unitPriceEur,
             feesEur = tx.feesEur,
             sequence = tx.sequence,
+            brokerSource = tx.source?.name.orEmpty(),
         )
     }
 }

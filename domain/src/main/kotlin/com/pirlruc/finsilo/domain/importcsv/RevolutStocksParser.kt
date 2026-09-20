@@ -6,21 +6,21 @@ internal object RevolutStocksParser {
     fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
-        val date = BrokerDates.parse(row.get("Date"))
+        val date = BrokerDates.parse(row.get("Date", "Fecha", "Data", "Date started", "Date completed"))
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Unreadable date")
-        val kind = row.get("Type").lowercase()
+        val kind = row.get("Type", "Tipo").lowercase()
         val type = actionType(kind)
-        if (type == null) return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Ignored ${row.get("Type")}", date)
-        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL) {
+        if (type == null) return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Ignored ${row.get("Type", "Tipo")}", date)
+        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL || type == TransactionType.INTEREST) {
             return cashRow(sourceLine, date, type, row)
         }
         return tradeRow(sourceLine, date, type, row)
     }
 
     private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
-        val amount = BrokerMoney.absAmount(row.get("Total Amount", "Total"))
+        val amount = BrokerMoney.absAmount(row.get("Total Amount", "Total", "Importe total", "Montante total"))
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash row missing amount", date)
-        val eur = BrokerMoney.toEurCash(amount, row.get("Currency"), row.get("FX Rate", "FX"))
+        val eur = BrokerMoney.toEurCash(amount, row.get("Currency", "Divisa", "Moeda"), row.get("FX Rate", "FX", "Tipo de cambio"))
             ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash currency cannot be booked in EUR", date)
         return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, eur)
     }
@@ -51,27 +51,40 @@ internal object RevolutStocksParser {
     }
 
     private fun money(row: CsvRow, type: TransactionType): MoneyParts {
-        val qty = row.get("Quantity").ifBlank { if (type == TransactionType.DIVIDEND) "1" else "" }
-        val price = row.get("Price per share").ifBlank { row.get("Total Amount", "Total") }
-        val currency = row.get("Currency")
+        val qty = row.get("Quantity", "Cantidad", "Quantidade").ifBlank { if (type == TransactionType.DIVIDEND) "1" else "" }
+        val price = row.get("Price per share", "Precio por acción", "Preço por ação", "Price").ifBlank {
+            row.get("Total Amount", "Total", "Importe total")
+        }
+        val currency = row.get("Currency", "Divisa", "Moeda")
         return MoneyParts(
             quantity = qty,
             price = price,
             priceCurrency = currency.ifBlank { BrokerMoney.currencyPrefix(price) },
-            total = row.get("Total Amount", "Total"),
+            total = row.get("Total Amount", "Total", "Importe total", "Montante total"),
             totalCurrency = currency,
-            exchangeRate = row.get("FX Rate", "FX"),
+            exchangeRate = row.get("FX Rate", "FX", "Tipo de cambio"),
             fees = row.get("Fees"),
             feesCurrency = currency,
         )
     }
 
     private fun actionType(type: String): TransactionType? = when {
-        type.contains("top-up") || type.contains("top up") || type.contains("deposit") -> TransactionType.DEPOSIT_CASH
+        cashIn(type) -> TransactionType.DEPOSIT_CASH
         type.contains("withdraw") -> TransactionType.WITHDRAWAL
-        type.contains("dividend") -> TransactionType.DIVIDEND
-        type.contains("buy") -> TransactionType.BUY
-        type.contains("sell") -> TransactionType.SELL
+        interestWord(type) -> TransactionType.INTEREST
+        dividendWord(type) -> TransactionType.DIVIDEND
+        buyWord(type) -> TransactionType.BUY
+        sellWord(type) -> TransactionType.SELL
         else -> null
     }
+
+    private fun cashIn(type: String): Boolean = type.contains("top-up") || type.contains("top up") || type.contains("deposit")
+
+    private fun interestWord(type: String): Boolean = type.contains("interest") || type.contains("juros") || type.contains("intereses")
+
+    private fun dividendWord(type: String): Boolean = type.contains("dividend") || type.contains("dividendo")
+
+    private fun buyWord(type: String): Boolean = type.contains("buy") || type.contains("compra")
+
+    private fun sellWord(type: String): Boolean = type.contains("sell") || type.contains("venta") || type.contains("venda")
 }

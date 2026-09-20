@@ -39,12 +39,17 @@ internal object AllocationComposer {
                     )
                 }
         val unrealized = holdings.fold(ZERO) { acc, h -> plus(acc, h.unrealizedPnlEur) }
+        val capital = CapitalComposer.compose(snapshot, holdings, cash)
         return AllocationReport(
             totalValueEur = total,
             unrealizedPnlEur = unrealized,
             cashEur = cash,
             slices = slices,
             holdings = holdings.sortedByDescending { it.valueEur },
+            contributedEur = capital.contributedEur,
+            cashInterestEur = capital.cashInterestEur,
+            totalGainEur = capital.totalGainEur,
+            brokers = capital.brokers,
         )
     }
 }

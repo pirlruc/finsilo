@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.backup
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
@@ -115,6 +116,7 @@ internal object LedgerBackupParse {
             unitPriceEur = BigDecimal(cols[8]),
             feesEur = BigDecimal(cols[9]),
             sequence = cols[10].toLong(),
+            source = cols.getOrNull(11)?.takeIf { it.isNotBlank() }?.let { runCatching { BrokerSource.valueOf(it) }.getOrNull() },
         )
     }
 

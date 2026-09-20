@@ -13,6 +13,7 @@ class MarketHttpsPolicyTest {
         MarketHttpsPolicy.requireHttpsUrl("https://www.alphavantage.co/query?function=OVERVIEW")
         MarketHttpsPolicy.requireHttpsUrl("https://api.coingecko.com/api/v3/coins/bitcoin/market_chart")
         MarketHttpsPolicy.requireHttpsUrl("https://stooq.com/q/d/l/?s=aapl.us&i=d")
+        MarketHttpsPolicy.requireHttpsUrl("https://stooq.pl/q/d/l/?s=xauusd&i=d")
     }
 
     @Test(expected = IOException::class)
@@ -70,6 +71,8 @@ class MarketHttpsPolicyTest {
                 .contains("2024-01-01..2024-01-31"),
         )
         assertTrue(MarketFeedUrls.coinGeckoChart("bitcoin", 100).contains("days=100"))
+        assertTrue(MarketFeedUrls.stooqDaily("vwce.de").contains("stooq.pl"))
+        assertTrue(MarketFeedUrls.stooqDaily("vwce.de").contains("/q/d/l/"))
         assertTrue(MarketFeedUrls.stooqDaily("vwce.de", LocalDate.parse("2026-04-23")).contains("d1=20260423"))
     }
 }

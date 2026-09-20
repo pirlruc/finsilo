@@ -102,4 +102,11 @@ class DashboardReportFieldsTest {
         assertTrue(caption.any { it.startsWith("SMA200 ") })
         assertTrue(caption.any { it.contains("rating") })
     }
+
+    @Test
+    fun brokerSourceLabelsAreStable() {
+        assertEquals("Trading 212", com.pirlruc.finsilo.domain.model.BrokerSource.TRADING_212.label)
+        assertEquals("DEGIRO", com.pirlruc.finsilo.domain.model.BrokerSource.DEGIRO.label)
+        assertEquals("Revolut", com.pirlruc.finsilo.domain.model.BrokerSource.REVOLUT.label)
+    }
 }

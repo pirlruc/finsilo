@@ -47,6 +47,7 @@ fun DashboardRoute(
                 onConfirmReview = { importer.confirmImport { viewModel.refresh() } },
                 onCancelReview = importer::cancelReview,
                 onPickerBusy = onPickerBusy,
+                onPickerError = importer::showPickerError,
             ),
             onRangeSelected = viewModel::setRange,
             onSaveThreshold = viewModel::saveThreshold,
@@ -110,6 +111,7 @@ internal fun DashboardScreen(
                         nav.import.onQuoteSymbol,
                         nav.import.onConfirmReview,
                         nav.import.onCancelReview,
+                        nav.import.onPickerError,
                     )
                 state.report != null ->
                     DashboardContent(
@@ -120,6 +122,8 @@ internal fun DashboardScreen(
                         ratingPrefs = state.ratingPrefs,
                         onRangeSelected = nav.onRangeSelected,
                         holdings = HoldingActions(nav.onSaveThreshold, nav.onSaveRating, nav.onSaveInstrument),
+                        importState = importState,
+                        importNav = nav.import,
                     )
             }
         }

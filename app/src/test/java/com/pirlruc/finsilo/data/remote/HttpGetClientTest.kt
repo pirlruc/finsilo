@@ -11,10 +11,10 @@ import org.junit.Test
 
 class HttpGetClientTest {
     @Test
-    fun clientDoesNotFollowRedirects() {
+    fun clientFollowsAllowlistedRedirectsOnly() {
         val client = marketHttpClient()
-        assertFalse(client.followRedirects)
-        assertFalse(client.followSslRedirects)
+        assertTrue(client.followRedirects)
+        assertTrue(client.followSslRedirects)
         assertTrue(client.networkInterceptors.any { it is GetOnlyInterceptor })
     }
 
@@ -27,6 +27,9 @@ class HttpGetClientTest {
     fun networkInterceptorAllowsListedHostWithoutRedirectHop() {
         validateMarketGet(
             Request.Builder().url("https://stooq.com/q/d/l/?s=aapl.us").get().build(),
+        )
+        validateMarketGet(
+            Request.Builder().url("https://stooq.pl/q/d/l/?s=xauusd&i=d").get().build(),
         )
     }
 

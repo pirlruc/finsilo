@@ -34,6 +34,7 @@ internal data class TargetSettingsActions(
     val onConfirmImport: () -> Unit,
     val onCancelImport: () -> Unit,
     val onPickerBusy: (Boolean) -> Unit,
+    val onPickerError: (String) -> Unit,
     val lock: LockSettingsActions,
     val tools: PortfolioToolsActions,
 )
