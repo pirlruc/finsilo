@@ -64,6 +64,7 @@ fun TargetSettingsRoute(
             onConfirmImport = { importer.confirmImport { } },
             onCancelImport = importer::cancelReview,
             onPickerBusy = onPickerBusy,
+            onPickerError = importer::showPickerError,
             lock = LockSettingsActions(
                 onToggleBiometric = lock::requestToggleBiometric,
                 onRotateRecovery = lock::requestRotateRecovery,
@@ -126,6 +127,7 @@ internal fun TargetSettingsScreen(
                 onConfirmReview = actions.onConfirmImport,
                 onCancelReview = actions.onCancelImport,
                 onPickerBusy = actions.onPickerBusy,
+                onPickerError = actions.onPickerError,
             )
             PortfolioToolsCard(state = tools, actions = actions.tools)
             Text("Target allocation", style = MaterialTheme.typography.titleLarge)

@@ -34,6 +34,7 @@ internal object LedgerBackupEncode {
         tx.unitPriceEur.toPlainString(),
         tx.feesEur.toPlainString(),
         tx.sequence.toString(),
+        tx.source?.name.orEmpty(),
     ).joinToString("\t")
 
     fun market(row: DailyMarketData): String = quoteRow("M", row)

@@ -29,6 +29,7 @@ internal fun EmptyState(
     onQuoteSymbol: (String, String) -> Unit,
     onConfirmReview: () -> Unit,
     onCancelReview: () -> Unit,
+    onPickerError: (String) -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -52,6 +53,7 @@ internal fun EmptyState(
             onQuoteSymbol = onQuoteSymbol,
             onConfirmReview = onConfirmReview,
             onCancelReview = onCancelReview,
+            onPickerError = onPickerError,
         )
         Spacer(Modifier.height(12.dp))
         Button(onClick = onLoadSample) { Text("Load sample portfolio") }

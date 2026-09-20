@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.usecase
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
@@ -34,6 +35,7 @@ data class LedgerEntryRequest(
     val existingAssetId: String? = null,
     val newAsset: NewAssetDraft? = null,
     val eurPerUsd: BigDecimal? = null,
+    val source: BrokerSource? = null,
 )
 
 /** Validation result for a ledger write. Persistence is the caller's job. */
@@ -144,6 +146,7 @@ class RecordLedgerEntryUseCase(
             unitPriceEur = toEur(request.unitPriceNative, asset.baseCurrency, rate),
             feesEur = request.feesEur,
             sequence = nextSequence(snapshot),
+            source = request.source,
         )
 
     private fun validateAmounts(request: LedgerEntryRequest): LedgerEntryResult.Rejected? {
@@ -161,11 +164,19 @@ class RecordLedgerEntryUseCase(
 
     private fun resolveAsset(snapshot: PortfolioSnapshot, request: LedgerEntryRequest): Pair<Asset, Boolean>? = when (request.type) {
         TransactionType.DEPOSIT_CASH, TransactionType.WITHDRAWAL -> resolveCash(snapshot)
+        TransactionType.INTEREST -> resolveInterest(snapshot, request)
         TransactionType.BUY -> resolveBuy(snapshot, request)
         else ->
             request.existingAssetId
                 ?.let { id -> snapshot.assets.firstOrNull { it.id == id } }
                 ?.let { it to false }
+    }
+
+    private fun resolveInterest(snapshot: PortfolioSnapshot, request: LedgerEntryRequest): Pair<Asset, Boolean>? {
+        request.existingAssetId
+            ?.let { id -> snapshot.assets.firstOrNull { it.id == id } }
+            ?.let { return it to false }
+        return resolveCash(snapshot)
     }
 
     private fun resolveCash(snapshot: PortfolioSnapshot): Pair<Asset, Boolean> {
@@ -196,17 +207,16 @@ class RecordLedgerEntryUseCase(
     private fun validateType(asset: Asset, type: TransactionType): LedgerEntryResult.Rejected? =
         typeError(asset, type)?.let { LedgerEntryResult.Rejected(it) }
 
-    private fun typeError(asset: Asset, type: TransactionType): String? {
-        if (type == TransactionType.INTEREST) {
-            return unless(asset.assetType.allowsInterest, "Interest applies to deposits, CTs, and PPR.")
-        }
-        if (type == TransactionType.DIVIDEND) {
-            return unless(asset.assetType.allowsDividend, "Dividends apply to stocks, ETFs, and PPR.")
-        }
-        if (type == TransactionType.SELL || type == TransactionType.BUY) {
-            return cashInstrumentError(asset, type)
-        }
-        return unless(asset.assetType == AssetType.CASH, "Cash movements must use the cash account.")
+    private fun typeError(asset: Asset, type: TransactionType): String? = when (type) {
+        TransactionType.INTEREST -> interestError(asset)
+        TransactionType.DIVIDEND -> unless(asset.assetType.allowsDividend, "Dividends apply to stocks, ETFs, and PPR.")
+        TransactionType.SELL, TransactionType.BUY -> cashInstrumentError(asset, type)
+        else -> unless(asset.assetType == AssetType.CASH, "Cash movements must use the cash account.")
+    }
+
+    private fun interestError(asset: Asset): String? {
+        if (asset.assetType == AssetType.CASH) return null
+        return unless(asset.assetType.allowsInterest, "Interest applies to deposits, CTs, PPR, and uninvested cash.")
     }
 
     private fun cashInstrumentError(asset: Asset, type: TransactionType): String? {

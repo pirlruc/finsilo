@@ -28,8 +28,8 @@ object MarketFeedUrls {
         .toUrl()
 
     fun stooqDaily(ticker: String, from: LocalDate? = null): String {
-        val builder = https("stooq.com")
-            .addPathSegments("q/d/l")
+        val builder = https("stooq.pl")
+            .encodedPath("/q/d/l/")
             .addQueryParameter("s", MarketHttpsPolicy.requireSafeToken(ticker, "ticker"))
             .addQueryParameter("i", "d")
         if (from != null) {

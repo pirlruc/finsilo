@@ -164,8 +164,12 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
     }
 
     private suspend fun stooqCommodity(asset: Asset, compact: Boolean, asOf: LocalDate): List<PriceBar> {
-        val ticker = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
-        return stooqBars(ticker, compact, asOf)
+        val tickers = COMMODITY_STOOQ[asset.feedSymbol.uppercase()] ?: return emptyList()
+        for (ticker in tickers) {
+            val bars = runCatching { stooqBars(ticker, compact, asOf) }.getOrDefault(emptyList())
+            if (bars.isNotEmpty()) return bars
+        }
+        return emptyList()
     }
 
     private suspend fun stooqBars(ticker: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
@@ -184,9 +188,9 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
             "SOL" to "solana",
         )
         private val COMMODITY_STOOQ = mapOf(
-            "XAU" to "xauusd",
-            "GOLD" to "xauusd",
-            "XAUUSD" to "xauusd",
+            "XAU" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
+            "GOLD" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
+            "XAUUSD" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
         )
         private val COMMODITY_FUNCTIONS = mapOf(
             "WTI" to "WTI",

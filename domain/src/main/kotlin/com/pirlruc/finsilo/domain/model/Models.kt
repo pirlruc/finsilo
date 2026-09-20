@@ -56,6 +56,8 @@ data class Transaction(
      * Rows loaded from older databases default to 0 and still fall back to [id].
      */
     val sequence: Long = 0L,
+    /** Broker that produced this row, when it came from a CSV import. */
+    val source: BrokerSource? = null,
 ) {
     val notionalEur: BigDecimal get() = quantity.multiply(unitPriceEur)
 }

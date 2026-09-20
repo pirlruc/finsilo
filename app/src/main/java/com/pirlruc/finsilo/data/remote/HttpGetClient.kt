@@ -28,8 +28,8 @@ class GetOnlyInterceptor : Interceptor {
 }
 
 internal fun marketHttpClient(): OkHttpClient = OkHttpClient.Builder()
-    .followRedirects(false)
-    .followSslRedirects(false)
+    .followRedirects(true)
+    .followSslRedirects(true)
     .addNetworkInterceptor(GetOnlyInterceptor())
     .callTimeout(30, TimeUnit.SECONDS)
     .build()

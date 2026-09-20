@@ -30,13 +30,20 @@ fun BrokerImportCard(
     onQuoteSymbol: (String, String) -> Unit = { _, _ -> },
     onConfirmReview: () -> Unit = {},
     onCancelReview: () -> Unit = {},
+    onPickerError: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             onPickerBusy(false)
             if (uris.isEmpty()) return@rememberLauncherForActivityResult
-            onImportCsvs(uris.mapNotNull { uri -> readCsv(context, uri) })
+            val picked = uris.mapNotNull { uri -> readCsv(context, uri) }
+            val unsupported = picked.filterIsInstance<PickedCsv.Unsupported>().firstOrNull()
+            if (unsupported != null) {
+                onPickerError(unsupported.message)
+                return@rememberLauncherForActivityResult
+            }
+            onImportCsvs(picked.filterIsInstance<PickedCsv.Text>().map { it.body })
         }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -61,9 +68,9 @@ fun BrokerImportCard(
 @Composable
 private fun ImportPicker(importing: Boolean, onPick: () -> Unit) {
     Text(
-        "Import a history CSV from Trading 212, DEGIRO, or Revolut. Files stay on this device. " +
-            "DEGIRO: pick Transactions and Account statement together. " +
-            "Revolut: Stocks account statement (CSV), not Profit & Loss. " +
+        "Import a history CSV from Trading 212, DEGIRO, or Revolut. You can import again later; duplicate rows are skipped. " +
+            "DEGIRO: pick Transactions and Account statement together (CSV, any language). " +
+            "Revolut: Stocks/Invest account statement CSV, not Profit & Loss and not Excel. " +
             "Lots always import; missing quotes are a warning you can fix before saving.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -110,16 +117,32 @@ private fun ImportReviewList(
 }
 
 private val CSV_MIME_TYPES = arrayOf(
+    "*/*",
     "text/csv",
     "text/comma-separated-values",
     "text/plain",
     "text/*",
     "application/csv",
     "application/vnd.ms-excel",
+    "application/octet-stream",
 )
 
-private fun readCsv(context: android.content.Context, uri: Uri): String? = context.contentResolver.openInputStream(uri)?.use { input ->
-    decodeCsv(BoundedBytes.read(input))
+private sealed interface PickedCsv {
+    data class Text(val body: String) : PickedCsv
+    data class Unsupported(val message: String) : PickedCsv
+}
+
+private fun readCsv(context: android.content.Context, uri: Uri): PickedCsv? = context.contentResolver.openInputStream(uri)?.use { input ->
+    val bytes = BoundedBytes.read(input)
+    pickerError(bytes)?.let { return@use PickedCsv.Unsupported(it) }
+    PickedCsv.Text(decodeCsv(bytes))
+}
+
+internal fun pickerError(bytes: ByteArray): String? {
+    if (bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()) {
+        return "Excel (.xlsx) is not supported. Export CSV from the broker."
+    }
+    return null
 }
 
 internal fun decodeCsv(bytes: ByteArray): String {

@@ -30,14 +30,20 @@ data class ImportSymbolDraft(
 
 /** Unique instruments from broker rows, plus applying quote-symbol edits before persist. */
 object ImportSymbolReview {
-    private val holdingTypes =
-        setOf(TransactionType.BUY, TransactionType.SELL, TransactionType.DIVIDEND, TransactionType.INTEREST)
-
-    fun drafts(lines: List<BrokerCsvLine>): List<ImportSymbolDraft> = lines.filter { it.type in holdingTypes && it.symbol.isNotBlank() }
+    fun drafts(lines: List<BrokerCsvLine>): List<ImportSymbolDraft> = lines.filter { reviewable(it) }
         .groupBy { keyOf(it) }
         .values
         .map { group -> draftOf(group.first()) }
         .sortedBy { it.symbol }
+
+    private fun reviewable(line: BrokerCsvLine): Boolean {
+        val type = line.type ?: return false
+        if (line.symbol.isBlank() || line.assetType == AssetType.CASH) return false
+        return type == TransactionType.BUY ||
+            type == TransactionType.SELL ||
+            type == TransactionType.DIVIDEND ||
+            type == TransactionType.INTEREST
+    }
 
     fun apply(lines: List<BrokerCsvLine>, drafts: List<ImportSymbolDraft>): List<BrokerCsvLine> {
         val byKey = drafts.associateBy { it.key }

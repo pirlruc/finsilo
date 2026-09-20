@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.domain.importcsv
 
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.math.BigDecimal
@@ -12,6 +13,15 @@ enum class BrokerCsvFormat {
     DEGIRO_TRANSACTIONS,
     DEGIRO_ACCOUNT,
     REVOLUT_STOCKS,
+    ;
+
+    val source: BrokerSource
+        get() =
+            when (this) {
+                TRADING_212 -> BrokerSource.TRADING_212
+                DEGIRO_TRANSACTIONS, DEGIRO_ACCOUNT -> BrokerSource.DEGIRO
+                REVOLUT_STOCKS -> BrokerSource.REVOLUT
+            }
 }
 
 /** One normalised row from a broker CSV. [type] is null when the row is skipped. */

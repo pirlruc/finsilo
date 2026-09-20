@@ -105,6 +105,22 @@ enum class HistoryRange {
     ALL,
 }
 
+/** Broker that produced an imported ledger row. Manual entries leave this unset. */
+enum class BrokerSource {
+    TRADING_212,
+    DEGIRO,
+    REVOLUT,
+    ;
+
+    val label: String
+        get() =
+            when (this) {
+                TRADING_212 -> "Trading 212"
+                DEGIRO -> "DEGIRO"
+                REVOLUT -> "Revolut"
+            }
+}
+
 /** SMA 50/200 cross on consecutive stored bars. */
 enum class TechnicalCross {
     GOLDEN,

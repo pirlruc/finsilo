@@ -55,4 +55,13 @@ class BrokerImportSummaryTest {
         assertTrue('\uFFFD' !in text)
         assertTrue(text.startsWith("C"))
     }
+
+    @Test
+    fun pickerErrorRejectsXlsxZip() {
+        assertEquals(
+            "Excel (.xlsx) is not supported. Export CSV from the broker.",
+            pickerError(byteArrayOf(0x50, 0x4B, 0x03, 0x04)),
+        )
+        assertEquals(null, pickerError("Action,Time".toByteArray()))
+    }
 }

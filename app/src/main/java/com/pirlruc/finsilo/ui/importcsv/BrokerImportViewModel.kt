@@ -65,6 +65,10 @@ class BrokerImportViewModel(
         _state.update { it.copy(reviewing = false, drafts = emptyList(), importing = false) }
     }
 
+    fun showPickerError(message: String) {
+        _state.update { it.copy(importing = false, error = message, status = null) }
+    }
+
     private suspend fun beginReview(texts: List<String>, onImported: () -> Unit) {
         _state.update { it.copy(importing = true, error = null, status = null, reviewing = false) }
         val parsed = withContext(Dispatchers.Default) { BrokerCsv.parseAll(texts) }

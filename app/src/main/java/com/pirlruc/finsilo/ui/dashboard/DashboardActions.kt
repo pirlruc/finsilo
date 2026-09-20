@@ -11,6 +11,7 @@ internal data class ImportNavActions(
     val onConfirmReview: () -> Unit,
     val onCancelReview: () -> Unit,
     val onPickerBusy: (Boolean) -> Unit,
+    val onPickerError: (String) -> Unit,
 )
 
 internal data class DashboardNavActions(

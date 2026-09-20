@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.domain.importcsv
 
 import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.usecase.CashFunder
@@ -122,10 +123,15 @@ private class ImportWalk(
     }
 
     private fun requestOf(type: TransactionType, date: java.time.LocalDate, line: BrokerCsvLine): LedgerEntryRequest? {
-        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL) {
-            return LedgerEntryRequest(type, date, line.quantity, BigDecimal.ONE, BigDecimal.ZERO)
+        if (isCashRow(type, line)) {
+            return LedgerEntryRequest(type, date, line.quantity, BigDecimal.ONE, BigDecimal.ZERO, source = line.format.source)
         }
-        return holdingRequest(type, date, line)
+        return holdingRequest(type, date, line)?.copy(source = line.format.source)
+    }
+
+    private fun isCashRow(type: TransactionType, line: BrokerCsvLine): Boolean {
+        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL) return true
+        return type == TransactionType.INTEREST && line.assetType == AssetType.CASH
     }
 
     private fun holdingRequest(type: TransactionType, date: java.time.LocalDate, line: BrokerCsvLine): LedgerEntryRequest? {
@@ -172,7 +178,16 @@ private class ImportWalk(
         val fp = ImportFingerprints.of(line)
         val n = (seen[fp] ?: 0) + 1
         seen[fp] = n
-        return n <= (already[fp] ?: 0)
+        if (n <= (already[fp] ?: 0)) return true
+        return cashInterestMatchesPriorDeposit(line, n)
+    }
+
+    private fun cashInterestMatchesPriorDeposit(line: BrokerCsvLine, n: Int): Boolean {
+        if (line.type != TransactionType.INTEREST || line.assetType != AssetType.CASH) {
+            return false
+        }
+        val asDeposit = ImportFingerprints.of(line.copy(type = TransactionType.DEPOSIT_CASH))
+        return n <= (already[asDeposit] ?: 0)
     }
 
     private fun ordered(lines: List<BrokerCsvLine>): List<BrokerCsvLine> =

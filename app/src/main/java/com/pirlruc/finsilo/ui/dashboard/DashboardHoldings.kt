@@ -118,7 +118,11 @@ private fun HoldingRow(holding: HoldingValuation, threshold: PriceAlertThreshold
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(formatEur(holding.valueEur), fontWeight = FontWeight.SemiBold)
-                Text(formatSignedEur(holding.unrealizedPnlEur), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    formatSignedEur(holding.unrealizedPnlEur),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = signedAmountColor(holding.unrealizedPnlEur),
+                )
                 Row {
                     TextButton(onClick = onAlert) { Text(if (threshold == null) "Alert" else "Alert on") }
                     TextButton(onClick = onEdit) { Text("Edit") }

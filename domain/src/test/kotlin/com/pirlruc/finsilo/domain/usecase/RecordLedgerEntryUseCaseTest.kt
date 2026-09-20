@@ -577,6 +577,19 @@ class RecordLedgerEntryUseCaseTest {
         assertTrue(bad is LedgerEntryResult.Rejected)
     }
 
+    @Test
+    fun cashSweepInterestIsAcceptedWithoutInstrument() {
+        val result =
+            useCase(
+                cashOnly(bd("4000")),
+                LedgerEntryRequest(TransactionType.INTEREST, asOf, bd("1.25"), BigDecimal.ONE, BigDecimal.ZERO),
+            )
+        assertTrue(result is LedgerEntryResult.Accepted)
+        val accepted = result as LedgerEntryResult.Accepted
+        assertEquals(AssetType.CASH, accepted.asset.assetType)
+        assertEquals(TransactionType.INTEREST, accepted.transaction.type)
+    }
+
     private fun cashOnly(amount: BigDecimal) = PortfolioSnapshot(
         assets = listOf(cash),
         transactions = listOf(cashIn(amount)),

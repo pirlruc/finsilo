@@ -13,6 +13,7 @@ object MarketHttpsPolicy {
             "www.alphavantage.co",
             "api.coingecko.com",
             "stooq.com",
+            "stooq.pl",
         )
 
     private val safeToken = Regex("^[A-Za-z0-9._-]+$")
