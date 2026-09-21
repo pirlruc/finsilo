@@ -53,6 +53,11 @@ class CapitalComposerTest {
         assertEquals(0, bd("0").compareTo(degiro.cashInterestEur))
         assertEquals(0, bd("250").compareTo(degiro.cashEur))
         assertEquals(0, bd("0").compareTo(degiro.gainEur))
+        val manual = totals.brokers.single { it.source == BrokerSource.MANUAL }
+        assertEquals(0, bd("10").compareTo(manual.contributedEur))
+        assertEquals(0, bd("10").compareTo(manual.cashEur))
+        assertEquals(0, bd("0").compareTo(manual.cashInterestEur))
+        assertEquals(0, bd("0").compareTo(manual.gainEur))
     }
 
     @Test
@@ -189,6 +194,11 @@ class CapitalComposerTest {
         assertEquals(0, bd("100").compareTo(revolut.contributedEur))
         assertEquals(0, bd("100").compareTo(revolut.cashEur))
         assertEquals(0, bd("0").compareTo(revolut.gainEur))
+        val manual = totals.brokers.single { it.source == BrokerSource.MANUAL }
+        assertEquals(0, bd("0").compareTo(manual.contributedEur))
+        assertEquals(0, bd("1").compareTo(manual.cashEur))
+        assertEquals(0, bd("1").compareTo(manual.cashInterestEur))
+        assertEquals(0, bd("1").compareTo(manual.gainEur))
     }
 
     @Test
@@ -226,6 +236,10 @@ class CapitalComposerTest {
         assertEquals(0, bd("150").compareTo(degiro.contributedEur))
         assertEquals(0, bd("0").compareTo(degiro.cashEur))
         assertEquals(0, bd("30").compareTo(degiro.gainEur))
+        val manual = totals.brokers.single { it.source == BrokerSource.MANUAL }
+        assertEquals(0, bd("0").compareTo(manual.contributedEur))
+        assertEquals(0, bd("0").compareTo(manual.cashEur))
+        assertEquals(0, bd("10").compareTo(manual.gainEur))
         assertTrue(totals.brokers.none { it.source == BrokerSource.REVOLUT })
     }
 

@@ -66,18 +66,15 @@ internal object DegiroAccountParser {
         val eur = BrokerMoney.toEurCash(amount, currency, row.getAny(BrokerHeaders.FX))
             ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Dividend currency cannot be booked in EUR", date)
         val booked = BookedAmounts(BigDecimal.ONE, eur, com.pirlruc.finsilo.domain.model.Currency.EUR, BigDecimal.ZERO, null)
-        return BrokerLines.holding(
-            HoldingDraft(
-                format = BrokerCsvFormat.DEGIRO_ACCOUNT,
-                sourceLine = sourceLine,
-                date = date,
-                type = TransactionType.DIVIDEND,
-                symbol = symbol,
-                name = product,
-                isin = isin,
-                quoteSymbol = null,
-                booked = booked,
-            ),
+        return BrokerLines.degiroHolding(
+            BrokerCsvFormat.DEGIRO_ACCOUNT,
+            sourceLine,
+            date,
+            TransactionType.DIVIDEND,
+            symbol,
+            product,
+            isin,
+            booked,
         )
     }
 
@@ -102,18 +99,15 @@ internal object DegiroAccountParser {
                 MoneyParts(qty, "", ccy, change.abs().toPlainString(), ccy, row.getAny(BrokerHeaders.FX), "", "EUR"),
             ) ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account trade missing amount", date)
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
-        return BrokerLines.holding(
-            HoldingDraft(
-                format = BrokerCsvFormat.DEGIRO_ACCOUNT,
-                sourceLine = sourceLine,
-                date = date,
-                type = if (kind == AccountKind.BUY) TransactionType.BUY else TransactionType.SELL,
-                symbol = symbol,
-                name = product,
-                isin = isin,
-                quoteSymbol = null,
-                booked = booked,
-            ),
+        return BrokerLines.degiroHolding(
+            BrokerCsvFormat.DEGIRO_ACCOUNT,
+            sourceLine,
+            date,
+            if (kind == AccountKind.BUY) TransactionType.BUY else TransactionType.SELL,
+            symbol,
+            product,
+            isin,
+            booked,
         )
     }
 

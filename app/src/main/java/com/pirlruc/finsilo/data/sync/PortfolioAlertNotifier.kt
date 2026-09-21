@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.pirlruc.finsilo.R
 import com.pirlruc.finsilo.domain.usecase.AlertChannel
+import com.pirlruc.finsilo.domain.usecase.AlertPublishKey
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
 
 class PortfolioAlertNotifier(private val context: Context) {
@@ -26,6 +27,8 @@ class PortfolioAlertNotifier(private val context: Context) {
                     .setContentTitle(alert.title)
                     .setContentText(alert.body)
                     .setAutoCancel(true)
+                    .setVisibility(Notification.VISIBILITY_PRIVATE)
+                    .setPublicVersion(redacted(channelId(alert.channel)))
                     .build()
             manager.notify(notificationId(alert), notification)
             remember(alert)
@@ -57,6 +60,13 @@ class PortfolioAlertNotifier(private val context: Context) {
         AlertChannel.THRESHOLD -> CHANNEL_THRESHOLD
     }
 
+    private fun redacted(channelId: String): Notification = Notification.Builder(context, channelId)
+        .setSmallIcon(R.drawable.ic_stat_silo)
+        .setContentTitle("Portfolio alert")
+        .setContentText("Open FinSilo to view")
+        .setVisibility(Notification.VISIBILITY_PUBLIC)
+        .build()
+
     private fun alreadyPublished(alert: PortfolioAlert): Boolean =
         prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty().contains(alertKey(alert))
 
@@ -68,7 +78,7 @@ class PortfolioAlertNotifier(private val context: Context) {
 
     private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    private fun alertKey(alert: PortfolioAlert): String = "${alert.channel}|${alert.title}|${alert.body}"
+    private fun alertKey(alert: PortfolioAlert): String = AlertPublishKey.digest(alert.channel.name, alert.title, alert.body)
 
     private fun notificationId(alert: PortfolioAlert): Int = NOTIFICATION_BASE + (alertKey(alert).hashCode() and 0x7fffffff) % ID_SPAN
 

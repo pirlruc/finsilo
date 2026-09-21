@@ -17,6 +17,7 @@ import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.BrokerCapital
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatSignedEur
+import java.math.BigDecimal
 
 @Composable
 internal fun CapitalCard(allocation: AllocationReport) {
@@ -30,17 +31,11 @@ internal fun CapitalCard(allocation: AllocationReport) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            CapitalLine("Money put in", formatEur(allocation.contributedEur))
-            CapitalLine("Uninvested cash", formatEur(allocation.cashEur))
-            CapitalLine(
-                "Cash interest",
-                formatSignedEur(allocation.cashInterestEur),
-                signedAmountColor(allocation.cashInterestEur),
-            )
-            CapitalLine(
-                "Gain / loss",
-                formatSignedEur(allocation.totalGainEur),
-                signedAmountColor(allocation.totalGainEur),
+            CapitalMetrics(
+                allocation.contributedEur,
+                allocation.cashEur,
+                allocation.cashInterestEur,
+                allocation.totalGainEur,
             )
             allocation.brokers.forEach { BrokerCapitalBlock(it) }
         }
@@ -50,18 +45,15 @@ internal fun CapitalCard(allocation: AllocationReport) {
 @Composable
 private fun BrokerCapitalBlock(slice: BrokerCapital) {
     Text(slice.source.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    CapitalLine("Money put in", formatEur(slice.contributedEur))
-    CapitalLine("Uninvested cash", formatEur(slice.cashEur))
-    CapitalLine(
-        "Cash interest",
-        formatSignedEur(slice.cashInterestEur),
-        signedAmountColor(slice.cashInterestEur),
-    )
-    CapitalLine(
-        "Gain / loss",
-        formatSignedEur(slice.gainEur),
-        signedAmountColor(slice.gainEur),
-    )
+    CapitalMetrics(slice.contributedEur, slice.cashEur, slice.cashInterestEur, slice.gainEur)
+}
+
+@Composable
+private fun CapitalMetrics(contributed: BigDecimal, cash: BigDecimal, interest: BigDecimal, gain: BigDecimal) {
+    CapitalLine("Money put in", formatEur(contributed))
+    CapitalLine("Uninvested cash", formatEur(cash))
+    CapitalLine("Cash interest", formatSignedEur(interest), signedAmountColor(interest))
+    CapitalLine("Gain / loss", formatSignedEur(gain), signedAmountColor(gain))
 }
 
 @Composable

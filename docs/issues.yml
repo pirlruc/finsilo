@@ -140,8 +140,10 @@ milestones:
             GitHub issues, epic/task labels, or github-issue-adr milestones.
             LIM-GH: the cloud token is issues=read, so setup-issue-scaffold and
             issues-sync 403. Closed work from PR #15 (TOOL-002, GATE-005,
-            GATE-006, FS-032, FS-033-T1) and PR #18 (FS-033-T2, FS-033-T4,
-            FS-035) exists only in the YAML. FS-033 stays open for T3.
+            GATE-006, FS-032, FS-033-T1), PR #18 (FS-033-T2, FS-033-T4,
+            FS-035), PR #19 (broker CSV re-import), and PR #20 (FS-036-T1)
+            exists only in the YAML. FS-033 stays open for T3. FS-036 stays
+            open for T2–T5.
           goal: >-
             After Issues: Read and write is granted on the PAT or GitHub App,
             bootstrap labels and milestones, then sync so GitHub matches
@@ -2351,5 +2353,108 @@ milestones:
               - Schema export includes the post-change version
             guardrail_refs:
               - KT-API-002
+
+      - id: FS-036
+        status: open
+        title: Finish the review follow-ups that are not yet in code
+        overview:
+          problem: >-
+            PR #20 fixed manual capital attribution, shared the
+            broker-statement and AES-GCM paths, and stopped storing alert text
+            in plaintext prefs. Dates before the first FX row still borrow a
+            later rate, non-EUR/USD import fees still book as zero, shade
+            notifications can still show holdings while the in-app lock overlay
+            is up, and NAV rebuild still walks every day on ledger writes.
+          goal: >-
+            Keep those four as explicit tasks. Do not treat the current FX
+            fallback or the GBX-fee zero as a guardrail deviation: both match
+            tested behavior. Do not add scanner suppressions to close them.
+        decision: >-
+          In the context of a duplication and security review, facing tested
+          FX and fee behavior plus a 15-minute SQLCipher session, we decided
+          to ship the manual capital bucket, shared seal, and hashed alert
+          keys now, and leave FX backfill, fee currencies, overlay-time
+          notification redaction, and NAV walk cost as follow-up tasks, to
+          avoid changing NAV history or dropping alerts, accepting those four
+          stay open.
+        architecture:
+          target: Capital card, quote FX, CSV fees, notifications, NAV walk
+          modules:
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio
+            - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv
+            - app/src/main/java/com/pirlruc/finsilo/data/sync
+            - app/src/main/java/com/pirlruc/finsilo/ui/lock
+        acceptance_criteria:
+          - Manual deposits, cash interest, and untagged lots appear on the capital card
+          - PIN wraps and backups share one AES-GCM layout helper
+          - Published-alert prefs store a SHA-256 digest, and the lock-screen public version has no holding text
+          - Follow-up tasks stay open until FX, fees, overlay notifications, and NAV walk are decided in code
+        guardrail_refs:
+          - KT-SEC-002
+          - KT-CPLX-002
+          - KT-TEST-001
+        tasks:
+          - id: FS-036-T1
+            status: done
+            title: Show manual capital and share statement, seal, and alert digest code
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/CapitalAttributor.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv/StatementRows.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/lock/AesGcmPassphrase.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/AlertPublishKey.kt
+                - app/src/main/java/com/pirlruc/finsilo/data/sync/PortfolioAlertNotifier.kt
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.dashboard.DashboardReportFieldsTest
+            guardrail_refs:
+              - KT-SEC-002
+              - KT-TEST-002
+          - id: FS-036-T2
+            status: open
+            title: Decide FX for dates before the first stored rate
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            verification:
+              - ./gradlew :domain:test
+              - A date before the first FX row either stays unvalued or uses an explicit backfill, and tests name which
+            guardrail_refs:
+              - KT-TEST-001
+          - id: FS-036-T3
+            status: open
+            title: Stop booking unsupported import fee currencies as zero EUR
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv/BrokerMoney.kt
+            verification:
+              - ./gradlew :domain:test
+              - A non-zero GBX or GBP fee is converted or the row is skipped with a visible reason
+            guardrail_refs:
+              - KT-TEST-001
+          - id: FS-036-T4
+            status: open
+            title: Redact shade alerts while the in-app lock overlay is showing
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/sync/DailyMarketSyncWorker.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/AppLockGate.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - A 23:00 sync with the overlay up does not post holding names, and the alert still appears after unlock
+            guardrail_refs:
+              - KT-SEC-002
+          - id: FS-036-T5
+            status: open
+            title: Rebuild NAV from the changed date instead of a full daily walk
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/RoomPortfolioRepository.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/usecase/RebuildNavHistoryUseCase.kt
+            verification:
+              - ./gradlew :domain:test :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.RoomPortfolioRepositoryTest
+              - A one-row ledger edit does not revalue every day before changedFrom
+            guardrail_refs:
+              - KT-PERF-001
 
 

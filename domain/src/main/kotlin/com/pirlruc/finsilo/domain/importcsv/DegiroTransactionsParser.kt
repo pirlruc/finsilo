@@ -31,18 +31,15 @@ internal object DegiroTransactionsParser {
             ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_TRANSACTIONS, sourceLine, "Missing price", date)
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         val type = if (signedQty.signum() < 0) TransactionType.SELL else TransactionType.BUY
-        return BrokerLines.holding(
-            HoldingDraft(
-                format = BrokerCsvFormat.DEGIRO_TRANSACTIONS,
-                sourceLine = sourceLine,
-                date = date,
-                type = type,
-                symbol = symbol,
-                name = product,
-                isin = isin,
-                quoteSymbol = null,
-                booked = booked,
-            ),
+        return BrokerLines.degiroHolding(
+            BrokerCsvFormat.DEGIRO_TRANSACTIONS,
+            sourceLine,
+            date,
+            type,
+            symbol,
+            product,
+            isin,
+            booked,
         )
     }
 

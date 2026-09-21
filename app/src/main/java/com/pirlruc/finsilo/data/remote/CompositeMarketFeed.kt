@@ -32,13 +32,11 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         }.getOrNull()?.let { return it }
 
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("No FX rate (Frankfurter failed, no Alpha Vantage key)")
-        val json = http.get(
-            MarketFeedUrls.alphaVantage(
-                "function" to "CURRENCY_EXCHANGE_RATE",
-                "from_currency" to "USD",
-                "to_currency" to "EUR",
-                "apikey" to key,
-            ),
+        val json = alphaVantageGet(
+            key,
+            "function" to "CURRENCY_EXCHANGE_RATE",
+            "from_currency" to "USD",
+            "to_currency" to "EUR",
         )
         AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.exchangeRate(json)
@@ -100,12 +98,10 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
             return AnalystRating.NONE
         }
         val key = keys.alphaVantageKey() ?: return AnalystRating.NONE
-        val json = http.get(
-            MarketFeedUrls.alphaVantage(
-                "function" to "OVERVIEW",
-                "symbol" to ListedQuoteRouting.avSymbol(asset.feedSymbol),
-                "apikey" to key,
-            ),
+        val json = alphaVantageGet(
+            key,
+            "function" to "OVERVIEW",
+            "symbol" to ListedQuoteRouting.avSymbol(asset.feedSymbol),
         )
         AlphaVantageParser.ensureUsable(json)
         return AlphaVantageParser.analystRating(json)
@@ -123,13 +119,11 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
 
     private suspend fun alphaVantageDaily(symbol: String, compact: Boolean): List<PriceBar> {
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for $symbol")
-        val json = http.get(
-            MarketFeedUrls.alphaVantage(
-                "function" to "TIME_SERIES_DAILY",
-                "symbol" to ListedQuoteRouting.avSymbol(symbol),
-                "outputsize" to if (compact) "compact" else "full",
-                "apikey" to key,
-            ),
+        val json = alphaVantageGet(
+            key,
+            "function" to "TIME_SERIES_DAILY",
+            "symbol" to ListedQuoteRouting.avSymbol(symbol),
+            "outputsize" to if (compact) "compact" else "full",
         )
         val bars = AlphaVantageParser.dailyCloses(json)
         if (bars.isEmpty()) throw IllegalStateException("Alpha Vantage daily empty for $symbol")
@@ -140,25 +134,21 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         val key = keys.alphaVantageKey() ?: throw IllegalStateException("Alpha Vantage key required for commodities")
         val symbol = asset.feedSymbol.uppercase()
         if (symbol == "XAU" || symbol == "GOLD" || symbol == "XAUUSD") {
-            val json = http.get(
-                MarketFeedUrls.alphaVantage(
-                    "function" to "CURRENCY_EXCHANGE_RATE",
-                    "from_currency" to "XAU",
-                    "to_currency" to "USD",
-                    "apikey" to key,
-                ),
+            val json = alphaVantageGet(
+                key,
+                "function" to "CURRENCY_EXCHANGE_RATE",
+                "from_currency" to "XAU",
+                "to_currency" to "USD",
             )
             val rate = AlphaVantageParser.exchangeRate(json) ?: throw IllegalStateException("No XAU spot")
             return listOf(PriceBar(asOf, rate))
         }
         val function = COMMODITY_FUNCTIONS[symbol]
             ?: throw IllegalStateException("Unknown commodity $symbol")
-        val json = http.get(
-            MarketFeedUrls.alphaVantage(
-                "function" to function,
-                "interval" to "daily",
-                "apikey" to key,
-            ),
+        val json = alphaVantageGet(
+            key,
+            "function" to function,
+            "interval" to "daily",
         )
         return AlphaVantageParser.commoditySeries(json)
     }
@@ -171,6 +161,9 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         }
         return emptyList()
     }
+
+    private suspend fun alphaVantageGet(key: String, vararg query: Pair<String, String>): String =
+        http.get(MarketFeedUrls.alphaVantage(*query, "apikey" to key))
 
     private suspend fun stooqBars(ticker: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
         val csv = http.get(MarketFeedUrls.stooqDaily(ticker, compactFrom(compact, asOf)))

@@ -56,6 +56,29 @@ internal object BrokerLines {
             format = format,
         )
 
+    fun degiroHolding(
+        format: BrokerCsvFormat,
+        sourceLine: Int,
+        date: LocalDate,
+        type: TransactionType,
+        symbol: String,
+        name: String,
+        isin: String?,
+        booked: BookedAmounts,
+    ): BrokerCsvLine = holding(
+        HoldingDraft(
+            format = format,
+            sourceLine = sourceLine,
+            date = date,
+            type = type,
+            symbol = symbol,
+            name = name,
+            isin = isin,
+            quoteSymbol = null,
+            booked = booked,
+        ),
+    )
+
     fun holding(draft: HoldingDraft): BrokerCsvLine = BrokerCsvLine(
         date = draft.date,
         type = draft.type,
