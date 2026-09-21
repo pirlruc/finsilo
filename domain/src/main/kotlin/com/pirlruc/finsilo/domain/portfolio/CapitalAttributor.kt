@@ -31,7 +31,7 @@ internal object CapitalAttributor {
     }.toMap()
 
     private class Walk(private val assets: Map<String, Asset>, private val unitByAsset: Map<String, BigDecimal>) {
-        private val cashBy = LinkedHashMap<BrokerSource?, BigDecimal>()
+        private val cashBy = LinkedHashMap<BrokerSource, BigDecimal>()
         private val contributedBy = LinkedHashMap<BrokerSource, BigDecimal>()
         private val interestBy = LinkedHashMap<BrokerSource, BigDecimal>()
         private val localBy = HashMap<Pair<BrokerSource, String>, BigDecimal>()
@@ -49,7 +49,7 @@ internal object CapitalAttributor {
 
         fun finish(): List<BrokerCapital> {
             val invested = investedBySource()
-            val sources = (contributedBy.keys + cashBy.keys.filterNotNull() + interestBy.keys + invested.keys).toSet()
+            val sources = (contributedBy.keys + cashBy.keys + interestBy.keys + invested.keys).toSet()
             return sources.sortedBy { it.name }.map { source ->
                 val contributed = contributedBy[source] ?: ZERO
                 val cash = cashBy[source] ?: ZERO
@@ -64,13 +64,13 @@ internal object CapitalAttributor {
         }
 
         private fun deposit(tx: Transaction) {
-            creditCash(tx.source, tx.notionalEur)
-            bumpContributed(tx.source, tx.notionalEur)
+            creditCash(bucket(tx.source), tx.notionalEur)
+            bumpContributed(bucket(tx.source), tx.notionalEur)
         }
 
         private fun withdraw(tx: Transaction) {
             spend(tx.source, tx.notionalEur)
-            bumpContributed(tx.source, tx.notionalEur.negate())
+            bumpContributed(bucket(tx.source), tx.notionalEur.negate())
         }
 
         private fun buy(tx: Transaction) {
@@ -79,62 +79,63 @@ internal object CapitalAttributor {
             val asset = assets[tx.assetId] ?: return
             if (asset.assetType == AssetType.CASH) return
             if (asset.locallyValued) {
-                bumpLocal(tx.source, tx.assetId, cost)
+                bumpLocal(bucket(tx.source), tx.assetId, cost)
                 return
             }
-            lots.getOrPut(tx.assetId) { ArrayDeque() }.addLast(SourceLot(tx.source, tx.quantity, cost))
+            lots.getOrPut(tx.assetId) { ArrayDeque() }.addLast(SourceLot(bucket(tx.source), tx.quantity, cost))
         }
 
         private fun sell(tx: Transaction) {
             val asset = assets[tx.assetId]
             if (asset?.locallyValued == true) {
-                creditCash(tx.source, minus(tx.notionalEur, tx.feesEur))
-                bumpLocal(tx.source, tx.assetId, tx.notionalEur.negate())
+                creditCash(bucket(tx.source), minus(tx.notionalEur, tx.feesEur))
+                bumpLocal(bucket(tx.source), tx.assetId, tx.notionalEur.negate())
                 return
             }
             val filled = consume(tx.assetId, tx.quantity)
-            creditCash(tx.source, minus(times(tx.unitPriceEur, filled), tx.feesEur))
+            creditCash(bucket(tx.source), minus(times(tx.unitPriceEur, filled), tx.feesEur))
         }
 
         private fun income(tx: Transaction) {
             val asset = assets[tx.assetId]
+            val source = bucket(tx.source)
             if (tx.type == TransactionType.INTEREST && asset?.assetType == AssetType.CASH) {
-                creditCash(tx.source, tx.notionalEur)
-                tx.source?.let { interestBy[it] = plus(interestBy[it] ?: ZERO, tx.notionalEur) }
+                creditCash(source, tx.notionalEur)
+                interestBy[source] = plus(interestBy[source] ?: ZERO, tx.notionalEur)
                 return
             }
             if (asset?.locallyValued == true) {
-                bumpLocal(tx.source, tx.assetId, tx.notionalEur)
+                bumpLocal(source, tx.assetId, tx.notionalEur)
                 return
             }
-            creditCash(tx.source, tx.notionalEur)
+            creditCash(source, tx.notionalEur)
         }
 
-        private fun creditCash(source: BrokerSource?, amount: BigDecimal) {
+        private fun bucket(source: BrokerSource?): BrokerSource = source ?: BrokerSource.MANUAL
+
+        private fun creditCash(source: BrokerSource, amount: BigDecimal) {
             cashBy[source] = plus(cashBy[source] ?: ZERO, amount)
         }
 
-        private fun bumpContributed(source: BrokerSource?, amount: BigDecimal) {
-            if (source == null) return
+        private fun bumpContributed(source: BrokerSource, amount: BigDecimal) {
             contributedBy[source] = plus(contributedBy[source] ?: ZERO, amount)
         }
 
-        private fun bumpLocal(source: BrokerSource?, assetId: String, amount: BigDecimal) {
-            if (source == null) return
+        private fun bumpLocal(source: BrokerSource, assetId: String, amount: BigDecimal) {
             val key = source to assetId
             localBy[key] = plus(localBy[key] ?: ZERO, amount)
         }
 
         private fun spend(preferred: BrokerSource?, amount: BigDecimal) {
-            var left = amount
-            left = take(preferred, left)
+            val first = bucket(preferred)
+            var left = take(first, amount)
             if (left.signum() <= 0) return
-            cashBy.keys.filterNot { it == preferred }.forEach { source ->
+            cashBy.keys.filterNot { it == first }.forEach { source ->
                 if (left.signum() > 0) left = take(source, left)
             }
         }
 
-        private fun take(source: BrokerSource?, amount: BigDecimal): BigDecimal {
+        private fun take(source: BrokerSource, amount: BigDecimal): BigDecimal {
             val have = cashBy[source] ?: return amount
             val used = min(have, amount)
             cashBy[source] = minus(have, used)
@@ -169,14 +170,13 @@ internal object CapitalAttributor {
             lots.forEach { (assetId, queue) ->
                 val unit = unitByAsset[assetId]
                 queue.forEach { lot ->
-                    val source = lot.source ?: return@forEach
                     val value = unit?.let { times(lot.quantity, it) } ?: lot.cost
-                    values[source] = plus(values[source] ?: ZERO, value)
+                    values[lot.source] = plus(values[lot.source] ?: ZERO, value)
                 }
             }
             return values
         }
     }
 
-    private data class SourceLot(val source: BrokerSource?, val quantity: BigDecimal, val cost: BigDecimal)
+    private data class SourceLot(val source: BrokerSource, val quantity: BigDecimal, val cost: BigDecimal)
 }

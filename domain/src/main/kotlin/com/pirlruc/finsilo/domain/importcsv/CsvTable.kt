@@ -38,37 +38,24 @@ internal class CsvRow(private val headers: List<String>, private val cells: List
         }
     }
 
-    fun indexOf(aliases: Array<out String>): Int? {
-        for (alias in aliases) {
-            val want = normalizeHeader(alias)
-            val index = headers.indexOfFirst { normalizeHeader(it) == want }
-            if (index >= 0) return index
-        }
-        for (alias in aliases) {
-            val want = normalizeHeader(alias)
-            val index = headers.indexOfFirst { normalizeHeader(it).startsWith(want) }
-            if (index >= 0) return index
-        }
-        return null
-    }
+    fun indexOf(aliases: Array<out String>): Int? = firstHeader(aliases) { header, want -> header == want }
+        ?: firstHeader(aliases) { header, want -> header.startsWith(want) }
 
-    private fun exact(aliases: Array<out String>): String? {
-        for (alias in aliases) {
-            val want = normalizeHeader(alias)
-            val index = headers.indexOfFirst { normalizeHeader(it) == want }
-            if (index >= 0) return cellAt(index)
-        }
-        return null
-    }
+    private fun exact(aliases: Array<out String>): String? = firstHeader(aliases) { header, want -> header == want }?.let { cellAt(it) }
 
     private fun prefix(aliases: Array<out String>): String? {
         for (alias in aliases) {
+            val index = firstHeader(arrayOf(alias)) { header, want -> header.startsWith(want) }
+            if (index != null && cellAt(index).isNotEmpty()) return cellAt(index)
+        }
+        return null
+    }
+
+    private fun firstHeader(aliases: Array<out String>, match: (String, String) -> Boolean): Int? {
+        for (alias in aliases) {
             val want = normalizeHeader(alias)
-            val index = headers.indexOfFirst { normalizeHeader(it).startsWith(want) }
-            if (index >= 0) {
-                val value = cellAt(index)
-                if (value.isNotEmpty()) return value
-            }
+            val index = headers.indexOfFirst { match(normalizeHeader(it), want) }
+            if (index >= 0) return index
         }
         return null
     }

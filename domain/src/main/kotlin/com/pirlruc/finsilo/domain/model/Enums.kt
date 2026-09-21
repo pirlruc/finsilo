@@ -105,11 +105,12 @@ enum class HistoryRange {
     ALL,
 }
 
-/** Broker that produced an imported ledger row. Manual entries leave this unset. */
+/** Broker that produced an imported ledger row. Manual rows stay null; [MANUAL] is only a capital-card bucket. */
 enum class BrokerSource {
     TRADING_212,
     DEGIRO,
     REVOLUT,
+    MANUAL,
     ;
 
     val label: String
@@ -118,6 +119,7 @@ enum class BrokerSource {
                 TRADING_212 -> "Trading 212"
                 DEGIRO -> "DEGIRO"
                 REVOLUT -> "Revolut"
+                MANUAL -> "Manual"
             }
 }
 

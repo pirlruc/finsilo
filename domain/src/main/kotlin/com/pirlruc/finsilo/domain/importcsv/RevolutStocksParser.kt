@@ -5,47 +5,49 @@ import com.pirlruc.finsilo.domain.model.TransactionType
 internal object RevolutStocksParser {
     fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
-    private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
-        val date = BrokerDates.parse(row.get("Date", "Fecha", "Data", "Date started", "Date completed"))
-            ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Unreadable date")
-        val kind = row.get("Type", "Tipo").lowercase()
-        val type = actionType(kind)
-        if (type == null) return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Ignored ${row.get("Type", "Tipo")}", date)
-        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL || type == TransactionType.INTEREST) {
-            return cashRow(sourceLine, date, type, row)
-        }
-        return tradeRow(sourceLine, date, type, row)
-    }
+    private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine = StatementRows.dispatch(
+        format = BrokerCsvFormat.REVOLUT_STOCKS,
+        sourceLine = sourceLine,
+        dateRaw = row.get("Date", "Fecha", "Data", "Date started", "Date completed"),
+        actionLabel = row.get("Type", "Tipo"),
+        type = actionType(row.get("Type", "Tipo").lowercase()),
+        cash = { date, type -> cashRow(sourceLine, date, type, row) },
+        trade = { date, type -> tradeRow(sourceLine, date, type, row) },
+    )
 
-    private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
-        val amount = BrokerMoney.absAmount(row.get("Total Amount", "Total", "Importe total", "Montante total"))
-            ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash row missing amount", date)
-        val eur = BrokerMoney.toEurCash(amount, row.get("Currency", "Divisa", "Moeda"), row.get("FX Rate", "FX", "Tipo de cambio"))
-            ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Cash currency cannot be booked in EUR", date)
-        return BrokerLines.cash(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, date, type, eur)
-    }
+    private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine = StatementRows.cash(
+        CashBooking(
+            format = BrokerCsvFormat.REVOLUT_STOCKS,
+            sourceLine = sourceLine,
+            date = date,
+            type = type,
+            amount = BrokerMoney.absAmount(row.get("Total Amount", "Total", "Importe total", "Montante total")),
+            currency = row.get("Currency", "Divisa", "Moeda"),
+            exchangeRate = row.get("FX Rate", "FX", "Tipo de cambio"),
+            missing = "Cash row missing amount",
+            skipNonPositive = false,
+        ),
+    )
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
         val ticker = row.get("Ticker", "Symbol")
         val isin = row.get("ISIN").ifBlank { null }
-        if (ticker.isBlank() && isin == null) {
-            return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Trade missing ticker", date)
-        }
         val booked = BrokerMoney.book(money(row, type))
-            ?: return BrokerLines.skip(BrokerCsvFormat.REVOLUT_STOCKS, sourceLine, "Trade missing quantity/price", date)
         val quote = BrokerQuoteSymbol.fromIsin(ticker.ifBlank { isin.orEmpty() }, isin)
-        val fx = booked.eurPerUsd ?: BrokerMoney.eurPerUsdRate(row.get("FX Rate", "FX"))
-        return BrokerLines.holding(
-            HoldingDraft(
+        val fx = booked?.eurPerUsd ?: BrokerMoney.eurPerUsdRate(row.get("FX Rate", "FX"))
+        return StatementRows.bookedHolding(
+            ListedTrade(
                 format = BrokerCsvFormat.REVOLUT_STOCKS,
                 sourceLine = sourceLine,
                 date = date,
                 type = type,
-                symbol = quote,
-                name = ticker.ifBlank { isin.orEmpty() },
+                ticker = ticker,
                 isin = isin,
-                quoteSymbol = quote,
-                booked = booked.copy(eurPerUsd = fx),
+                name = ticker.ifBlank { isin.orEmpty() },
+                quote = quote,
+                booked = booked?.copy(eurPerUsd = fx),
+                missingInstrument = "Trade missing ticker",
+                missingBook = "Trade missing quantity/price",
             ),
         )
     }

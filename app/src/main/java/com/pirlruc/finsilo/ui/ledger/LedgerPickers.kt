@@ -19,78 +19,63 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.ui.theme.label
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AssetPicker(assets: List<Asset>, selectedId: String?, onSelected: (String?) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
     val label = assets.firstOrNull { it.id == selectedId }?.let { "${it.symbol} · ${it.name}" } ?: "Select instrument"
+    LedgerDropdown(
+        fieldLabel = "Instrument",
+        value = label,
+        options = assets,
+        optionLabel = { asset -> "${asset.symbol} · ${asset.name}" },
+        onSelected = { asset -> onSelected(asset.id) },
+    )
+}
+
+@Composable
+internal fun TypePicker(selected: AssetType, onSelected: (AssetType) -> Unit) {
+    val options = AssetType.entries.filter { it != AssetType.CASH }
+    LedgerDropdown(
+        fieldLabel = "Investment type",
+        value = selected.label(),
+        options = options,
+        optionLabel = { it.label() },
+        onSelected = onSelected,
+    )
+}
+
+@Composable
+internal fun CurrencyPicker(selected: Currency, onSelected: (Currency) -> Unit) {
+    LedgerDropdown(
+        fieldLabel = "Booking currency",
+        value = selected.name,
+        options = Currency.entries,
+        optionLabel = { it.name },
+        onSelected = onSelected,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> LedgerDropdown(fieldLabel: String, value: String, options: List<T>, optionLabel: (T) -> String, onSelected: (T) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
-            value = label,
+            value = value,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Instrument") },
+            label = { Text(fieldLabel) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            assets.forEach { asset ->
+            options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text("${asset.symbol} · ${asset.name}") },
+                    text = { Text(optionLabel(option)) },
                     onClick = {
-                        onSelected(asset.id)
+                        onSelected(option)
                         expanded = false
                     },
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun TypePicker(selected: AssetType, onSelected: (AssetType) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = AssetType.entries.filter { it != AssetType.CASH }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = selected.label(),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Investment type") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { type ->
-                DropdownMenuItem(text = { Text(type.label()) }, onClick = {
-                    onSelected(type)
-                    expanded = false
-                })
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun CurrencyPicker(selected: Currency, onSelected: (Currency) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = selected.name,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Booking currency") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            Currency.entries.forEach { currency ->
-                DropdownMenuItem(text = { Text(currency.name) }, onClick = {
-                    onSelected(currency)
-                    expanded = false
-                })
             }
         }
     }

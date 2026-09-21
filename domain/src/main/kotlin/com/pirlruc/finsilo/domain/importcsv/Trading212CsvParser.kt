@@ -5,48 +5,47 @@ import com.pirlruc.finsilo.domain.model.TransactionType
 internal object Trading212CsvParser {
     fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
-    private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
-        val action = row.get("Action").lowercase()
-        val date = BrokerDates.parse(row.get("Time"))
-        val type = actionType(action)
-        if (date == null) return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Unreadable date")
-        if (type == null) return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Ignored ${row.get("Action")}", date)
-        if (type == TransactionType.DEPOSIT_CASH || type == TransactionType.WITHDRAWAL || type == TransactionType.INTEREST) {
-            return cashRow(sourceLine, date, type, row)
-        }
-        return tradeRow(sourceLine, date, type, row)
-    }
+    private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine = StatementRows.dispatch(
+        format = BrokerCsvFormat.TRADING_212,
+        sourceLine = sourceLine,
+        dateRaw = row.get("Time"),
+        actionLabel = row.get("Action"),
+        type = actionType(row.get("Action").lowercase()),
+        cash = { date, type -> cashRow(sourceLine, date, type, row) },
+        trade = { date, type -> tradeRow(sourceLine, date, type, row) },
+    )
 
-    private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
-        val amount = BrokerMoney.absAmount(row.get("Total")) ?: BrokerMoney.absAmount(row.get("Result"))
-        if (amount == null || amount.signum() <= 0) {
-            return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Cash row missing Total", date)
-        }
-        val eur = BrokerMoney.toEurCash(amount, row.get("Currency (Total)"), row.get("Exchange rate"))
-            ?: return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Cash currency cannot be booked in EUR", date)
-        return BrokerLines.cash(BrokerCsvFormat.TRADING_212, sourceLine, date, type, eur)
-    }
+    private fun cashRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine = StatementRows.cash(
+        CashBooking(
+            format = BrokerCsvFormat.TRADING_212,
+            sourceLine = sourceLine,
+            date = date,
+            type = type,
+            amount = BrokerMoney.absAmount(row.get("Total")) ?: BrokerMoney.absAmount(row.get("Result")),
+            currency = row.get("Currency (Total)"),
+            exchangeRate = row.get("Exchange rate"),
+            missing = "Cash row missing Total",
+            skipNonPositive = true,
+        ),
+    )
 
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
         val ticker = row.get("Ticker")
         val isin = row.get("ISIN").ifBlank { null }
-        if (ticker.isBlank() && isin == null) {
-            return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Trade missing ticker", date)
-        }
-        val booked = BrokerMoney.book(money(row, type))
-            ?: return BrokerLines.skip(BrokerCsvFormat.TRADING_212, sourceLine, "Trade missing quantity/price", date)
         val quote = BrokerQuoteSymbol.fromTrading212(ticker.ifBlank { isin.orEmpty() })
-        return BrokerLines.holding(
-            HoldingDraft(
+        return StatementRows.bookedHolding(
+            ListedTrade(
                 format = BrokerCsvFormat.TRADING_212,
                 sourceLine = sourceLine,
                 date = date,
                 type = type,
-                symbol = quote,
-                name = row.get("Name"),
+                ticker = ticker,
                 isin = isin,
-                quoteSymbol = quote,
-                booked = booked,
+                name = row.get("Name"),
+                quote = quote,
+                booked = BrokerMoney.book(money(row, type)),
+                missingInstrument = "Trade missing ticker",
+                missingBook = "Trade missing quantity/price",
             ),
         )
     }
