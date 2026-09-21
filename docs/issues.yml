@@ -140,8 +140,10 @@ milestones:
             GitHub issues, epic/task labels, or github-issue-adr milestones.
             LIM-GH: the cloud token is issues=read, so setup-issue-scaffold and
             issues-sync 403. Closed work from PR #15 (TOOL-002, GATE-005,
-            GATE-006, FS-032, FS-033-T1) and PR #18 (FS-033-T2, FS-033-T4,
-            FS-035) exists only in the YAML. FS-033 stays open for T3.
+            GATE-006, FS-032, FS-033-T1), PR #18 (FS-033-T2, FS-033-T4,
+            FS-035), PR #19 (broker CSV re-import), and PR #20 (FS-036-T1)
+            exists only in the YAML. FS-033 stays open for T3. FS-036 stays
+            open for T2–T5.
           goal: >-
             After Issues: Read and write is granted on the PAT or GitHub App,
             bootstrap labels and milestones, then sync so GitHub matches
@@ -2357,7 +2359,7 @@ milestones:
         title: Finish the review follow-ups that are not yet in code
         overview:
           problem: >-
-            A review pass fixed manual capital attribution, shared the
+            PR #20 fixed manual capital attribution, shared the
             broker-statement and AES-GCM paths, and stopped storing alert text
             in plaintext prefs. Dates before the first FX row still borrow a
             later rate, non-EUR/USD import fees still book as zero, shade
