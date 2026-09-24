@@ -222,7 +222,7 @@ class LockViewModel(
     fun biometricWrapBlob(): ByteArray? = keys?.biometricWrapBlob()
 
     fun finishBiometricSeal(blob: ByteArray) {
-        val stored = keys?.persistBiometricWrap(blob) ?: true
+        val stored = runCatching { keys?.persistBiometricWrap(blob) ?: true }.getOrDefault(false)
         if (!stored || !store.setBiometricEnabled(true)) {
             keys?.persistBiometricWrap(null)
             _state.update { it.copy(error = "Could not store biometric unlock.", pendingBiometricSeal = false) }
@@ -235,6 +235,15 @@ class LockViewModel(
                 status = "Biometric unlock enabled.",
                 error = null,
             )
+        }
+    }
+
+    /** Drops a wrap that no longer matches the biometric key so the next PIN can reseal it. */
+    fun discardBiometricWrap() {
+        runCatching {
+            keys?.persistBiometricWrap(null)
+            BiometricKeyWrap.deleteKey()
+            BiometricSessionCipher.deleteKey()
         }
     }
 
@@ -284,6 +293,14 @@ class LockViewModel(
             _state.update { it.copy(working = true, error = null) }
             try {
                 block()
+            } catch (error: Exception) {
+                _state.update { current ->
+                    if (current.error != null) {
+                        current
+                    } else {
+                        current.copy(error = error.message ?: "Could not open the encrypted ledger.")
+                    }
+                }
             } finally {
                 inFlight.set(false)
                 _state.update { it.copy(working = false) }
@@ -533,6 +550,7 @@ class LockViewModel(
         if (!enabled) {
             keys?.persistBiometricWrap(null)
             BiometricKeyWrap.deleteKey()
+            BiometricSessionCipher.deleteKey()
             store.setBiometricEnabled(false)
             _state.update {
                 it.copy(

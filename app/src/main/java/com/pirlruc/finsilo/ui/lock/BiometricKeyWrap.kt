@@ -10,7 +10,8 @@ import javax.crypto.spec.GCMParameterSpec
  * biometrics on every use. PIN and recovery wraps stay independent.
  */
 internal object BiometricKeyWrap {
-    private const val KEY_NAME: String = "finsilo_biometric_db"
+    private const val KEY_NAME: String = "finsilo_biometric_db_v2"
+    private const val LEGACY_KEY_NAME: String = "finsilo_biometric_db"
     private const val TRANSFORMATION: String = "AES/GCM/NoPadding"
     private const val IV_BYTES: Int = 12
     private const val TAG_BITS: Int = 128
@@ -46,5 +47,6 @@ internal object BiometricKeyWrap {
 
     fun deleteKey() {
         KeystoreAesGcmKey.delete(KEY_NAME)
+        KeystoreAesGcmKey.delete(LEGACY_KEY_NAME)
     }
 }

@@ -9,7 +9,8 @@ import javax.crypto.Cipher
  * (FS-027: biometric never opens the ledger on a cold process).
  */
 internal object BiometricSessionCipher {
-    private const val KEY_NAME: String = "finsilo_biometric_ui"
+    private const val KEY_NAME: String = "finsilo_biometric_ui_v2"
+    private const val LEGACY_KEY_NAME: String = "finsilo_biometric_ui"
     private const val TRANSFORMATION: String = "AES/GCM/NoPadding"
     private val confirmPayload: ByteArray = byteArrayOf(0x46, 0x53)
 
@@ -22,5 +23,10 @@ internal object BiometricSessionCipher {
     fun confirm(result: BiometricPrompt.AuthenticationResult): Boolean {
         val cipher = result.cryptoObject?.cipher ?: return false
         return runCatching { cipher.doFinal(confirmPayload) }.isSuccess
+    }
+
+    fun deleteKey() {
+        KeystoreAesGcmKey.delete(KEY_NAME)
+        KeystoreAesGcmKey.delete(LEGACY_KEY_NAME)
     }
 }

@@ -160,9 +160,14 @@ class LedgerEntryViewModel(
     }
 
     private suspend fun reload(resetForm: Boolean) {
-        val session = LedgerFormSessionFactory.load(repository, _state.value, resetForm)
-        snapshot = session.snapshot
-        _state.value = LedgerFormSessionFactory.withHints(session.snapshot, session.state, ledger)
+        runCatching { LedgerFormSessionFactory.load(repository, _state.value, resetForm) }
+            .onSuccess { session ->
+                snapshot = session.snapshot
+                _state.value = LedgerFormSessionFactory.withHints(session.snapshot, session.state, ledger)
+            }
+            .onFailure { error ->
+                _state.update { it.copy(error = error.message ?: "Could not open the encrypted ledger.") }
+            }
     }
 
     private fun resetFormFields(status: String) {

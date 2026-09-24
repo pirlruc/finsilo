@@ -91,6 +91,7 @@ private fun finishUnwrap(viewModel: LockViewModel, result: BiometricPrompt.Authe
     val key = BiometricKeyWrap.open(result, wrap)
     try {
         if (key == null) {
+            viewModel.discardBiometricWrap()
             viewModel.showPinFallback()
             viewModel.setError("Unlock with biometrics failed. Enter PIN.")
         } else {

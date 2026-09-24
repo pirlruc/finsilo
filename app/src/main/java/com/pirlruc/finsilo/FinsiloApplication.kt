@@ -48,11 +48,21 @@ class AppContainer(val application: Application) {
     @Synchronized
     fun openLedger() {
         if (database != null) return
+        val passphrase = keys.sessionPassphrase()
         val db =
             Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
-                .openHelperFactory(SupportOpenHelperFactory(keys.sessionPassphrase()))
+                .openHelperFactory(SupportOpenHelperFactory(passphrase))
                 .addMigrations(FinsiloDatabase.MIGRATION_1_2)
                 .build()
+        try {
+            // Open now, off the main thread, so a bad SQLCipher key fails the unlock
+            // instead of crashing the first ledger screen that queries Room.
+            db.openHelper.writableDatabase
+        } catch (error: RuntimeException) {
+            db.close()
+            passphrase.fill(0)
+            throw error
+        }
         database = db
         portfolioRepository = RoomPortfolioRepository(db, widgetNav)
     }
