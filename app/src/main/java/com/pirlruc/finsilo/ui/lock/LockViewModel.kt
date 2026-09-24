@@ -238,6 +238,15 @@ class LockViewModel(
         }
     }
 
+    /** Drops a wrap that no longer matches the biometric key so the next PIN can reseal it. */
+    fun discardBiometricWrap() {
+        runCatching {
+            keys?.persistBiometricWrap(null)
+            BiometricKeyWrap.deleteKey()
+            BiometricSessionCipher.deleteKey()
+        }
+    }
+
     fun cancelBiometricSeal() {
         val keep = store.biometricEnabled()
         _state.update { it.copy(pendingBiometricSeal = false, biometric = keep) }
@@ -541,6 +550,7 @@ class LockViewModel(
         if (!enabled) {
             keys?.persistBiometricWrap(null)
             BiometricKeyWrap.deleteKey()
+            BiometricSessionCipher.deleteKey()
             store.setBiometricEnabled(false)
             _state.update {
                 it.copy(
