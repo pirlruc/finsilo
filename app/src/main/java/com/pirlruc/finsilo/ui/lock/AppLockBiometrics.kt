@@ -61,6 +61,7 @@ internal fun shouldAutoPrompt(state: LockUiState): Boolean {
 
 private fun onBiometricError(viewModel: LockViewModel, message: String) {
     viewModel.setBiometricPromptActive(false)
+    if (message == BIOMETRIC_KEY_RESET) viewModel.dropBiometricWrap()
     if (message == BIOMETRIC_PIN_FALLBACK) {
         viewModel.showPinFallback()
     } else {

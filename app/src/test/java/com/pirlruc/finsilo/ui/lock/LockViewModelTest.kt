@@ -175,6 +175,17 @@ class LockViewModelTest {
     }
 
     @Test
+    fun ledgerOpenFailureStaysOnTheLockScreen() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val viewModel =
+            LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys, openLedger = { error("file is not a database") })
+        viewModel.unlockWithBiometric()
+        assertFalse(viewModel.state.value.unlocked)
+        assertEquals("file is not a database", viewModel.state.value.error)
+        assertFalse(viewModel.state.value.working)
+    }
+
+    @Test
     fun biometricWorksWhenSessionAlreadyOpen() {
         val keys = FakeLedgerKeys(sessionOpen = true)
         var opened = 0

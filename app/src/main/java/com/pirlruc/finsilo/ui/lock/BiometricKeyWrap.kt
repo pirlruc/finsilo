@@ -1,8 +1,12 @@
 package com.pirlruc.finsilo.ui.lock
 
+import android.security.keystore.KeyPermanentlyInvalidatedException
+import android.security.keystore.UserNotAuthenticatedException
 import androidx.biometric.BiometricPrompt
 import com.pirlruc.finsilo.data.security.KeystoreAesGcmKey
+import java.security.GeneralSecurityException
 import javax.crypto.Cipher
+import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
@@ -17,18 +21,21 @@ internal object BiometricKeyWrap {
 
     fun encryptObject(): BiometricPrompt.CryptoObject {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        initOrReplace { cipher.init(Cipher.ENCRYPT_MODE, it) }
         return BiometricPrompt.CryptoObject(cipher)
     }
 
     fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
         require(blob.size > IV_BYTES) { "Biometric wrap is truncated." }
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            KeystoreAesGcmKey.getOrCreate(KEY_NAME),
-            GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES)),
-        )
+        val spec = GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES))
+        try {
+            cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME), spec)
+        } catch (error: GeneralSecurityException) {
+            if (!isStaleBiometricKey(error)) throw error
+            KeystoreAesGcmKey.delete(KEY_NAME)
+            throw IllegalStateException(BIOMETRIC_KEY_RESET)
+        }
         return BiometricPrompt.CryptoObject(cipher)
     }
 
@@ -47,4 +54,25 @@ internal object BiometricKeyWrap {
     fun deleteKey() {
         KeystoreAesGcmKey.delete(KEY_NAME)
     }
+
+    private fun initOrReplace(init: (SecretKey) -> Unit) {
+        try {
+            init(KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        } catch (error: GeneralSecurityException) {
+            if (!isStaleBiometricKey(error)) throw error
+            KeystoreAesGcmKey.delete(KEY_NAME)
+            init(KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        }
+    }
+}
+
+internal const val BIOMETRIC_KEY_RESET: String = "Biometrics changed. Enter PIN."
+
+internal fun isStaleBiometricKey(error: GeneralSecurityException): Boolean {
+    var current: Throwable? = error
+    while (current != null) {
+        if (current is KeyPermanentlyInvalidatedException || current is UserNotAuthenticatedException) return true
+        current = current.cause
+    }
+    return false
 }

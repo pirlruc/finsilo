@@ -48,11 +48,19 @@ class AppContainer(val application: Application) {
     @Synchronized
     fun openLedger() {
         if (database != null) return
+        // SQLCipher keeps this array for later connections. Do not zero it.
+        val passphrase = keys.sessionPassphrase().copyOf()
         val db =
             Room.databaseBuilder(application, FinsiloDatabase::class.java, DB_NAME)
-                .openHelperFactory(SupportOpenHelperFactory(keys.sessionPassphrase()))
+                .openHelperFactory(SupportOpenHelperFactory(passphrase))
                 .addMigrations(FinsiloDatabase.MIGRATION_1_2)
                 .build()
+        try {
+            db.openHelper.writableDatabase
+        } catch (error: Exception) {
+            db.close()
+            throw error
+        }
         database = db
         portfolioRepository = RoomPortfolioRepository(db, widgetNav)
     }

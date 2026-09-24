@@ -52,14 +52,20 @@ internal fun rememberBiometricPrompt(
             onError(error.message ?: "Biometric unlock failed")
             return@launchPrompt
         }
-        host.authenticate(
-            BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock FinSilo")
-                .setNegativeButtonText("Use PIN")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                .build(),
-            crypto,
-        )
+        val started =
+            runCatching {
+                host.authenticate(
+                    BiometricPrompt.PromptInfo.Builder()
+                        .setTitle("Unlock FinSilo")
+                        .setNegativeButtonText("Use PIN")
+                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                        .build(),
+                    crypto,
+                )
+            }
+        if (started.isFailure) {
+            onError(started.exceptionOrNull()?.message ?: "Biometric unlock failed")
+        }
     }
 }
 
