@@ -49,7 +49,9 @@ internal object AesGcmPassphrase {
     private fun wrappingKey(secret: String, salt: ByteArray): SecretKeySpec {
         val bits = AppLockCrypto.hashSecret(secret, salt)
         return try {
-            SecretKeySpec(bits, "AES")
+            // Copy before zeroing. SecretKeySpec is not required to clone its input,
+            // and wiping the same array would encrypt the SQLCipher key under an all-zero AES key.
+            SecretKeySpec(bits.copyOf(), "AES")
         } finally {
             bits.fill(0)
         }

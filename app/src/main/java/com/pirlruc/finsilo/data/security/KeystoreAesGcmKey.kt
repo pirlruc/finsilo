@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.data.security
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
@@ -35,6 +36,12 @@ internal object KeystoreAesGcmKey {
                     .setRandomizedEncryptionRequired(randomizedEncryptionRequired)
             if (userAuthenticationRequired) {
                 builder.setUserAuthenticationRequired(true)
+                // API 30+ defaults can include device credential, which rejects
+                // setInvalidatedByBiometricEnrollment and yields a CryptoObject with no
+                // keystore operation id. BiometricPrompt then crashes in the system server.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+                }
             }
             if (invalidatedByBiometricEnrollment) {
                 builder.setInvalidatedByBiometricEnrollment(true)

@@ -33,6 +33,22 @@ class LockViewModelTest {
     }
 
     @Test
+    fun ledgerOpenFailureStaysOnTheLockScreen() {
+        val viewModel =
+            LockViewModel(
+                FakeAppLock(),
+                dispatcher,
+                { 1L },
+                openLedger = { error("file is not a database") },
+            )
+        viewModel.setPin("1234")
+        viewModel.unlockWithPin()
+        assertFalse(viewModel.state.value.unlocked)
+        assertEquals("file is not a database", viewModel.state.value.error)
+        assertFalse(viewModel.state.value.working)
+    }
+
+    @Test
     fun emptyPinDoesNotUnlockOrCountAsFailure() {
         val store = FakeAppLock()
         val viewModel = LockViewModel(store, dispatcher, { 1L })
