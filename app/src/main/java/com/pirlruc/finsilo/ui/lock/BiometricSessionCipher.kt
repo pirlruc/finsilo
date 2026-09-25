@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.ui.lock
 
 import androidx.biometric.BiometricPrompt
 import com.pirlruc.finsilo.data.security.KeystoreAesGcmKey
+import java.security.GeneralSecurityException
 import javax.crypto.Cipher
 
 /**
@@ -15,7 +16,13 @@ internal object BiometricSessionCipher {
 
     fun cryptoObject(): BiometricPrompt.CryptoObject {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        try {
+            cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        } catch (error: GeneralSecurityException) {
+            if (!isStaleBiometricKey(error)) throw error
+            KeystoreAesGcmKey.delete(KEY_NAME)
+            cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+        }
         return BiometricPrompt.CryptoObject(cipher)
     }
 

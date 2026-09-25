@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.data.security
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
@@ -34,6 +35,7 @@ internal object KeystoreAesGcmKey {
                     .setKeySize(256)
                     .setRandomizedEncryptionRequired(randomizedEncryptionRequired)
             if (userAuthenticationRequired) {
+                requireBiometricEveryUse(builder)
                 builder.setUserAuthenticationRequired(true)
             }
             if (invalidatedByBiometricEnrollment) {
@@ -41,6 +43,20 @@ internal object KeystoreAesGcmKey {
             }
             generator.init(builder.build())
             return generator.generateKey()
+        }
+    }
+
+    /**
+     * Per-use strong biometrics so [androidx.biometric.BiometricPrompt.CryptoObject] can bind
+     * the cipher. `setUserAuthenticationRequired(true)` alone is a time-based key on API 30+
+     * and `Cipher.init` then throws, which crashes the prompt after PIN or enrollment.
+     */
+    private fun requireBiometricEveryUse(builder: KeyGenParameterSpec.Builder) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+        } else {
+            @Suppress("DEPRECATION")
+            builder.setUserAuthenticationValidityDurationSeconds(-1)
         }
     }
 

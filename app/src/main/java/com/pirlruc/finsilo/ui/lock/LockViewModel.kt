@@ -12,6 +12,7 @@ import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -238,6 +239,10 @@ class LockViewModel(
         }
     }
 
+    fun dropBiometricWrap() {
+        keys?.persistBiometricWrap(null)
+    }
+
     fun cancelBiometricSeal() {
         val keep = store.biometricEnabled()
         _state.update { it.copy(pendingBiometricSeal = false, biometric = keep) }
@@ -284,6 +289,9 @@ class LockViewModel(
             _state.update { it.copy(working = true, error = null) }
             try {
                 block()
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                _state.update { it.copy(error = error.message ?: "Could not unlock the ledger.") }
             } finally {
                 inFlight.set(false)
                 _state.update { it.copy(working = false) }
