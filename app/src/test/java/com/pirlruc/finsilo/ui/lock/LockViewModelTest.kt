@@ -175,6 +175,20 @@ class LockViewModelTest {
     }
 
     @Test
+    fun staleBiometricKeyStopsAutoPromptUntilPin() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        keys.persistBiometricWrap(byteArrayOf(1, 2, 3))
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        viewModel.setBiometric(true)
+        viewModel.setBiometricAvailable(true)
+        onBiometricError(viewModel, BIOMETRIC_KEY_RESET)
+        assertTrue(viewModel.state.value.pinFallback)
+        assertEquals(BIOMETRIC_KEY_RESET, viewModel.state.value.error)
+        assertNull(keys.biometricWrapBlob())
+        assertFalse(shouldAutoPrompt(viewModel.state.value))
+    }
+
+    @Test
     fun ledgerOpenFailureStaysOnTheLockScreen() {
         val keys = FakeLedgerKeys(sessionOpen = true)
         val viewModel =
