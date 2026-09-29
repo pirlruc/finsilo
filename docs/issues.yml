@@ -203,12 +203,17 @@ milestones:
           Kotlin maintainability index the pack now forbids, we decided to pin
           guardrails 1.8.0 and github-scaffold 1.7.0 as submodules and cite
           methodologies 1.7.0 by tag, to achieve the same pack CI thinks it
-          has, accepting that private ops reusable workflows stay unwired on
-          this public repo until a caller token and access grant exist.
+          has, accepting that cppdevops, pydevops, and containerdevops stay
+          unwired. Previously the Y-statement left commondevops unwired until
+          a caller token existed. COMMONDEVOPS_READ_TOKEN is now set, so the
+          language-agnostic commondevops jobs are thin callers. The caller
+          uses that token the same way a private repository would, so a later
+          switch back to private does not change the workflow.
         out_of_scope:
           - Calling pirlruc/cppdevops, pydevops, or containerdevops jobs
           - Submoduling methodologies or the ops repos (commondevops pins only guardrails and github-scaffold)
           - Publishing GitHub issues (TOOL-003)
+          - Uncommenting Dependabot registries before DEPENDABOT_GITHUB_TOKEN exists
         architecture:
           target: Analog gitlinks, consumer threshold copies, and Kotlin lint exceptions
           modules:
@@ -269,6 +274,16 @@ milestones:
                 - app/src/main/java/com/pirlruc/finsilo/ui
             verification:
               - python3 scripts/check-lint-exceptions.py
+          - id: TOOL-004-T4
+            status: done
+            title: Call commondevops language-agnostic jobs with the read token
+            instructions:
+              files:
+                - .github/workflows/ops-reuse.yml
+                - scripts/analog-pins.env
+                - scripts/check-analog-pins.sh
+            verification:
+              - bash scripts/check-analog-pins.sh
 
   - name: Phase 1 — Foundation
     epics:

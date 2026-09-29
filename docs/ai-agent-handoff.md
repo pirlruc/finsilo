@@ -140,7 +140,7 @@ FinSilo follows the commondevops submodule strategy: `docs/guardrails` and `.git
 
 | Repo | Jobs that fit this app | Wired here? |
 | --- | --- | --- |
-| commondevops | `common-infra-lint` (actionlint, shellcheck, zizmor), `common-doc-verify`, `common-scaffold-verify`, `common-scorecard` | No. A public caller cannot depend on a private `uses:` until repo access and `COMMONDEVOPS_READ_TOKEN` are confirmed. ShellCheck and markdown link lint stay local. Filed [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160) and pin [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159). |
+| commondevops | `common-infra-lint` (actionlint, shellcheck, zizmor), `common-doc-verify`, `common-scaffold-verify`, `common-scorecard` | Yes, in `.github/workflows/ops-reuse.yml`, pinned at **5.1.2** `b3c462be`. `checkout_token` / Scorecard `repo_token` are `COMMONDEVOPS_READ_TOKEN`. Treat the caller as private-capable: do not drop the token if this repo is public. commondevops must allow Actions access from this repository or the `uses:` fetch fails before the token runs. Local ShellCheck and link lint stay. Scorecard publishes only while visibility is public. The Scorecard PAT must also be able to read this repository when it is private. Filed [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160) and pin [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159). |
 | commondevops | `common-secrets-sast` | No. It runs `semgrep --config auto`, not `p/kotlin` (KT-SEC-002). |
 | commondevops | `common-supply-chain` | No. Syft-on-directory does not see the Gradle graph. Grype stays on the CycloneDX BOM. |
 | commondevops | `common-release`, `artifact-sweep` | No. This app does not publish GHCR images or cut that release workflow. |
@@ -160,6 +160,8 @@ Unlock crash fix: biometric Keystore keys now require per-use `AUTH_BIOMETRIC_ST
 
 Analog bump ([TOOL-004](issues.yml)): guardrails **1.8.0** (`aa5184ce`) and github-scaffold **1.7.0** (`e76bb3fd`). Methodologies citations in repo-owned docs are **1.7.0**. The SEI maintainability job is gone. ViewModel factories use `viewModelFactory`. One `@Suppress("DEPRECATION")` remains for the API 26–29 biometric key spec. `docs/guardrail-deviations.yml` stays empty.
 
-Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159 and #160, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118.
+Ops reuse ([TOOL-004-T4](issues.yml)): `.github/workflows/ops-reuse.yml` calls commondevops `common-infra-lint`, `common-doc-verify`, `common-scaffold-verify`, and `common-scorecard` at tag **5.1.2** (`b3c462be`) with Actions secret `COMMONDEVOPS_READ_TOKEN`. Keep that private-caller pattern while this repo is public. Dependabot still needs its own secret `DEPENDABOT_GITHUB_TOKEN` (Contents: Read on guardrails, github-scaffold, and commondevops) before `registries:` is uncommented. That secret is not the Actions token.
 
-*Last updated: 2026-09-29 (guardrails 1.8.0, scaffold 1.7.0, sibling issues)*
+Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159 and #160, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118. Each body says to add that epic to the target repo's `docs/issues.yml` before the next issues-sync, matching the `[ID]` already in the title.
+
+*Last updated: 2026-09-29 (ops-reuse caller, Dependabot secret split)*

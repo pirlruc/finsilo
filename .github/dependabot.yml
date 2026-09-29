@@ -16,6 +16,13 @@
 #   DEPENDABOT_GITHUB_TOKEN  fine-grained PAT, Contents: Read, covering private
 #                            submodules and reusable-workflow hosts — not only
 #                            package deps. Wire as github-private below.
+#                            This is not COMMONDEVOPS_READ_TOKEN. That secret is
+#                            an Actions secret. Dependabot cannot read it.
+#                            The PAT must include pirlruc/guardrails,
+#                            pirlruc/github-scaffold, and pirlruc/commondevops.
+#                            After it exists: uncomment registries, add
+#                            `registries: [github-private]` on github-actions
+#                            and on a new `gitsubmodule` entry (SC-DEP-001/005).
 #   DOCKERHUB_USERNAME       dhi.io / Docker Hub username
 #   DOCKERHUB_TOKEN          matching registry token
 #

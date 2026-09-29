@@ -30,3 +30,12 @@ assert_gitlink() {
 
 assert_gitlink docs/guardrails "$GUARDRAILS_SHA" "$GUARDRAILS_REF"
 assert_gitlink .github/scaffold "$SCAFFOLD_SHA" "$SCAFFOLD_REF"
+
+OPS_WORKFLOW=".github/workflows/ops-reuse.yml"
+uses_count="$(grep -c "commondevops/.github/workflows/.*@${COMMONDEVOPS_SHA}" "$OPS_WORKFLOW")"
+ref_count="$(grep -c "scripts_ref: ${COMMONDEVOPS_SHA}" "$OPS_WORKFLOW")"
+if [[ "$uses_count" -ne 4 || "$ref_count" -ne 3 ]]; then
+  echo "error: $OPS_WORKFLOW pin != ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA} (uses=${uses_count} scripts_ref=${ref_count})" >&2
+  exit 1
+fi
+echo "commondevops ${COMMONDEVOPS_REF} -> ${COMMONDEVOPS_SHA}"
