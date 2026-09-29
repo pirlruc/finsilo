@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local parity for Phase 7 gates.
-# Maintainability scans :domain and :app. Kover 95/95: :domain:koverVerify.
+# Kover 95/95: :domain:koverVerify. Kotlin maintainability is detekt, not an MI ratio.
 # CodeQL is CI-only (github/codeql-action); local SAST is semgrep + mobsfscan.
 # grype is the KT-SEC-004 gate; OSV Scanner remains complementary.
 set -euo pipefail
@@ -11,7 +11,8 @@ python3 scripts/read_kotlin_threshold.py statement_coverage >/dev/null
 python3 scripts/read_kotlin_threshold.py branch_coverage >/dev/null
 python3 scripts/read_kotlin_threshold.py doc_coverage >/dev/null
 python3 scripts/check-detekt-complexity.py
-python3 scripts/check-maintainability.py
+python3 scripts/check-lint-exceptions.py
+python3 scripts/check-android-profile.py
 python3 scripts/lint-doc-links.py --root "$ROOT"
 bash scripts/run-shellcheck.sh
 ./gradlew :domain:ktlintCheck :domain:detekt :domain:test :domain:koverVerify :domain:dokkaGenerate

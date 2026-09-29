@@ -51,15 +51,11 @@ jobs:
       - name: Complexity gate matches profile (fail closed)
         run: python3 scripts/check-detekt-complexity.py
 
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
+      - name: Lint exceptions expire (KT-BUILD-002)
+        run: python3 scripts/check-lint-exceptions.py
 
-      - name: Maintainability index (domain + app SEI)
-        run: |
-          pip install --disable-pip-version-check "multimetric==2.4.4"
-          python3 scripts/check-maintainability.py
+      - name: Android profile (ANDROID-LINT-001 / ANDROID-SDK-001)
+        run: python3 scripts/check-android-profile.py
 
       - name: Kotlin format and detekt
         run: ./gradlew :domain:ktlintCheck :domain:detekt :app:ktlintCheck :app:detekt --stacktrace

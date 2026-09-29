@@ -1,0 +1,4 @@
+# Consumer copy of docs/guardrails/android/profile.thresholds.yml (submodule pin 1.8.0).
+# SDK, AGP, and compile/target/min pins stay in the Gradle catalog (ANDROID-BUILD-001).
+
+android_lint_max_errors: 0       # ANDROID-LINT-001

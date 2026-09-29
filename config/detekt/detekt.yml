@@ -1,7 +1,8 @@
 complexity:
   # KT-CPLX-001. detekt 2.x reports when complexity > allowedComplexity, so
   # allowedComplexity is the inclusive max (profile max_cyclomatic_complexity).
-  # Composable is not ignored: UI complexity is gated here, not only by SEI MI.
+  # Composable is not ignored. KT-CPLX-002 is LongMethod plus detekt's own
+  # maintainability rules — not a Python-style maintainability index.
   CyclomaticComplexMethod:
     active: true
     allowedComplexity: 10

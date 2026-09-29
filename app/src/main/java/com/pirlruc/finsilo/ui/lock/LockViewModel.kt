@@ -3,6 +3,8 @@ package com.pirlruc.finsilo.ui.lock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.security.AppLockRepository
 import com.pirlruc.finsilo.data.security.AppLockStore
@@ -593,14 +595,15 @@ class LockViewModel(
     companion object {
         const val SESSION_GRACE_MS: Long = 15 * 60 * 1000L
 
-        fun factory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = LockViewModel(
-                store = container.lockStore,
-                keys = container.keys,
-                openLedger = container::openLedger,
-                evictLedger = container::closeLedger,
-            ) as T
+        fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                LockViewModel(
+                    store = container.lockStore,
+                    keys = container.keys,
+                    openLedger = container::openLedger,
+                    evictLedger = container::closeLedger,
+                )
+            }
         }
     }
 }
