@@ -140,13 +140,15 @@ FinSilo follows the commondevops submodule strategy: `docs/guardrails` and `.git
 
 | Repo | Jobs that fit this app | Wired here? |
 | --- | --- | --- |
-| commondevops | `common-infra-lint` (actionlint, shellcheck, zizmor), `common-doc-verify`, `common-scaffold-verify`, `common-scorecard` | No. A public caller cannot depend on a private `uses:` until repo access and `COMMONDEVOPS_READ_TOKEN` are confirmed. ShellCheck and markdown link lint stay local. |
+| commondevops | `common-infra-lint` (actionlint, shellcheck, zizmor), `common-doc-verify`, `common-scaffold-verify`, `common-scorecard` | No. A public caller cannot depend on a private `uses:` until repo access and `COMMONDEVOPS_READ_TOKEN` are confirmed. ShellCheck and markdown link lint stay local. Filed [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160) and pin [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159). |
 | commondevops | `common-secrets-sast` | No. It runs `semgrep --config auto`, not `p/kotlin` (KT-SEC-002). |
 | commondevops | `common-supply-chain` | No. Syft-on-directory does not see the Gradle graph. Grype stays on the CycloneDX BOM. |
 | commondevops | `common-release`, `artifact-sweep` | No. This app does not publish GHCR images or cut that release workflow. |
-| containerdevops | lint/build/scan/publish/IaC | No. There is no production Dockerfile. |
-| cppdevops | `cpp-quality`, tests, docs, CodeQL, dynamic, `cpp-mobile-matrix` | No. Those jobs are CMake/clang/NDK, not AGP. |
-| pydevops | `python-quality` | No. Python here is CI helpers, not a uv package. Ruff-on-scripts would belong on `common-doc-verify`, not this job. |
+| containerdevops | lint/build/scan/publish/IaC | No. There is no production Dockerfile. Pin follow-up [CDO-PIN-002](https://github.com/pirlruc/containerdevops/issues/124). |
+| cppdevops | `cpp-quality`, tests, docs, CodeQL, dynamic, `cpp-mobile-matrix` | No. Those jobs are CMake/clang/NDK, not AGP. [CPPD-PIN-002](https://github.com/pirlruc/cppdevops/issues/82). |
+| pydevops | `python-quality` | No. Python here is CI helpers, not a uv package. [PDO-PIN-002](https://github.com/pirlruc/pydevops/issues/161). |
+
+Cross-repo issues that are not ops pins: [GR-KT-SUP](https://github.com/pirlruc/guardrails/issues/182) (platform `@Suppress` vs the 14-day clock), [GS-PIN-LAG](https://github.com/pirlruc/github-scaffold/issues/147) (scaffold 1.7.0 defaults lag the tags), [MTH-PUB-OPS](https://github.com/pirlruc/methodologies/issues/118) (public app does not submodule private ops repos). Those issues were opened directly because contents write was not available to push `docs/issues.yml` on the private repos. Append the epics there before the next issues-sync so the manifest owns the bodies.
 
 ## Recent history
 
@@ -158,4 +160,6 @@ Unlock crash fix: biometric Keystore keys now require per-use `AUTH_BIOMETRIC_ST
 
 Analog bump ([TOOL-004](issues.yml)): guardrails **1.8.0** (`aa5184ce`) and github-scaffold **1.7.0** (`e76bb3fd`). Methodologies citations in repo-owned docs are **1.7.0**. The SEI maintainability job is gone. ViewModel factories use `viewModelFactory`. One `@Suppress("DEPRECATION")` remains for the API 26–29 biometric key spec. `docs/guardrail-deviations.yml` stays empty.
 
-*Last updated: 2026-09-29 (guardrails 1.8.0 and scaffold 1.7.0)*
+Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159 and #160, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118.
+
+*Last updated: 2026-09-29 (guardrails 1.8.0, scaffold 1.7.0, sibling issues)*
