@@ -31,11 +31,13 @@ assert_gitlink() {
 assert_gitlink docs/guardrails "$GUARDRAILS_SHA" "$GUARDRAILS_REF"
 assert_gitlink .github/scaffold "$SCAFFOLD_SHA" "$SCAFFOLD_REF"
 
-OPS_WORKFLOW=".github/workflows/ops-reuse.yml"
-uses_count="$(grep -c "commondevops/.github/workflows/.*@${COMMONDEVOPS_SHA}" "$OPS_WORKFLOW")"
-ref_count="$(grep -c "scripts_ref: ${COMMONDEVOPS_SHA}" "$OPS_WORKFLOW")"
-if [[ "$uses_count" -ne 4 || "$ref_count" -ne 3 ]]; then
-  echo "error: $OPS_WORKFLOW pin != ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA} (uses=${uses_count} scripts_ref=${ref_count})" >&2
+# Ops repos are not submodules and must not be checked out by CI.
+# common-infra-lint / common-doc-verify sparse-checkout pirlruc/commondevops;
+# calling them would do that checkout. Scan the workflows GitHub actually runs.
+ops_hit="$(grep -RInE 'repository:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)|uses:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)/' .github/workflows || true)"
+if [[ -n "$ops_hit" ]]; then
+  echo "error: CI workflow checks out or calls an ops repo" >&2
+  printf '%s\n' "$ops_hit" >&2
   exit 1
 fi
-echo "commondevops ${COMMONDEVOPS_REF} -> ${COMMONDEVOPS_SHA}"
+echo "ci workflows do not checkout ops repos"

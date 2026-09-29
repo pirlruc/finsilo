@@ -203,17 +203,15 @@ milestones:
           Kotlin maintainability index the pack now forbids, we decided to pin
           guardrails 1.8.0 and github-scaffold 1.7.0 as submodules and cite
           methodologies 1.7.0 by tag, to achieve the same pack CI thinks it
-          has, accepting that cppdevops, pydevops, and containerdevops stay
-          unwired. Previously the Y-statement left commondevops unwired until
-          a caller token existed. COMMONDEVOPS_READ_TOKEN is now set, so the
-          language-agnostic commondevops jobs are thin callers. The caller
-          uses that token the same way a private repository would, so a later
-          switch back to private does not change the workflow.
+          has, accepting that the ops repos stay unwired. common-infra-lint and
+          common-doc-verify checkout pirlruc/commondevops for their scripts, so
+          FinSilo CI does not call them. CI checks out this repository, and
+          docs/guardrails when GUARDRAILS_READ_TOKEN is set. Dependabot clones
+          the private submodules with Dependabot secret DEPENDABOT_GITHUB_TOKEN.
         out_of_scope:
-          - Calling pirlruc/cppdevops, pydevops, or containerdevops jobs
+          - Calling pirlruc/commondevops, cppdevops, pydevops, or containerdevops jobs
           - Submoduling methodologies or the ops repos (commondevops pins only guardrails and github-scaffold)
           - Publishing GitHub issues (TOOL-003)
-          - Uncommenting Dependabot registries before DEPENDABOT_GITHUB_TOKEN exists
         architecture:
           target: Analog gitlinks, consumer threshold copies, and Kotlin lint exceptions
           modules:
@@ -228,6 +226,7 @@ milestones:
           - methodologies citations in repo-owned docs use tag 1.7.0
           - config/kotlin.profile.thresholds.yml matches the analog Kotlin keys, including lint_exception_max_days, and has no min_maintainability_index
           - bash scripts/check-analog-pins.sh is green
+          - .github/workflows does not checkout or call commondevops, containerdevops, cppdevops, or pydevops
           - No @Suppress("UNCHECKED_CAST") in app source
         guardrail_refs:
           - SC-DEP-004
@@ -237,6 +236,7 @@ milestones:
           - ANDROID-SDK-001
           - CI-018
           - CI-019
+          - SC-DEP-005
         tasks:
           - id: TOOL-004-T1
             status: done
@@ -276,11 +276,11 @@ milestones:
               - python3 scripts/check-lint-exceptions.py
           - id: TOOL-004-T4
             status: done
-            title: Call commondevops language-agnostic jobs with the read token
+            title: Wire Dependabot private git and keep CI off ops checkouts
             instructions:
               files:
-                - .github/workflows/ops-reuse.yml
-                - scripts/analog-pins.env
+                - .github/dependabot.yml
+                - .github/workflows
                 - scripts/check-analog-pins.sh
             verification:
               - bash scripts/check-analog-pins.sh
