@@ -31,13 +31,22 @@ assert_gitlink() {
 assert_gitlink docs/guardrails "$GUARDRAILS_SHA" "$GUARDRAILS_REF"
 assert_gitlink .github/scaffold "$SCAFFOLD_SHA" "$SCAFFOLD_REF"
 
-# Ops repos are not submodules and must not be checked out by CI.
-# common-infra-lint / common-doc-verify sparse-checkout pirlruc/commondevops;
-# calling them would do that checkout. Scan the workflows GitHub actually runs.
-ops_hit="$(grep -RInE 'repository:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)|uses:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)/' .github/workflows || true)"
-if [[ -n "$ops_hit" ]]; then
-  echo "error: CI workflow checks out or calls an ops repo" >&2
-  printf '%s\n' "$ops_hit" >&2
+# No workflow may checkout an ops repo. common-infra-lint, common-doc-verify,
+# common-secrets-sast, and common-supply-chain do that inside the reusable
+# workflow, so those uses: lines are rejected. scaffold-verify and scorecard
+# check out the caller only.
+if grep -RInE 'repository:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)' .github/workflows; then
+  echo "error: CI workflow checks out an ops repo" >&2
   exit 1
 fi
-echo "ci workflows do not checkout ops repos"
+uses_hit="$(grep -RInE 'uses:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)/' .github/workflows || true)"
+allowed="$(printf '%s\n' \
+  "uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@${COMMONDEVOPS_SHA}" | sort)"
+actual="$(printf '%s\n' "$uses_hit" | sed 's/^[^:]*:[0-9]*://' | sed 's/^[[:space:]]*//' | sort)"
+if [[ "$actual" != "$allowed" ]]; then
+  echo "error: ops uses: pins != scaffold-verify and scorecard at ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA}" >&2
+  printf '%s\n' "$uses_hit" >&2
+  exit 1
+fi
+echo "commondevops ${COMMONDEVOPS_REF} callers do not checkout that repo"

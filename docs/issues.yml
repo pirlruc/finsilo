@@ -203,13 +203,15 @@ milestones:
           Kotlin maintainability index the pack now forbids, we decided to pin
           guardrails 1.8.0 and github-scaffold 1.7.0 as submodules and cite
           methodologies 1.7.0 by tag, to achieve the same pack CI thinks it
-          has, accepting that the ops repos stay unwired. common-infra-lint and
-          common-doc-verify checkout pirlruc/commondevops for their scripts, so
-          FinSilo CI does not call them. CI checks out this repository, and
-          docs/guardrails when GUARDRAILS_READ_TOKEN is set. Dependabot clones
-          the private submodules with Dependabot secret DEPENDABOT_GITHUB_TOKEN.
+          has, accepting that commondevops jobs which checkout that repo stay
+          unwired. common-scaffold-verify and common-scorecard check out this
+          repository only, so quality.yml calls them at tag 5.1.2. Scorecard
+          uses Actions secret COMMONDEVOPS_READ_TOKEN. CI does not checkout
+          commondevops, containerdevops, cppdevops, or pydevops. Dependabot
+          analyzes gradle and pre-commit without the private git registry, and
+          clones private submodules with Dependabot secret DEPENDABOT_GITHUB_TOKEN.
         out_of_scope:
-          - Calling pirlruc/commondevops, cppdevops, pydevops, or containerdevops jobs
+          - Calling commondevops jobs that checkout that repository, or any cppdevops, pydevops, or containerdevops job
           - Submoduling methodologies or the ops repos (commondevops pins only guardrails and github-scaffold)
           - Publishing GitHub issues (TOOL-003)
         architecture:
@@ -226,7 +228,8 @@ milestones:
           - methodologies citations in repo-owned docs use tag 1.7.0
           - config/kotlin.profile.thresholds.yml matches the analog Kotlin keys, including lint_exception_max_days, and has no min_maintainability_index
           - bash scripts/check-analog-pins.sh is green
-          - .github/workflows does not checkout or call commondevops, containerdevops, cppdevops, or pydevops
+          - .github/workflows does not checkout an ops repo
+          - commondevops calls are only common-scaffold-verify and common-scorecard at tag 5.1.2
           - No @Suppress("UNCHECKED_CAST") in app source
         guardrail_refs:
           - SC-DEP-004
@@ -276,7 +279,7 @@ milestones:
               - python3 scripts/check-lint-exceptions.py
           - id: TOOL-004-T4
             status: done
-            title: Wire Dependabot private git and keep CI off ops checkouts
+            title: Wire Dependabot and call commondevops jobs that do not checkout it
             instructions:
               files:
                 - .github/dependabot.yml
