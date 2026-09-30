@@ -20,6 +20,7 @@ internal object BiometricKeyWrap {
     private const val TAG_BITS: Int = 128
 
     fun encryptObject(): BiometricPrompt.CryptoObject {
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance(TRANSFORMATION)
         initOrReplace { cipher.init(Cipher.ENCRYPT_MODE, it) }
         return BiometricPrompt.CryptoObject(cipher)
@@ -27,7 +28,9 @@ internal object BiometricKeyWrap {
 
     fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
         require(blob.size > IV_BYTES) { "Biometric wrap is truncated." }
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance(TRANSFORMATION)
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val spec = GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES))
         try {
             cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME), spec)

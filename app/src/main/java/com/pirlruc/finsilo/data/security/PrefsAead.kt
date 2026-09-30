@@ -32,6 +32,7 @@ internal class AesGcmPrefsAead(private val key: SecretKey) : PrefsAead {
         val ciphertext = blob.copyOfRange(1 + iv.size, blob.size)
         return runCatching {
             val cipher = Cipher.getInstance(TRANSFORMATION)
+            // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv))
             cipher.updateAAD(associatedData)
             cipher.doFinal(ciphertext)

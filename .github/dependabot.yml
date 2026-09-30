@@ -51,19 +51,27 @@ updates:
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: all-dependencies
+    cooldown:
+      default-days: 7
     registries:
       - github-private
   - package-ecosystem: gradle
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: all-dependencies
+    cooldown:
+      default-days: 7
   - package-ecosystem: pre-commit
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: all-dependencies
+    cooldown:
+      default-days: 7
   - package-ecosystem: gitsubmodule
     directory: /
     patterns: ["*"]
     multi-ecosystem-group: all-dependencies
+    cooldown:
+      default-days: 7
     registries:
       - github-private

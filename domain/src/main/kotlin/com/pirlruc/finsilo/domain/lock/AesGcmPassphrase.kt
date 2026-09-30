@@ -41,7 +41,9 @@ internal object AesGcmPassphrase {
     }
 
     private fun transform(mode: Int, secret: String, salt: ByteArray, iv: ByteArray, body: ByteArray): ByteArray {
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         cipher.init(mode, wrappingKey(secret, salt), GCMParameterSpec(TAG_BITS, iv))
         return cipher.doFinal(body)
     }

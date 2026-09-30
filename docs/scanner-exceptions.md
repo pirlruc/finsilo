@@ -4,7 +4,7 @@ Finding suppressions (`mobsf-ignore`, `nosemgrep`, CodeQL `// lgtm`, OSV ignore 
 fix. Prefer changing the code. If a check is skipped, the skip lives here with **why the code
 cannot be the fix**.
 
-Finding suppressions in application source are the single platform-API row below.
+Finding suppressions in application source are the rows below.
 Other rows are **scope filters** (what the tool is asked to look at).
 
 ## Finding suppressions (must stay empty unless a row is added)
@@ -12,6 +12,8 @@ Other rows are **scope filters** (what the tool is asked to look at).
 | Tool | ID / annotation | Location | Why this is not a code fix | Review |
 | --- | --- | --- | --- | --- |
 | Kotlin | `@Suppress("DEPRECATION")` `lint-exception: platform-api` | `KeystoreAesGcmKey.requireBiometricEveryUse` | `setUserAuthenticationValidityDurationSeconds(-1)` is the API 26–29 call. `setUserAuthenticationParameters` exists only on API 30+. minSdk 26 is locked (FS-DEC-001). A 14-day `lint-exception-until` would force a deviation or a minSdk bump. | 2026-12-31 |
+| semgrep | `nosemgrep: java.android.security.exported_activity.exported_activity` | `AndroidManifest.xml` `MainActivity` | The launcher activity must be exported for `MAIN` / `LAUNCHER`. The widget receiver stays `exported=false`. | 2026-12-31 |
+| semgrep | `nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection` | `AesGcmPrefsAead`, `BiometricKeyWrap`, `BiometricSessionCipher`, `AesGcmPassphrase` | The rule flags every AES-GCM call. Each seal uses a new IV (provider-generated or `SecureRandom`) stored with the ciphertext. Decrypt uses that stored IV. | 2026-12-31 |
 
 Room `execSQL` on static DDL used to trip MobSF `android_kotlin_sql_raw_query` (the rule is
 `$D.execSQL(...)`, not taint). That was **not SQL injection**: the four statements were

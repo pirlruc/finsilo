@@ -15,6 +15,7 @@ internal object BiometricSessionCipher {
     private val confirmPayload: ByteArray = byteArrayOf(0x46, 0x53)
 
     fun cryptoObject(): BiometricPrompt.CryptoObject {
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance(TRANSFORMATION)
         try {
             cipher.init(Cipher.ENCRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME))
