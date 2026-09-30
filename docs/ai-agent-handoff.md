@@ -140,10 +140,7 @@ FinSilo follows the commondevops submodule strategy: `docs/guardrails` and `.git
 
 | Repo | Jobs that fit this app | Wired here? |
 | --- | --- | --- |
-| commondevops | `common-scaffold-verify`, `common-scorecard` | Yes, in `quality.yml`, tag **5.1.2** `b3c462be`. Both check out this repository only. Scorecard `repo_token` is `COMMONDEVOPS_READ_TOKEN` (that PAT must also read this repo). When commondevops is private, its Actions access setting must allow this repository; the token does not grant the `uses:` fetch. There is no `ops-reuse.yml`. | 
-| commondevops | `common-infra-lint`, `common-doc-verify` | No. Those workflows run `actions/checkout` with `repository: pirlruc/commondevops`. ShellCheck and link lint stay in `quality.yml`. [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159), [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160). |
-| commondevops | `common-secrets-sast` | No. It runs `semgrep --config auto`, not `p/kotlin` (KT-SEC-002). |
-| commondevops | `common-supply-chain` | No. Syft-on-directory does not see the Gradle graph. Grype stays on the CycloneDX BOM. |
+| commondevops | `common-infra-lint`, `common-doc-verify`, `common-secrets-sast`, `common-supply-chain`, `common-scaffold-verify`, `common-scorecard` | Yes, in `.github/workflows/ops-reuse.yml`, tag **5.1.2** `b3c462be`. FinSilo does not checkout the ops repos. The reusable workflow checkouts commondevops for its scripts, with `COMMONDEVOPS_READ_TOKEN`. Scorecard `repo_token` is the same secret and must also read this repo. When commondevops is private, its Actions access setting must allow this repository. Local ShellCheck, link lint, `p/kotlin` semgrep, and Gradle CycloneDX grype stay. [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159), [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160). Scans of `.` also see the callee checkout: [CMN-SCAN-001](https://github.com/pirlruc/commondevops/issues/166). |
 | commondevops | `common-release`, `artifact-sweep` | No. This app does not publish GHCR images or cut that release workflow. |
 | containerdevops | lint/build/scan/publish/IaC | No. There is no production Dockerfile. Pin follow-up [CDO-PIN-002](https://github.com/pirlruc/containerdevops/issues/124). |
 | cppdevops | `cpp-quality`, tests, docs, CodeQL, dynamic, `cpp-mobile-matrix` | No. Those jobs are CMake/clang/NDK, not AGP. [CPPD-PIN-002](https://github.com/pirlruc/cppdevops/issues/82). |
@@ -161,8 +158,8 @@ Unlock crash fix: biometric Keystore keys now require per-use `AUTH_BIOMETRIC_ST
 
 Analog bump ([TOOL-004](issues.yml)): guardrails **1.8.0** (`aa5184ce`) and github-scaffold **1.7.0** (`e76bb3fd`). Methodologies citations in repo-owned docs are **1.7.0**. The SEI maintainability job is gone. ViewModel factories use `viewModelFactory`. One `@Suppress("DEPRECATION")` remains for the API 26–29 biometric key spec. `docs/guardrail-deviations.yml` stays empty.
 
-Dependabot ([TOOL-004-T4](issues.yml)): gradle, pre-commit, github-actions, and gitsubmodule are all in the monthly group. `github-private` (`DEPENDABOT_GITHUB_TOKEN`) is attached only where private git is cloned. `quality.yml` calls commondevops `common-scaffold-verify` and `common-scorecard` at **5.1.2**. Those jobs do not checkout commondevops. `COMMONDEVOPS_READ_TOKEN` is the Scorecard PAT. `ops-reuse.yml` is not used.
+Dependabot and ops callers ([TOOL-004-T4](issues.yml)): gradle, pre-commit, github-actions, and gitsubmodule are in the monthly group. `github-private` is `DEPENDABOT_GITHUB_TOKEN` on github-actions and gitsubmodule. `ops-reuse.yml` calls six commondevops workflows at **5.1.2**. FinSilo workflows and scripts do not checkout ops repos. `COMMONDEVOPS_READ_TOKEN` is the callee checkout token and the Scorecard PAT.
 
-Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159 and #160, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118. Each body says to add that epic to the target repo's `docs/issues.yml` before the next issues-sync, matching the `[ID]` already in the title.
+Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159, #160, and #166, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118. Each body says to add that epic to the target repo's `docs/issues.yml` before the next issues-sync, matching the `[ID]` already in the title.
 
-*Last updated: 2026-09-29 (Dependabot ecosystems, commondevops callers without checkout)*
+*Last updated: 2026-09-30 (commondevops callers; FinSilo does not checkout ops repos)*

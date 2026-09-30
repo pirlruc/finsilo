@@ -31,22 +31,28 @@ assert_gitlink() {
 assert_gitlink docs/guardrails "$GUARDRAILS_SHA" "$GUARDRAILS_REF"
 assert_gitlink .github/scaffold "$SCAFFOLD_SHA" "$SCAFFOLD_REF"
 
-# No workflow may checkout an ops repo. common-infra-lint, common-doc-verify,
-# common-secrets-sast, and common-supply-chain do that inside the reusable
-# workflow, so those uses: lines are rejected. scaffold-verify and scorecard
-# check out the caller only.
-if grep -RInE 'repository:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)' .github/workflows; then
-  echo "error: CI workflow checks out an ops repo" >&2
+# FinSilo workflows and scripts must not checkout an ops repo. A uses: line
+# calls a reusable workflow; that workflow may checkout commondevops itself.
+if grep -RInE 'repository:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)' .github/workflows scripts; then
+  echo "error: FinSilo workflow or script checks out an ops repo" >&2
+  exit 1
+fi
+if grep -RInE 'github.com/pirlruc/(commondevops|containerdevops|cppdevops|pydevops)' scripts; then
+  echo "error: FinSilo script clones an ops repo" >&2
   exit 1
 fi
 uses_hit="$(grep -RInE 'uses:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)/' .github/workflows || true)"
 allowed="$(printf '%s\n' \
+  "uses: pirlruc/commondevops/.github/workflows/common-infra-lint.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-doc-verify.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-secrets-sast.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-supply-chain.yml@${COMMONDEVOPS_SHA}" \
   "uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@${COMMONDEVOPS_SHA}" \
   "uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@${COMMONDEVOPS_SHA}" | sort)"
 actual="$(printf '%s\n' "$uses_hit" | sed 's/^[^:]*:[0-9]*://' | sed 's/^[[:space:]]*//' | sort)"
 if [[ "$actual" != "$allowed" ]]; then
-  echo "error: ops uses: pins != scaffold-verify and scorecard at ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA}" >&2
+  echo "error: ops uses: pins != commondevops ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA}" >&2
   printf '%s\n' "$uses_hit" >&2
   exit 1
 fi
-echo "commondevops ${COMMONDEVOPS_REF} callers do not checkout that repo"
+echo "commondevops ${COMMONDEVOPS_REF} callers; FinSilo does not checkout ops repos"

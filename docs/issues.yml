@@ -203,15 +203,15 @@ milestones:
           Kotlin maintainability index the pack now forbids, we decided to pin
           guardrails 1.8.0 and github-scaffold 1.7.0 as submodules and cite
           methodologies 1.7.0 by tag, to achieve the same pack CI thinks it
-          has, accepting that commondevops jobs which checkout that repo stay
-          unwired. common-scaffold-verify and common-scorecard check out this
-          repository only, so quality.yml calls them at tag 5.1.2. Scorecard
-          uses Actions secret COMMONDEVOPS_READ_TOKEN. CI does not checkout
-          commondevops, containerdevops, cppdevops, or pydevops. Dependabot
-          analyzes gradle and pre-commit without the private git registry, and
-          clones private submodules with Dependabot secret DEPENDABOT_GITHUB_TOKEN.
+          has, accepting that cppdevops, pydevops, and containerdevops stay
+          unwired. commondevops jobs are thin callers in ops-reuse.yml at tag
+          5.1.2. Those reusable workflows may checkout commondevops. FinSilo
+          workflows and scripts do not. Checkout uses Actions secret
+          COMMONDEVOPS_READ_TOKEN. Dependabot analyzes gradle and pre-commit
+          without the private git registry, and clones private submodules with
+          Dependabot secret DEPENDABOT_GITHUB_TOKEN.
         out_of_scope:
-          - Calling commondevops jobs that checkout that repository, or any cppdevops, pydevops, or containerdevops job
+          - Calling pirlruc/cppdevops, pydevops, or containerdevops jobs
           - Submoduling methodologies or the ops repos (commondevops pins only guardrails and github-scaffold)
           - Publishing GitHub issues (TOOL-003)
         architecture:
@@ -228,8 +228,8 @@ milestones:
           - methodologies citations in repo-owned docs use tag 1.7.0
           - config/kotlin.profile.thresholds.yml matches the analog Kotlin keys, including lint_exception_max_days, and has no min_maintainability_index
           - bash scripts/check-analog-pins.sh is green
-          - .github/workflows does not checkout an ops repo
-          - commondevops calls are only common-scaffold-verify and common-scorecard at tag 5.1.2
+          - .github/workflows and scripts do not checkout an ops repo
+          - ops-reuse.yml calls common-infra-lint, common-doc-verify, common-secrets-sast, common-supply-chain, common-scaffold-verify, and common-scorecard at tag 5.1.2
           - No @Suppress("UNCHECKED_CAST") in app source
         guardrail_refs:
           - SC-DEP-004
@@ -279,11 +279,11 @@ milestones:
               - python3 scripts/check-lint-exceptions.py
           - id: TOOL-004-T4
             status: done
-            title: Wire Dependabot and call commondevops jobs that do not checkout it
+            title: Wire Dependabot and call commondevops without FinSilo checking out ops repos
             instructions:
               files:
                 - .github/dependabot.yml
-                - .github/workflows
+                - .github/workflows/ops-reuse.yml
                 - scripts/check-analog-pins.sh
             verification:
               - bash scripts/check-analog-pins.sh
