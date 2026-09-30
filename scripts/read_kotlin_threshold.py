@@ -3,7 +3,8 @@
 
 Jobs always read config/kotlin.profile.thresholds.yml. When CI inits
 docs/guardrails with GUARDRAILS_READ_TOKEN, every analog key must match that
-copy (no silent drift). github-scaffold is not cloned in CI.
+copy (no silent drift). github-scaffold is not cloned in CI. Do not add a
+maintainability-index key; KT-CPLX-002 forbids that ratio.
 """
 from __future__ import annotations
 

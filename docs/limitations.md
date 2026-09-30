@@ -17,8 +17,7 @@ Closed this pass (kept here so the “stops when” is visible):
 | --- | --- | --- | --- |
 | LIM-COV | `:domain` Kover branch below 95 | **Closed** | `./gradlew :domain:koverVerify` green at profile 95/95 (branch ~95.1%, line ~99.7%) |
 | LIM-SUB | `GITHUB_TOKEN` cannot clone private analog | **Closed** (matching still open as [GATE-007](issues.yml)) | Required jobs run `scripts/ci-init-guardrails.sh` with `GUARDRAILS_READ_TOKEN` and init **only** `docs/guardrails`. Clone failure (stale PAT) falls back to the consumer copy, same as an unset secret. `.github/scaffold` is not cloned in CI (templates are synced). analog-pins still asserts the gitlink SHA. Analog-versus-consumer key matching waits on a renewed PAT. |
-| LIM-MI | No Kotlin MI tool | **Closed** | `scripts/check-maintainability.py` runs multimetric SEI on `:domain` vs `min_maintainability_index` |
-| LIM-MI-UI | Compose file MI below 40 | **Closed** | Dashboard/ledger screens split; `scripts/check-maintainability.py` scans `:app` as well as `:domain`; min SEI ≥ 40 |
+| LIM-MI | Kotlin maintainability index | **Retired** | Guardrails 1.7+ KT-CPLX-002 forbids a Python-style MI ratio. Detekt `CyclomaticComplexMethod` and `LongMethod` are the gate. |
 | LIM-HOOK | gitleaks CI-only | **Closed** | `.pre-commit-config.yaml` + Dependabot `pre-commit` ecosystem |
 | LIM-MIN | Release minify off | **Closed** | `isMinifyEnabled` / R8 on; `:app:assembleRelease` in CI (debug signing) |
 | LIM-EU | Stooq-first suffixes incomplete | **Closed** | `ListedQuoteRouting` covers `.L`/`.UK`/`.SW`/`.LS`/… with tests |

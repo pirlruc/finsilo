@@ -1,7 +1,8 @@
 package com.pirlruc.finsilo.ui.dashboard
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.sync.PortfolioAlertNotifier
 
@@ -15,7 +16,8 @@ internal fun createDashboardViewModel(container: AppContainer): DashboardViewMod
     )
 }
 
-internal fun dashboardViewModelFactory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = createDashboardViewModel(container) as T
+internal fun dashboardViewModelFactory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
+    initializer {
+        createDashboardViewModel(container)
+    }
 }

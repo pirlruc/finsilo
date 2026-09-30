@@ -55,6 +55,9 @@ internal object KeystoreAesGcmKey {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
         } else {
+            // lint-exception: platform-api — validity-duration seconds is the API 26–29
+            // call. setUserAuthenticationParameters exists only on API 30+. minSdk 26
+            // stays locked (FS-DEC-001). See docs/scanner-exceptions.md.
             @Suppress("DEPRECATION")
             builder.setUserAuthenticationValidityDurationSeconds(-1)
         }

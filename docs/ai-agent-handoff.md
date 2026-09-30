@@ -8,11 +8,11 @@
 | **Package** | `com.pirlruc.finsilo` |
 | **Type** | Native Android (Kotlin, Compose), offline-first portfolio tracker |
 | **Docs** | `docs/ai-agent-handoff.md`, `docs/issues.yml`, `docs/limitations.md` |
-| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.5.0/github-issue-adr) (Epic = decision record, no ADR markdown files) |
+| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.7.0/github-issue-adr) (Epic = decision record, Y-statement on new Epics, no ADR markdown files) |
 
 ## Current slice
 
-Product phases **1–6** are implemented. Guardrails (Phase 7): quality (including domain SEI maintainability), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, PR dependency-review, Dokka/KDoc, CycloneDX SBOM, and Kover 95/95 ([GATE-001](issues.yml) done). Untracked limits: [docs/limitations.md](limitations.md).
+Product phases **1–6** are implemented. Guardrails (Phase 7): quality (detekt complexity and LongMethod; no Kotlin MI ratio), Android lint/assembleDebug/assembleRelease/Robolectric, gitleaks, pre-commit, semgrep, CodeQL, OSV Scanner, MobSF mobsfscan, PR dependency-review, Dokka/KDoc, CycloneDX SBOM, and Kover 95/95 ([GATE-001](issues.yml) done). Untracked limits: [docs/limitations.md](limitations.md).
 
 | Module | Path | Notes |
 | --- | --- | --- |
@@ -36,9 +36,9 @@ Toolchain notes that already bit this repo: AGP **9.3.2** (built-in Kotlin — d
 
 | Companion | How it is pinned |
 | --- | --- |
-| `pirlruc/guardrails` | Git submodule SHA at `docs/guardrails/` (tag **1.6.0**, latest annotated release); `scripts/analog-pins.env` |
-| `pirlruc/github-scaffold` | Git submodule SHA at `.github/scaffold/` (tag **1.5.0**, latest annotated release); templates synced into `.github/` and `.cursor/rules/` |
-| `pirlruc/methodologies` | Cited by tag in docs (`tree/1.5.0/github-issue-adr`). Not a submodule. Folders: `docs/guardrails/`, `.github/scaffold/`. |
+| `pirlruc/guardrails` | Git submodule SHA at `docs/guardrails/` (tag **1.8.0**, latest annotated release); `scripts/analog-pins.env` |
+| `pirlruc/github-scaffold` | Git submodule SHA at `.github/scaffold/` (tag **1.7.0**, latest annotated release); templates synced into `.github/`, `.cursor/rules/`, `AGENTS.md` |
+| `pirlruc/methodologies` | Cited by tag in repo-owned docs (`tree/1.7.0/github-issue-adr`). Not a submodule, same as [commondevops](https://github.com/pirlruc/commondevops). Scaffold-synced templates still say methodologies `1.6.0` because that is the text in github-scaffold 1.7.0. |
 
 Private clones need `CURSOR_REPO_READ_TOKEN` (GitHub PAT) at VM start. `git submodule update --init` uses the public HTTPS URLs in `.gitmodules`.
 
@@ -46,7 +46,7 @@ Heimdall (`pirlruc/heimdall`) is an Android **SDK** stack (app → kit → core)
 
 ## github-issue-adr
 
-Authored backlog: [`docs/issues.yml`](issues.yml). Targets: [`docs/issues-sync-targets.yml`](issues-sync-targets.yml). Deviations (none): [`docs/guardrail-deviations.yml`](guardrail-deviations.yml). Do not invent `approved_by`. Analog 1.4.0 dropped numeric `doc_coverage` / `min_maintainability_index`; FinSilo keeps both as extra-strict gates in `config/kotlin.profile.thresholds.yml`. KT-SEC-004 is checksum-pinned **grype** on the Gradle CycloneDX BOM (OSV Scanner stays complementary).
+Authored backlog: [`docs/issues.yml`](issues.yml). Targets: [`docs/issues-sync-targets.yml`](issues-sync-targets.yml). Deviations (none): [`docs/guardrail-deviations.yml`](guardrail-deviations.yml). Do not invent `approved_by`. Kotlin thresholds match analog 1.8.0, including `doc_coverage` and `lint_exception_max_days`. There is no `min_maintainability_index` (KT-CPLX-002). Android thresholds match `android/profile.thresholds.yml`. KT-SEC-004 is checksum-pinned **grype** on the Gradle CycloneDX BOM (OSV Scanner stays complementary).
 
 Root wrappers call the submodule (do not vendor cppdevops CI):
 
@@ -73,7 +73,7 @@ Then `--update` if rewriting bodies. Do not hand-create issues the manifest owns
 Product leftovers (do not block calling 1–6 “shipped” except as noted):
 
 - [FS-008](issues.yml) — kotlinx.serialization when a **third** JSON feed lands. Regex stays while the set is Frankfurter + AV + CoinGecko JSON plus Stooq CSV.
-- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API, [FS-033](issues.yml) medium scanner bars / SPDX allow-list, [FS-034](issues.yml) market TLS pinning, [FS-036](issues.yml) FX-before-first-rate, unsupported import fees, overlay-time alert redaction, and incremental NAV rebuild (T1 done in PR #20), [GATE-007](issues.yml) analog clone matching, [TOOL-003](issues.yml) GitHub issue publish. Analog pins stay on annotated tags **1.6.0 / 1.5.0** (latest releases; analog `main` is unreleased CI/docs only). Merged in [PR #15](https://github.com/pirlruc/finsilo/pull/15) (`bd0ddb1`): analog bump [TOOL-002](issues.yml), CI 1.4–1.6 gaps [GATE-005](issues.yml), analog-clone fallback and setup-android 4.0.4 [GATE-006](issues.yml), dead-code and lock/HTTP hardening [FS-032](issues.yml), picker privacy cover [FS-033-T1](issues.yml). Merged in [PR #18](https://github.com/pirlruc/finsilo/pull/18): lock hash/wrap unify [FS-033-T2](issues.yml), dashboard report fields [FS-033-T4](issues.yml), Room v8 unread nav columns [FS-035](issues.yml). Merged in [PR #20](https://github.com/pirlruc/finsilo/pull/20): manual capital, shared statement/AES-GCM paths, and hashed alert keys [FS-036-T1](issues.yml). Earlier leftovers already done: backup [FS-017](issues.yml), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml), Keystore AES-GCM prefs [FS-028](issues.yml), quote probe / biometric DB wrap / rating prefs / backup export [FS-030](issues.yml), first-purchase daily history / range dashboard loads / hybrid lock [FS-031](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml). GitHub still has **zero issues** until [TOOL-003](issues.yml) (LIM-GH).
+- Open value backlog: [FS-008](issues.yml) (typed JSON parsers, deferred), [FS-026](issues.yml) Trading 212 official API, [FS-033](issues.yml) medium scanner bars / SPDX allow-list, [FS-034](issues.yml) market TLS pinning, [FS-036](issues.yml) FX-before-first-rate, unsupported import fees, overlay-time alert redaction, and incremental NAV rebuild (T1 done in PR #20), [GATE-007](issues.yml) analog clone matching, [TOOL-003](issues.yml) GitHub issue publish. Analog pins are annotated tags **1.8.0 / 1.7.0** ([TOOL-004](issues.yml)). Earlier pins were 1.6.0 / 1.5.0. Merged in [PR #15](https://github.com/pirlruc/finsilo/pull/15) (`bd0ddb1`): analog bump [TOOL-002](issues.yml), CI 1.4–1.6 gaps [GATE-005](issues.yml), analog-clone fallback and setup-android 4.0.4 [GATE-006](issues.yml), dead-code and lock/HTTP hardening [FS-032](issues.yml), picker privacy cover [FS-033-T1](issues.yml). Merged in [PR #18](https://github.com/pirlruc/finsilo/pull/18): lock hash/wrap unify [FS-033-T2](issues.yml), dashboard report fields [FS-033-T4](issues.yml), Room v8 unread nav columns [FS-035](issues.yml). Merged in [PR #20](https://github.com/pirlruc/finsilo/pull/20): manual capital, shared statement/AES-GCM paths, and hashed alert keys [FS-036-T1](issues.yml). Earlier leftovers already done: backup [FS-017](issues.yml), FIFO CSV/PDF [FS-018](issues.yml), NAV widget [FS-019](issues.yml), threshold alerts [FS-020](issues.yml), dual-currency holdings [FS-021](issues.yml), manual closes [FS-022](issues.yml), templates [FS-023](issues.yml), watchlist [FS-024](issues.yml), PIN-wrapped SQLCipher [FS-027-T2](issues.yml), Keystore AES-GCM prefs [FS-028](issues.yml), quote probe / biometric DB wrap / rating prefs / backup export [FS-030](issues.yml), first-purchase daily history / range dashboard loads / hybrid lock [FS-031](issues.yml). CSV import [FS-025](issues.yml) was already done. Do not reopen [FS-DEC-001](issues.yml). GitHub still has **zero issues** until [TOOL-003](issues.yml) (LIM-GH).
 
 FS-030 follow-up in this branch: rating alerts ignore `NONE` priors; overlapping pickers keep `FLAG_SECURE` until depth 0; tax/backup CreateDocument writes tax CSV/PDF even when no backup name is pending; restore/quote HTTP bodies are size-capped; quote probes use compact AV/Stooq/CoinGecko windows and reuse a ticker cache on CSV review.
 
@@ -134,6 +134,20 @@ None of CodeQL, OSV Scanner, or Mobile Security Framework were in the repo befor
 
 `SamplePortfolioFactory` is deterministic synthetic data (not market data). Includes AAPL (USD), VWCE.DE, BTC, unlisted PPR (ISIN on the asset row, interest stays in NAV), CT, deposit, XAU commodity, and three AAPL dividends for YOC. Loaded only from the empty-state button. AAPL’s last sample bar is forced through a golden cross for demo only ([FS-011](issues.yml)). Unlisted PPR has no invented daily quotes. Live sync and notifications use stored SMAs only.
 
+## Ops workflow reuse
+
+FinSilo follows the commondevops submodule strategy: `docs/guardrails` and `.github/scaffold` only. Methodologies stays a tag citation. The ops repos are reusable-workflow hosts, not libraries to vendor. Treat them as private: they are being turned private again.
+
+| Repo | Jobs that fit this app | Wired here? |
+| --- | --- | --- |
+| commondevops | `common-infra-lint`, `common-doc-verify`, `common-secrets-sast`, `common-supply-chain`, `common-scaffold-verify`, `common-scorecard` | Yes, in `.github/workflows/ops-reuse.yml`, tag **5.1.2** `b3c462be`. FinSilo does not checkout the ops repos. The reusable workflow checkouts commondevops for its scripts, with `COMMONDEVOPS_READ_TOKEN`. Scorecard `repo_token` is the same secret and must also read this repo. When commondevops is private, its Actions access setting must allow this repository. Local ShellCheck, link lint, `p/kotlin` semgrep, and Gradle CycloneDX grype stay. [CMN-PIN-002](https://github.com/pirlruc/commondevops/issues/159), [CMN-PUB-001](https://github.com/pirlruc/commondevops/issues/160). Scans of `.` also see the callee checkout: [CMN-SCAN-001](https://github.com/pirlruc/commondevops/issues/166). |
+| commondevops | `common-release`, `artifact-sweep` | No. This app does not publish GHCR images or cut that release workflow. |
+| containerdevops | lint/build/scan/publish/IaC | No. There is no production Dockerfile. Pin follow-up [CDO-PIN-002](https://github.com/pirlruc/containerdevops/issues/124). |
+| cppdevops | `cpp-quality`, tests, docs, CodeQL, dynamic, `cpp-mobile-matrix` | No. Those jobs are CMake/clang/NDK, not AGP. [CPPD-PIN-002](https://github.com/pirlruc/cppdevops/issues/82). |
+| pydevops | `python-quality` | No. Python here is CI helpers, not a uv package. [PDO-PIN-002](https://github.com/pirlruc/pydevops/issues/161). |
+
+Cross-repo issues that are not ops pins: [GR-KT-SUP](https://github.com/pirlruc/guardrails/issues/182) (platform `@Suppress` vs the 14-day clock), [GS-PIN-LAG](https://github.com/pirlruc/github-scaffold/issues/147) (scaffold 1.7.0 defaults lag the tags), [MTH-PUB-OPS](https://github.com/pirlruc/methodologies/issues/118) (public app does not submodule private ops repos). Those issues were opened directly because contents write was not available to push `docs/issues.yml` on the private repos. Append the epics there before the next issues-sync so the manifest owns the bodies.
+
 ## Recent history
 
 Review pass (merged in [PR #20](https://github.com/pirlruc/finsilo/pull/20)): manual ledger rows show on the capital card as `BrokerSource.MANUAL` (not stored on transactions). Trading 212 and Revolut statement rows, DEGIRO holding drafts, CSV header lookup, Alpha Vantage GETs, ledger dropdowns, and capital-card lines share helpers. SQLCipher wraps and backups share `AesGcmPassphrase`. Alert dedup prefs store a SHA-256 digest, and the lock-screen public notification has no holding text. Guardrails pin stays **1.6.0** (latest annotated tag); `docs/guardrail-deviations.yml` stays empty. Scanner finding suppressions stay empty; scope filters in [scanner-exceptions.md](scanner-exceptions.md) were not widened. Medium fail bars remain [FS-033-T3](issues.yml).
@@ -142,4 +156,10 @@ Broker CSV follow-up (main, PR #19): DEGIRO/Revolut locale + split cash columns 
 
 Unlock crash fix: biometric Keystore keys now require per-use `AUTH_BIOMETRIC_STRONG` (`setUserAuthenticationParameters(0, …)` on API 30+, validity `-1` below). A key that throws `UserNotAuthenticatedException` or `KeyPermanentlyInvalidatedException` is deleted; decrypt then asks for PIN and drops the wrap so the next PIN reseals. `BiometricPrompt.authenticate` and lock actions catch failures instead of killing the process. A stale biometric key drops the wrap and sets PIN fallback so the unlock screen does not auto-prompt in a loop. `openLedger` opens the SQLCipher database before the UI is marked unlocked and does not zero the passphrase array SQLCipher retains.
 
-*Last updated: 2026-09-24 (biometric key spec and unlock crash handling)*
+Analog bump ([TOOL-004](issues.yml)): guardrails **1.8.0** (`aa5184ce`) and github-scaffold **1.7.0** (`e76bb3fd`). Methodologies citations in repo-owned docs are **1.7.0**. The SEI maintainability job is gone. ViewModel factories use `viewModelFactory`. One `@Suppress("DEPRECATION")` remains for the API 26–29 biometric key spec. `docs/guardrail-deviations.yml` stays empty.
+
+Dependabot and ops callers ([TOOL-004-T4](issues.yml)): gradle, pre-commit, github-actions, and gitsubmodule are in the monthly group. `github-private` is `DEPENDABOT_GITHUB_TOKEN` on github-actions and gitsubmodule. `ops-reuse.yml` calls six commondevops workflows at **5.1.2**. FinSilo workflows and scripts do not checkout ops repos. `COMMONDEVOPS_READ_TOKEN` is the callee checkout token and the Scorecard PAT.
+
+Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159, #160, and #166, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118. Each body says to add that epic to the target repo's `docs/issues.yml` before the next issues-sync, matching the `[ID]` already in the title.
+
+*Last updated: 2026-09-30 (commondevops callers; FinSilo does not checkout ops repos)*

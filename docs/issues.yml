@@ -1,7 +1,7 @@
 # Authored backlog for FinSilo. Source of truth for GitHub Epic/Task issues.
 #
-# Schema: https://github.com/pirlruc/github-scaffold/blob/1.5.0/docs/issues-schema.md
-# Methodology: https://github.com/pirlruc/methodologies/tree/1.5.0/github-issue-adr
+# Schema: https://github.com/pirlruc/github-scaffold/blob/1.7.0/docs/issues-schema.md
+# Methodology: https://github.com/pirlruc/methodologies/tree/1.7.0/github-issue-adr
 #
 # The Epic is the decision record — there are no ADR markdown files.
 # Deviations from guardrails go in docs/guardrail-deviations.yml, not here.
@@ -183,6 +183,110 @@ milestones:
               - bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml --dry-run
               - bash scripts/issues-sync.sh --repo pirlruc/finsilo --yaml docs/issues.yml
               - gh issue list --state all --limit 5 is non-empty
+
+      - id: TOOL-004
+        status: done
+        title: Bump guardrails 1.8.0, github-scaffold 1.7.0, and methodologies 1.7.0
+        overview:
+          problem: >-
+            FinSilo was pinned to guardrails 1.6.0, github-scaffold 1.5.0, and
+            methodologies 1.5.0. Releases through guardrails 1.8.0 added the
+            Android pack, restored Dokka doc_coverage, forbade a Kotlin
+            maintainability index, and added lint_exception_max_days.
+            github-scaffold 1.7.0 is the current template release.
+          goal: >-
+            Pin both submodules at those annotated tags, sync scaffold
+            templates, match the Kotlin and Android threshold files, drop the
+            forbidden MI gate, and replace unchecked ViewModel casts.
+        decision: >-
+          In the context of analog drift after guardrails 1.7–1.8, facing a
+          Kotlin maintainability index the pack now forbids, we decided to pin
+          guardrails 1.8.0 and github-scaffold 1.7.0 as submodules and cite
+          methodologies 1.7.0 by tag, to achieve the same pack CI thinks it
+          has, accepting that cppdevops, pydevops, and containerdevops stay
+          unwired. commondevops jobs are thin callers in ops-reuse.yml at tag
+          5.1.2. Those reusable workflows may checkout commondevops. FinSilo
+          workflows and scripts do not. Checkout uses Actions secret
+          COMMONDEVOPS_READ_TOKEN. Dependabot analyzes gradle and pre-commit
+          without the private git registry, and clones private submodules with
+          Dependabot secret DEPENDABOT_GITHUB_TOKEN.
+        out_of_scope:
+          - Calling pirlruc/cppdevops, pydevops, or containerdevops jobs
+          - Submoduling methodologies or the ops repos (commondevops pins only guardrails and github-scaffold)
+          - Publishing GitHub issues (TOOL-003)
+        architecture:
+          target: Analog gitlinks, consumer threshold copies, and Kotlin lint exceptions
+          modules:
+            - docs/guardrails
+            - .github/scaffold
+            - scripts/analog-pins.env
+            - config/kotlin.profile.thresholds.yml
+            - config/android.profile.thresholds.yml
+        acceptance_criteria:
+          - docs/guardrails is pinned at tag 1.8.0
+          - .github/scaffold is pinned at tag 1.7.0
+          - methodologies citations in repo-owned docs use tag 1.7.0
+          - config/kotlin.profile.thresholds.yml matches the analog Kotlin keys, including lint_exception_max_days, and has no min_maintainability_index
+          - bash scripts/check-analog-pins.sh is green
+          - .github/workflows and scripts do not checkout an ops repo
+          - ops-reuse.yml calls common-infra-lint, common-doc-verify, common-secrets-sast, common-supply-chain, common-scaffold-verify, and common-scorecard at tag 5.1.2
+          - No @Suppress("UNCHECKED_CAST") in app source
+        guardrail_refs:
+          - SC-DEP-004
+          - KT-CPLX-002
+          - KT-BUILD-002
+          - ANDROID-LINT-001
+          - ANDROID-SDK-001
+          - CI-018
+          - CI-019
+          - SC-DEP-005
+        tasks:
+          - id: TOOL-004-T1
+            status: done
+            title: Pin analog tags and sync scaffold 1.7.0 templates
+            instructions:
+              files:
+                - docs/guardrails
+                - .github/scaffold
+                - scripts/analog-pins.env
+                - .cursor/rules
+                - AGENTS.md
+            verification:
+              - git -C docs/guardrails describe --tags --exact-match HEAD
+              - git -C .github/scaffold describe --tags --exact-match HEAD
+              - bash scripts/check-analog-pins.sh
+          - id: TOOL-004-T2
+            status: done
+            title: Match Kotlin and Android profiles and drop the MI gate
+            instructions:
+              files:
+                - config/kotlin.profile.thresholds.yml
+                - config/android.profile.thresholds.yml
+                - scripts/check-lint-exceptions.py
+                - scripts/check-android-profile.py
+                - .github/workflows/quality.yml
+            verification:
+              - python3 scripts/read_kotlin_threshold.py lint_exception_max_days
+              - python3 scripts/check-lint-exceptions.py
+              - python3 scripts/check-android-profile.py
+          - id: TOOL-004-T3
+            status: done
+            title: Remove unchecked ViewModel factory casts
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/ui
+            verification:
+              - python3 scripts/check-lint-exceptions.py
+          - id: TOOL-004-T4
+            status: done
+            title: Wire Dependabot and call commondevops without FinSilo checking out ops repos
+            instructions:
+              files:
+                - .github/dependabot.yml
+                - .github/workflows/ops-reuse.yml
+                - scripts/check-analog-pins.sh
+            verification:
+              - bash scripts/check-analog-pins.sh
 
   - name: Phase 1 — Foundation
     epics:
