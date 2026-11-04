@@ -30,8 +30,6 @@ jobs:
     with:
       blocking: true
       scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-    secrets:
-      checkout_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
 
   docs:
     if: github.actor != 'dependabot[bot]'
@@ -44,8 +42,6 @@ jobs:
       # ShellCheck runs in infra. This repo has no scripts/validate-yaml.py.
       # Ruff is a Python-package gate; these scripts are CI helpers.
       run_link_lint: true
-    secrets:
-      checkout_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
 
   secrets:
     if: github.actor != 'dependabot[bot]'
@@ -56,8 +52,6 @@ jobs:
     with:
       blocking: true
       scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-    secrets:
-      checkout_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
 
   supply-chain:
     if: github.actor != 'dependabot[bot]'
@@ -68,8 +62,6 @@ jobs:
     with:
       blocking: true
       scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-    secrets:
-      checkout_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
 
   scaffold:
     if: github.actor != 'dependabot[bot]'
