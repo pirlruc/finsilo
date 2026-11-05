@@ -82,5 +82,3 @@ jobs:
     with:
       blocking: true
       publish_results: ${{ github.event.repository.visibility == 'public' }}
-    secrets:
-      repo_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
