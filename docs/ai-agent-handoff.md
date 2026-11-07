@@ -165,3 +165,5 @@ Cross-repo follow-ups opened because private-repo contents write was unavailable
 *Last updated: 2026-09-30 (commondevops callers; FinSilo does not checkout ops repos)*
 
 *Last updated: 2026-11-07 — FS-037 re-files the androiddevops Gradle adoption. The workflows are unchanged.*
+
+*Last updated: 2026-11-07 — `docs/issues-sync-targets.yml` includes the Android CI adoption milestone. `issues-sync.sh` created the manifest issues (50 epics, 92 tasks). FS-037 stays open. Workflows are unchanged.*
