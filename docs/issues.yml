@@ -2561,4 +2561,37 @@ milestones:
             guardrail_refs:
               - KT-PERF-001
 
+  - name: Android CI adoption
+    epics:
+      - id: FS-037
+        status: open
+        title: Call androiddevops for the Gradle jobs
+        overview:
+          problem: >-
+            FinSilo still inlines JDK, SDK, and Gradle steps. androiddevops
+            rejected AND-002-T1 because that caller change belongs here.
+          goal: >-
+            The Android jobs call pirlruc/androiddevops at a commit SHA and
+            pass the same value as scripts_ref.
+        decision: >-
+          In the context of the FinSilo Android build, facing an inline
+          workflow that drifts from the shared toolchain, we decided to call
+          androiddevops from this repo, to achieve one Gradle path, accepting
+          that the pin moves only when this app's assemble still passes.
+        acceptance_criteria:
+          - .github/workflows calls android-gradle-ci.yml at a 40-character SHA
+          - scripts_ref equals that SHA
+        tasks:
+          - id: FS-037-T1
+            status: open
+            title: Point the Android jobs at androiddevops
+            instructions:
+              files:
+                - .github/workflows/
+            verification:
+              - The workflow uses pirlruc/androiddevops android-gradle-ci.yml at a commit SHA
+            guardrail_refs:
+              - CI-018
+              - CI-034
+
 
