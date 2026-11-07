@@ -38,3 +38,5 @@ milestones:
     description: Next product work after phases 1–6 (backup, reports, import, lock leftovers)
   - name: Tooling — Analog & methodology
     description: Guardrails, github-scaffold, github-issue-adr
+  - name: Android CI adoption
+    description: Android jobs call androiddevops at a commit SHA
