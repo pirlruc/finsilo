@@ -163,3 +163,5 @@ Dependabot and ops callers ([TOOL-004-T4](issues.yml)): gradle, pre-commit, gith
 Cross-repo follow-ups opened because private-repo contents write was unavailable: commondevops #159, #160, and #166, guardrails #182, github-scaffold #147, containerdevops #124, cppdevops #82, pydevops #161, methodologies #118. Each body says to add that epic to the target repo's `docs/issues.yml` before the next issues-sync, matching the `[ID]` already in the title.
 
 *Last updated: 2026-09-30 (commondevops callers; FinSilo does not checkout ops repos)*
+
+*Last updated: 2026-11-07 — FS-037 re-files the androiddevops Gradle adoption. The workflows are unchanged.*
