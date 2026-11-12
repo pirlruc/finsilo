@@ -8,7 +8,17 @@ internal object BrokerHeaders {
     val QUANTITY = setOf("aantal", "quantity", "quantidade", "cantidad", "quantite", "quantita", "stuck", "stuk")
     val PRICE = setOf("koers", "price", "preco", "precio", "prix", "kurs", "prezzo")
     val DESCRIPTION = setOf("omschrijving", "description", "descricao", "descripcion", "beschreibung", "descrizione")
-    val CHANGE = setOf("mutatie", "change", "alteracao", "variacao", "variation", "anderung", "importe", "variazione")
+    val CHANGE = setOf(
+        "mutatie",
+        "change",
+        "alteracao",
+        "mudanca",
+        "variacao",
+        "variation",
+        "anderung",
+        "importe",
+        "variazione",
+    )
     val BALANCE = setOf("saldo", "balance", "solde")
     val DATE = setOf("datum", "date", "data", "fecha")
     val VALUE = setOf("waarde", "value", "valor", "valeur", "wert", "valore")
@@ -23,7 +33,10 @@ internal object BrokerHeaders {
         "taux de change",
         "wechselkurs",
         "tasso di cambio",
+        "taxa de cambio",
         "fx",
+        "t.",
+        "t",
     )
     val FEES = setOf(
         "transactiekosten",
@@ -36,6 +49,5 @@ internal object BrokerHeaders {
         "commissioni",
     )
 
-    fun any(names: Set<String>, aliases: Set<String>): Boolean =
-        names.any { name -> name in aliases || aliases.any { alias -> name.startsWith(alias) } }
+    fun any(names: Set<String>, aliases: Set<String>): Boolean = names.any { name -> aliases.any { alias -> headerHasAlias(name, alias) } }
 }

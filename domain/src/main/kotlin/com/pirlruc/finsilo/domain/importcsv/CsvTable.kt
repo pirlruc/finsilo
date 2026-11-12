@@ -39,13 +39,13 @@ internal class CsvRow(private val headers: List<String>, private val cells: List
     }
 
     fun indexOf(aliases: Array<out String>): Int? = firstHeader(aliases) { header, want -> header == want }
-        ?: firstHeader(aliases) { header, want -> header.startsWith(want) }
+        ?: firstHeader(aliases) { header, want -> headerHasAlias(header, want) && header != want }
 
     private fun exact(aliases: Array<out String>): String? = firstHeader(aliases) { header, want -> header == want }?.let { cellAt(it) }
 
     private fun prefix(aliases: Array<out String>): String? {
         for (alias in aliases) {
-            val index = firstHeader(arrayOf(alias)) { header, want -> header.startsWith(want) }
+            val index = firstHeader(arrayOf(alias)) { header, want -> headerHasAlias(header, want) }
             if (index != null && cellAt(index).isNotEmpty()) return cellAt(index)
         }
         return null
@@ -69,5 +69,15 @@ internal fun normalizeHeader(raw: String): String {
 }
 
 internal fun looksCurrencyCode(raw: String): Boolean = raw.trim().filter { it.isLetter() }.length == 3
+
+/**
+ * Alias match. Names of one or two letters, such as DEGIRO `T.`, only match on a token boundary
+ * so `t` does not swallow `total` or `taxa`.
+ */
+internal fun headerHasAlias(name: String, alias: String): Boolean {
+    if (name == alias || !name.startsWith(alias)) return name == alias
+    if (alias.length > 2 || alias.length >= name.length) return true
+    return !name[alias.length].isLetterOrDigit()
+}
 
 private val DIACRITICS = Regex("\\p{M}+")

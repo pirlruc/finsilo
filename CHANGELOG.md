@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix broker CSV import for DEGIRO transactions and account statements,
+  Revolut commodity and crypto files, and Trading 212 USD buys (conversion
+  fee, FX from total, IE `.DE` / DK `.CO` suffixes).
+- Read CoinGecko closes from the `prices` array only.
+- Round auto-funded buy notionals before the cash check, and value a TWR
+  sub-period from the transaction prefix when stored NAV is end-of-day.
 - Pin guardrails 1.8.0 and github-scaffold 1.7.0. Cite methodologies 1.7.0.
 - Drop the Kotlin SEI maintainability-index gate (KT-CPLX-002). Match
   `lint_exception_max_days` and the Android lint error floor.

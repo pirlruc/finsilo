@@ -14,6 +14,9 @@ object MoneyMath {
 
     fun bd(value: String): BigDecimal = BigDecimal(value)
 
+    /** Half-even money used before cash comparisons. */
+    fun round(value: BigDecimal): BigDecimal = value.setScale(SCALE, RoundingMode.HALF_EVEN)
+
     fun bd(value: Int): BigDecimal = BigDecimal.valueOf(value.toLong())
 
     fun plus(a: BigDecimal, b: BigDecimal): BigDecimal = a.add(b, CONTEXT)
