@@ -16,7 +16,7 @@ jobs:
     with:
       blocking: true
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
-      shell_scripts: scripts
+      shell_scripts: "scripts/*.sh"
       yaml_globs: ".github/workflows/*.yml docs/*.yml"
       run_markdownlint: true
       run_link_lint: true

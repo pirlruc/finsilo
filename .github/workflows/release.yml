@@ -1,5 +1,7 @@
 # Builds a release APK and publishes the GitHub Release for an annotated tag.
-# The release environment holds the keystore. Only tag refs may use it.
+# The release environment holds the keystore. A caller job that uses a
+# reusable workflow cannot set environment (GitHub rejects that file).
+# android-release-apk and common-release select the environment themselves.
 name: release
 
 on:
@@ -10,7 +12,6 @@ permissions: {}
 
 jobs:
   apk:
-    environment: release
     permissions:
       contents: read
     uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
@@ -28,7 +29,6 @@ jobs:
 
   publish:
     needs: apk
-    environment: release
     permissions:
       contents: write
       id-token: write

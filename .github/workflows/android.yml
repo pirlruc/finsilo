@@ -35,7 +35,7 @@ jobs:
     with:
       scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
       java_version: "21"
-      build_command: ./gradlew :app:assembleDebug --no-daemon
+      build_command: ./gradlew --no-daemon --rerun-tasks :domain:compileKotlin :app:compileDebugKotlin
     secrets:
       checkout_token: ${{ secrets.GITHUB_TOKEN }}
 

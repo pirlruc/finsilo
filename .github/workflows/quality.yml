@@ -24,7 +24,7 @@ jobs:
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
       drift_script: scripts/check-threshold-drift.sh
     secrets:
-      checkout_token: ${{ secrets.GITHUB_TOKEN }}
+      checkout_token: ${{ secrets.GUARDRAILS_READ_TOKEN }}
 
   scaffold:
     permissions:
@@ -35,7 +35,7 @@ jobs:
       blocking: true
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
     secrets:
-      checkout_token: ${{ secrets.GITHUB_TOKEN }}
+      packs_token: ${{ secrets.GUARDRAILS_READ_TOKEN }}
 
   tokens:
     if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
@@ -45,4 +45,4 @@ jobs:
     with:
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
     secrets:
-      checkout_token: ${{ secrets.GITHUB_TOKEN }}
+      guardrails_token: ${{ secrets.GUARDRAILS_READ_TOKEN }}

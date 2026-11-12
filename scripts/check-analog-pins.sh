@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# SC-DEP-004: documented bootstrap ref, gitlink SHA, and annotated tag agree.
+# common-pins-verify runs this file with sh, which ignores the shebang.
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
+fi
 set -euo pipefail
+# SC-DEP-004: documented bootstrap ref, gitlink SHA, and annotated tag agree.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 # analog-pins.env is KEY=value, not a shell library.

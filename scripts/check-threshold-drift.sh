@@ -1,7 +1,7 @@
 #!/bin/sh
 # Fail when vendored threshold keys disagree with the pinned guardrails submodule.
 set -eu
-ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd -- "$(dirname "$0")/.." && pwd)"
 
 extract() {
 	grep -E '^[a-zA-Z0-9_]+:' "$1" | sed 's/[[:space:]]*#.*//' | sed 's/[[:space:]]*$//'
