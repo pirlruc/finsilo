@@ -25,6 +25,7 @@ internal object LedgerFormMapper {
             existingAssetId = existingAssetIdFor(state),
             newAsset = newAssetFor(state),
             eurPerUsd = parseDecimal(state.eurPerUsd),
+            replaceId = state.replaceId,
         )
     }
 

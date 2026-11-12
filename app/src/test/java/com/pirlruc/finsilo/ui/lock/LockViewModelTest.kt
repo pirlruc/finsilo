@@ -1,9 +1,14 @@
 package com.pirlruc.finsilo.ui.lock
 
+import androidx.biometric.BiometricPrompt
 import com.pirlruc.finsilo.data.security.AppLockRepository
 import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
+import java.security.Key
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -504,6 +509,190 @@ class LockViewModelTest {
         1_000,
     )
 
+    @Test
+    fun toggleBiometricOnAsksForASealAfterThePin() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestToggleBiometric()
+        assertEquals(SensitiveLockAction.TOGGLE_BIOMETRIC, viewModel.state.value.pendingSensitiveAction)
+        assertTrue(viewModel.state.value.pendingBiometricEnabled)
+        viewModel.cancelSensitiveAction()
+        assertNull(viewModel.state.value.pendingSensitiveAction)
+        viewModel.requestToggleBiometric()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertTrue(viewModel.state.value.pendingBiometricSeal)
+        assertFalse(viewModel.state.value.biometric)
+    }
+
+    @Test
+    fun finishBiometricSealStoresTheWrapAndCancelRestoresTheFlag() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val store = FakeAppLock()
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        val blob = byteArrayOf(1, 2, 3)
+        viewModel.finishBiometricSeal(blob)
+        assertTrue(viewModel.state.value.biometric)
+        assertEquals("Biometric unlock enabled.", viewModel.state.value.status)
+        assertTrue(keys.biometricWrapBlob()!!.contentEquals(blob))
+        viewModel.cancelBiometricSeal()
+        assertTrue(viewModel.state.value.biometric)
+        viewModel.dropBiometricWrap()
+        assertNull(keys.biometricWrapBlob())
+        assertTrue(viewModel.sessionKeyCopy()!!.isNotEmpty())
+    }
+
+    @Test
+    fun finishBiometricSealRollsBackWhenTheWrapOrTheFlagCannotBeStored() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        keys.persistWrapOk = false
+        val rejected = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        rejected.finishBiometricSeal(byteArrayOf(9))
+        assertEquals("Could not store biometric unlock.", rejected.state.value.error)
+        assertNull(keys.biometricWrapBlob())
+
+        val store = FakeAppLock(failSetBiometric = true)
+        val accepted = LockViewModel(store, dispatcher, { 1L }, FakeLedgerKeys(sessionOpen = true))
+        accepted.finishBiometricSeal(byteArrayOf(4))
+        assertEquals("Could not store biometric unlock.", accepted.state.value.error)
+        assertFalse(accepted.state.value.biometric)
+    }
+
+    @Test
+    fun disablingBiometricsClearsTheWrapUntilKeystoreDeletesTheKey() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        keys.persistBiometricWrap(byteArrayOf(7))
+        val store = FakeAppLock()
+        store.setBiometricEnabled(true)
+        val viewModel = LockViewModel(store, dispatcher, { 1L }, keys)
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestToggleBiometric()
+        assertFalse(viewModel.state.value.pendingBiometricEnabled)
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertNull(keys.biometricWrapBlob())
+        assertTrue(viewModel.state.value.error != null)
+    }
+
+    @Test
+    fun clearNewRecoveryDropsTheDisplayedCode() {
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, FakeLedgerKeys(sessionOpen = true))
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestRotateRecovery()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertTrue(viewModel.state.value.newRecoveryCode != null)
+        viewModel.clearNewRecovery()
+        assertNull(viewModel.state.value.newRecoveryCode)
+        assertNull(viewModel.state.value.status)
+    }
+
+    @Test
+    fun autoPromptAndModeFollowSealWrapAndLockState() {
+        val locked = LockUiState(setupComplete = true, biometric = true, biometricAvailable = true)
+        assertFalse(shouldAutoPrompt(locked.copy(biometric = false)))
+        assertFalse(shouldAutoPrompt(locked.copy(biometricAvailable = false)))
+        assertFalse(shouldAutoPrompt(locked.copy(working = true)))
+        assertTrue(shouldAutoPrompt(locked.copy(pendingBiometricSeal = true, unlocked = true)))
+        assertTrue(shouldAutoPrompt(locked))
+        assertFalse(shouldAutoPrompt(locked.copy(unlocked = true)))
+        assertFalse(shouldAutoPrompt(locked.copy(recovering = true)))
+        assertFalse(shouldAutoPrompt(locked.copy(pinFallback = true)))
+        assertFalse(shouldAutoPrompt(locked.copy(setupComplete = false)))
+
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, FakeLedgerKeys(sessionOpen = true))
+        assertEquals(BiometricCryptoMode.CONFIRM, promptMode(viewModel.state.value, viewModel))
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestToggleBiometric()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        assertEquals(BiometricCryptoMode.SEAL, promptMode(viewModel.state.value, viewModel))
+        viewModel.finishBiometricSeal(byteArrayOf(1, 2, 3, 4))
+        assertEquals(BiometricCryptoMode.UNWRAP, promptMode(viewModel.state.value, viewModel))
+        viewModel.dropBiometricWrap()
+        assertEquals(BiometricCryptoMode.CONFIRM, promptMode(viewModel.state.value, viewModel))
+    }
+
+    @Test
+    fun biometricErrorsDropAResetKeyAndSkipThePinFallbackMessage() {
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        keys.persistBiometricWrap(byteArrayOf(9))
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        onBiometricError(viewModel, BIOMETRIC_PIN_FALLBACK)
+        assertTrue(viewModel.state.value.pinFallback)
+        assertNull(viewModel.state.value.error)
+        assertTrue(keys.biometricWrapBlob() != null)
+
+        onBiometricError(viewModel, "sensor busy")
+        assertEquals("sensor busy", viewModel.state.value.error)
+
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestToggleBiometric()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        onBiometricError(viewModel, BIOMETRIC_KEY_RESET)
+        assertNull(keys.biometricWrapBlob())
+        assertTrue(viewModel.state.value.pinFallback)
+        assertEquals(BIOMETRIC_KEY_RESET, viewModel.state.value.error)
+        assertFalse(viewModel.state.value.pendingBiometricSeal)
+    }
+
+    @Test
+    fun biometricResultSealsUnwrapsAndConfirms() {
+        val key = aesKey()
+        val keys = FakeLedgerKeys(sessionOpen = true)
+        val viewModel = LockViewModel(FakeAppLock(), dispatcher, { 1L }, keys)
+        viewModel.unlockWithPinGiven("1234")
+        viewModel.requestToggleBiometric()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        applyBiometricResult(viewModel, authResult(null))
+        assertEquals("Could not enable biometric unlock.", viewModel.state.value.error)
+
+        viewModel.requestToggleBiometric()
+        viewModel.setPin("1234")
+        viewModel.confirmSensitiveAction()
+        applyBiometricResult(viewModel, authResult(encryptCipher(key)))
+        assertTrue(viewModel.state.value.biometric)
+        val blob = keys.biometricWrapBlob()
+        assertTrue(blob != null && blob.size > 12)
+
+        applyBiometricResult(viewModel, authResult(null))
+        assertTrue(viewModel.state.value.pinFallback)
+
+        viewModel.showPinFallback()
+        applyBiometricResult(viewModel, authResult(decryptCipher(key, blob!!)))
+        assertTrue(viewModel.state.value.unlocked)
+        assertFalse(viewModel.state.value.pinFallback)
+
+        viewModel.dropBiometricWrap()
+        applyBiometricResult(viewModel, authResult(encryptCipher(key)))
+        assertTrue(viewModel.state.value.unlocked)
+        applyBiometricResult(viewModel, authResult(null))
+        assertEquals("Biometric unlock failed", viewModel.state.value.error)
+    }
+
+    private fun aesKey(): Key = KeyGenerator.getInstance("AES").apply { init(128) }.generateKey()
+
+    private fun encryptCipher(key: Key): Cipher = Cipher.getInstance("AES/GCM/NoPadding").also { it.init(Cipher.ENCRYPT_MODE, key) }
+
+    private fun decryptCipher(key: Key, blob: ByteArray): Cipher = Cipher.getInstance("AES/GCM/NoPadding").also {
+        it.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, blob.copyOfRange(0, 12)))
+    }
+
+    private fun authResult(cipher: Cipher?): BiometricPrompt.AuthenticationResult {
+        val ctor = BiometricPrompt.AuthenticationResult::class.java.getDeclaredConstructor(
+            BiometricPrompt.CryptoObject::class.java,
+            Int::class.javaPrimitiveType,
+        )
+        ctor.isAccessible = true
+        return ctor.newInstance(
+            cipher?.let { BiometricPrompt.CryptoObject(it) },
+            BiometricPrompt.AUTHENTICATION_RESULT_TYPE_BIOMETRIC,
+        ) as BiometricPrompt.AuthenticationResult
+    }
+
     private fun LockViewModel.unlockWithPinGiven(pin: String) {
         setPin(pin)
         unlockWithPin()
@@ -516,6 +705,7 @@ private class FakeAppLock(
     private val failRotate: Boolean = false,
     private val failSetup: Boolean = false,
     private val failReset: Boolean = false,
+    private val failSetBiometric: Boolean = false,
 ) : AppLockRepository {
     var pin: String = "1234"
     var recovery: String = INITIAL_RECOVERY
@@ -529,6 +719,7 @@ private class FakeAppLock(
     override fun biometricEnabled(): Boolean = biometric
 
     override fun setBiometricEnabled(enabled: Boolean): Boolean {
+        if (failSetBiometric) return false
         biometric = enabled
         return true
     }
@@ -595,6 +786,7 @@ private class FakeLedgerKeys(
     var lastRewrapPin: String? = null
     var lastRewrapRecovery: String? = null
     var capturedUnwrapped: ByteArray? = null
+    var persistWrapOk: Boolean = true
     private var sessionKey: ByteArray? = if (sessionOpen) ByteArray(32) else null
     private var biometricWrap: ByteArray? = null
 
@@ -635,6 +827,10 @@ private class FakeLedgerKeys(
     override fun biometricWrapBlob(): ByteArray? = biometricWrap
 
     override fun persistBiometricWrap(blob: ByteArray?): Boolean {
+        if (!persistWrapOk) {
+            biometricWrap = null
+            return false
+        }
         biometricWrap = blob
         return true
     }

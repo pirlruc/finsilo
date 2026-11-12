@@ -28,10 +28,13 @@ internal object RoomNavHistory {
             widgetNav?.write(decision.points.maxByOrNull { it.date })
             return
         }
-        dao.replaceNavHistory(
-            items = decision.points.map(NavHistoryEntity::from),
-            state = NavRebuildStateEntity(fingerprint = decision.fingerprint),
-        )
+        val state = NavRebuildStateEntity(fingerprint = decision.fingerprint)
+        if (changedFrom == null) {
+            dao.replaceNavHistory(decision.points.map(NavHistoryEntity::from), state)
+        } else {
+            val tail = decision.points.filter { !it.date.isBefore(changedFrom) }
+            dao.upsertNavHistoryFrom(changedFrom, tail.map(NavHistoryEntity::from), state)
+        }
         widgetNav?.write(decision.points.maxByOrNull { it.date })
     }
 }

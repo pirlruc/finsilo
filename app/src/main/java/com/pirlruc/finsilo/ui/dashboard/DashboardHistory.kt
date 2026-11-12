@@ -104,6 +104,8 @@ internal fun HistoryLineChart(points: List<NavPoint>, modifier: Modifier = Modif
 internal fun HistoryRange.chipLabel(): String = when (this) {
     HistoryRange.ONE_MONTH -> "1M"
     HistoryRange.THREE_MONTHS -> "3M"
+    HistoryRange.SIX_MONTHS -> "6M"
+    HistoryRange.ONE_YEAR -> "1Y"
     HistoryRange.YTD -> "YTD"
     HistoryRange.ALL -> "All"
 }

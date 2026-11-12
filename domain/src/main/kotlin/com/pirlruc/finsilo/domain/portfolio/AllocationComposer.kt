@@ -10,9 +10,15 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.minus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.percentOf
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
 import java.math.BigDecimal
+import java.time.LocalDate
 
 internal object AllocationComposer {
-    fun compose(snapshot: PortfolioSnapshot, holdings: List<HoldingValuation>, cash: BigDecimal): AllocationReport {
+    fun compose(
+        snapshot: PortfolioSnapshot,
+        holdings: List<HoldingValuation>,
+        cash: BigDecimal,
+        asOf: LocalDate? = null,
+    ): AllocationReport {
         val holdingTotal = holdings.fold(ZERO) { acc, h -> plus(acc, h.valueEur) }
         val total = plus(holdingTotal, cash)
         val targets = snapshot.targets.associate { it.assetType to it.weightPercent }
@@ -39,7 +45,7 @@ internal object AllocationComposer {
                     )
                 }
         val unrealized = holdings.fold(ZERO) { acc, h -> plus(acc, h.unrealizedPnlEur) }
-        val capital = CapitalComposer.compose(snapshot, holdings, cash)
+        val capital = CapitalComposer.compose(snapshot, holdings, cash, asOf)
         return AllocationReport(
             totalValueEur = total,
             unrealizedPnlEur = unrealized,

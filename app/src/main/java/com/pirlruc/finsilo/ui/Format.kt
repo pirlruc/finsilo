@@ -32,6 +32,12 @@ fun formatEur(amount: Double): String = eurFormat.format(amount)
 fun formatNative(amount: BigDecimal, currency: Currency): String = when (currency) {
     Currency.EUR -> formatEur(amount)
     Currency.USD -> usdFormat.format(amount)
+    Currency.GBP -> "£${amount.toPlainString()}"
+    Currency.GBX -> "${amount.toPlainString()}p"
+    Currency.CHF -> "CHF ${amount.toPlainString()}"
+    Currency.DKK -> "DKK ${amount.toPlainString()}"
+    Currency.SEK -> "SEK ${amount.toPlainString()}"
+    Currency.NOK -> "NOK ${amount.toPlainString()}"
 }
 
 fun formatPercent(value: BigDecimal): String = "${percentFormat.format(value)}%"

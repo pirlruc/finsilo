@@ -10,15 +10,15 @@ WORKDIR="${TMPDIR:-/tmp}/finsilo-syft-${VERSION}"
 APK="${1:-$ROOT/app/build/outputs/apk/debug/app-debug.apk}"
 OUT="${2:-$ROOT/app/build/reports/sbom.cdx.json}"
 if [[ ! -f "$APK" ]]; then
-  echo "Missing APK $APK (assembleDebug first)" >&2
-  exit 1
+	echo "Missing APK $APK (assembleDebug first)" >&2
+	exit 1
 fi
 mkdir -p "$WORKDIR" "$(dirname "$OUT")"
 if [[ ! -x "$WORKDIR/syft" ]]; then
-  curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
-  echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
-  tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" syft
-  chmod +x "$WORKDIR/syft"
+	curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
+	echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
+	tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" syft
+	chmod +x "$WORKDIR/syft"
 fi
 "$WORKDIR/syft" "$APK" -o "cyclonedx-json=$OUT" --quiet
 echo "Wrote $OUT"

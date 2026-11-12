@@ -32,7 +32,7 @@ internal object Trading212CsvParser {
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
         val ticker = row.get("Ticker")
         val isin = row.get("ISIN").ifBlank { null }
-        val quote = BrokerQuoteSymbol.fromTrading212(ticker.ifBlank { isin.orEmpty() })
+        val quote = BrokerQuoteSymbol.fromTrading212(ticker.ifBlank { isin.orEmpty() }, isin)
         return StatementRows.bookedHolding(
             ListedTrade(
                 format = BrokerCsvFormat.TRADING_212,
@@ -60,16 +60,25 @@ internal object Trading212CsvParser {
             total = row.get("Total"),
             totalCurrency = row.get("Currency (Total)"),
             exchangeRate = row.get("Exchange rate"),
-            fees = feeSum(row),
+            fees = feeSum(row, row.get("Currency (Price / share)"), type),
             feesCurrency = row.get("Currency (Charge amount)", "Currency (Total)"),
         )
     }
 
-    private fun feeSum(row: CsvRow): String {
+    private fun feeSum(row: CsvRow, priceCurrency: String, type: TransactionType): String {
         val charge = BrokerMoney.absAmount(row.get("Charge amount")).orZero()
-        val conversion = BrokerMoney.absAmount(row.get("Currency conversion fee", "Conversion fee")).orZero()
         val stamp = BrokerMoney.absAmount(row.get("Stamp duty reserve tax", "Stamp duty")).orZero()
-        return charge.add(conversion).add(stamp).toPlainString()
+        return charge.add(conversionFee(row, priceCurrency, type)).add(stamp).toPlainString()
+    }
+
+    /**
+     * Trading 212 already folds the currency conversion fee into Total on USD buys.
+     * Adding it again double-counts the EUR cost.
+     */
+    private fun conversionFee(row: CsvRow, priceCurrency: String, type: TransactionType): java.math.BigDecimal {
+        val usdBuy = type == TransactionType.BUY && BrokerMoney.currencyCode(priceCurrency, "") == "USD"
+        if (usdBuy) return java.math.BigDecimal.ZERO
+        return BrokerMoney.absAmount(row.get("Currency conversion fee", "Conversion fee")).orZero()
     }
 
     private fun actionType(action: String): TransactionType? = when {

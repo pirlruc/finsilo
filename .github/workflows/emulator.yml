@@ -1,0 +1,21 @@
+name: emulator
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  emulator:
+    permissions:
+      contents: read
+    uses: pirlruc/androiddevops/.github/workflows/android-emulator.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    with:
+      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      java_version: "21"
+      script: ./gradlew :app:testDebugUnitTest
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}

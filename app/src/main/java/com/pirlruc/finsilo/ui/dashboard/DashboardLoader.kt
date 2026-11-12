@@ -40,6 +40,8 @@ internal object DashboardLoader {
             hasAlphaVantageKey = hasKey,
             thresholds = thresholds,
             ratingPrefs = ratingPrefs,
+            transactions = loaded.transactions,
+            assets = loaded.assets,
         )
     }
 

@@ -4,163 +4,28 @@ on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: "17 4 1 * *"
 
-concurrency:
-  group: security-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  gitleaks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+  secrets:
+    permissions:
+      contents: read
+      packages: read
+    uses: pirlruc/commondevops/.github/workflows/common-secrets-sast.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      blocking: true
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
 
-      - name: Secret scan
-        run: bash scripts/run-gitleaks.sh
-
-  semgrep:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Install semgrep
-        run: |
-          pip install --disable-pip-version-check "setuptools>=70,<82" "semgrep==1.128.1"
-
-      - name: SAST (ERROR and above)
-        run: |
-          semgrep scan \
-            --config r/kotlin \
-            --config r/generic.secrets \
-            --severity ERROR \
-            --error \
-            --metrics off \
-            --exclude .github/scaffold \
-            --exclude docs/guardrails
-
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Dependency review
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        with:
-          fail-on-severity: high
-          comment-summary-in-pr: false
-
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+  supply-chain:
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
     permissions:
       contents: read
       actions: read
       packages: read
       security-events: write
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
-        with:
-          languages: java-kotlin
-          build-mode: manual
-          config-file: .github/codeql/codeql-config.yml
-
-      - name: Build
-        run: ./gradlew :app:assembleDebug :domain:compileKotlin --stacktrace
-
-      - name: Analyze
-        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
-        with:
-          category: "/language:java-kotlin"
-          output: ${{ runner.temp }}/codeql-sarif
-          upload: always
-
-      - name: Fail on High/Critical
-        run: python3 scripts/fail-on-sarif-severity.py --min-severity high "${{ runner.temp }}/codeql-sarif"
-
-  osv-scanner:
-    name: OSV Scanner
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-
-      - name: Scan CycloneDX SBOM
-        run: bash scripts/run-osv-scanner.sh
-
-      - name: Grype (KT-SEC-004)
-        run: bash scripts/run-grype.sh
-
-      - name: SPDX license gate (SC-LIC-001)
-        run: python3 scripts/check-licenses.py
-
-  mobsfscan:
-    name: MobSF (mobsfscan)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Android/Kotlin SAST
-        run: bash scripts/run-mobsfscan.sh
+    uses: pirlruc/commondevops/.github/workflows/common-supply-chain.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      blocking: true
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+      license_engine: spdx-deny

@@ -161,10 +161,23 @@ interface PortfolioDao {
         deleteAllWatchlistItems()
     }
 
+    @Query("DELETE FROM nav_history WHERE date >= :from")
+    suspend fun deleteNavHistoryFrom(from: LocalDate)
+
+    @Query("DELETE FROM transactions WHERE transaction_id = :id")
+    suspend fun deleteTransaction(id: String)
+
     @Transaction
     suspend fun replaceNavHistory(items: List<NavHistoryEntity>, state: NavRebuildStateEntity) {
         deleteNavHistory()
         deleteNavRebuildState()
+        if (items.isNotEmpty()) insertNavHistory(items)
+        insertNavRebuildState(state)
+    }
+
+    @Transaction
+    suspend fun upsertNavHistoryFrom(from: LocalDate, items: List<NavHistoryEntity>, state: NavRebuildStateEntity) {
+        deleteNavHistoryFrom(from)
         if (items.isNotEmpty()) insertNavHistory(items)
         insertNavRebuildState(state)
     }

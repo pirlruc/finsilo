@@ -44,6 +44,9 @@ internal fun DashboardContent(
     holdings: HoldingActions,
     importState: BrokerImportUiState? = null,
     importNav: ImportNavActions? = null,
+    section: HomeSection = HomeSection.ALL,
+    transactions: List<com.pirlruc.finsilo.domain.model.Transaction> = emptyList(),
+    assets: List<com.pirlruc.finsilo.domain.model.Asset> = emptyList(),
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -55,26 +58,33 @@ internal fun DashboardContent(
         report.warnings.forEach { warning ->
             Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
-        SummaryColumn(report)
-        CapitalCard(report.allocation)
-        HoldingsCard(
-            report.allocation.holdings,
-            report.allocation.cashEur,
-            thresholds,
-            ratingPrefs,
-            holdings.onSaveThreshold,
-            holdings.onSaveRating,
-            holdings.onSaveInstrument,
-        )
-        AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
-        HistoryCard(report.history, range, onRangeSelected)
-        if (report.yoc.isNotEmpty()) {
-            YocCard(report.yoc)
+        val showOverview = section == HomeSection.OVERVIEW || section == HomeSection.ALL
+        val showHoldings = section == HomeSection.HOLDINGS || section == HomeSection.ALL
+        val showInsights = section == HomeSection.INSIGHTS || section == HomeSection.ALL
+        if (showOverview) {
+            SummaryColumn(report)
+            CapitalCard(report.allocation)
+            HistoryCard(report.history, range, onRangeSelected)
         }
-        if (report.signals.isNotEmpty()) {
-            SignalsCard(report.signals)
+        if (showHoldings) {
+            HoldingsBrowser(
+                holdings = report.allocation.holdings,
+                cashEur = report.allocation.cashEur,
+                thresholds = thresholds,
+                ratingPrefs = ratingPrefs,
+                actions = holdings,
+                transactions = transactions,
+                assets = assets,
+            )
         }
-        if (importState != null && importNav != null) {
+        if (showInsights) {
+            AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
+            RebalanceCard(report.allocation.slices, report.allocation.totalValueEur)
+            if (report.yoc.isNotEmpty()) YocCard(report.yoc)
+            if (report.signals.isNotEmpty()) SignalsCard(report.signals)
+            MaisValiasPreview(transactions, assets, report.asOf.year)
+        }
+        if (showOverview && importState != null && importNav != null) {
             BrokerImportCard(
                 state = importState,
                 onImportCsvs = importNav.onImportCsvs,
@@ -108,6 +118,23 @@ internal fun SummaryColumn(report: DashboardReport) {
                 valueColor = signedAmountColor(pnl),
                 description = "Unrealized ${formatSignedEur(pnl)}",
             )
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Net invested",
+                value = formatEur(report.allocation.contributedEur),
+                caption = "Capital in",
+                description = "Net invested ${formatEur(report.allocation.contributedEur)}",
+            )
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Return",
+                value = formatSignedEur(report.allocation.totalGainEur),
+                caption = "Gain or loss",
+                valueColor = signedAmountColor(report.allocation.totalGainEur),
+                description = "Return ${formatSignedEur(report.allocation.totalGainEur)}",
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricCard(
                 modifier = Modifier.weight(1f),
                 label = "TWR",

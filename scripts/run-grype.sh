@@ -12,19 +12,19 @@ OUT="$OUT_DIR/grype.sarif"
 BOM="${OSV_BOM:-$ROOT/build/reports/cyclonedx/bom.json}"
 mkdir -p "$WORKDIR" "$OUT_DIR"
 if [[ ! -x "$WORKDIR/grype" ]]; then
-  curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
-  echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
-  tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" grype
-  chmod +x "$WORKDIR/grype"
+	curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
+	echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
+	tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" grype
+	chmod +x "$WORKDIR/grype"
 fi
 if [[ ! -f "$BOM" ]]; then
-  echo "error: grype needs CycloneDX BOM at $BOM (fail closed)" >&2
-  exit 1
+	echo "error: grype needs CycloneDX BOM at $BOM (fail closed)" >&2
+	exit 1
 fi
 "$WORKDIR/grype" "sbom:$BOM" -o sarif --file "$OUT"
 if [[ ! -s "$OUT" ]]; then
-  echo "error: grype wrote no SARIF (fail closed)" >&2
-  exit 1
+	echo "error: grype wrote no SARIF (fail closed)" >&2
+	exit 1
 fi
 echo "Wrote $OUT"
 python3 "$ROOT/scripts/fail-on-sarif-severity.py" --min-severity high "$OUT"

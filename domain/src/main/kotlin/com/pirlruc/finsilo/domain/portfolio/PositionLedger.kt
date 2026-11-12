@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.domain.portfolio
 
 import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.Transaction
@@ -43,23 +44,23 @@ class PositionLedger {
     }
 
     fun position(transactions: List<Transaction>): LotPosition {
+        val lots = openLots(transactions)
+        val qty = lots.fold(ZERO) { acc, lot -> plus(acc, lot.quantity) }
+        val cost = lots.fold(ZERO) { acc, lot -> plus(acc, lot.remainingCostEur) }
+        return LotPosition(quantity = qty, remainingCostEur = cost)
+    }
+
+    /** Open FIFO lots after [transactions], oldest first. */
+    fun openLots(transactions: List<Transaction>): List<FifoLot> {
         val lots = ArrayDeque<FifoLot>()
         for (tx in ordered(transactions)) {
             when (tx.type) {
                 TransactionType.BUY -> lots.addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur), tx.date))
                 TransactionType.SELL -> consumeFifo(lots, tx.quantity)
-                TransactionType.DEPOSIT_CASH,
-                TransactionType.WITHDRAWAL,
-                TransactionType.DIVIDEND,
-                TransactionType.INTEREST,
-                -> {
-                    // Cash and income do not open or close FIFO lots.
-                }
+                else -> Unit
             }
         }
-        val qty = lots.fold(ZERO) { acc, lot -> plus(acc, lot.quantity) }
-        val cost = lots.fold(ZERO) { acc, lot -> plus(acc, lot.remainingCostEur) }
-        return LotPosition(quantity = qty, remainingCostEur = cost)
+        return lots.toList()
     }
 
     /** @return quantity actually filled from open lots (may be less than [sellQty]). */
@@ -74,7 +75,8 @@ class PositionLedger {
                 remaining = minus(remaining, lot.quantity)
             } else {
                 val leftoverQty = minus(lot.quantity, remaining)
-                val leftoverCost = times(lot.remainingCostEur, div(leftoverQty, lot.quantity))
+                val consumedCost = times(lot.remainingCostEur, div(remaining, lot.quantity))
+                val leftoverCost = minus(lot.remainingCostEur, consumedCost)
                 lots.addFirst(FifoLot(leftoverQty, leftoverCost, lot.acquiredDate))
                 filled = plus(filled, remaining)
                 remaining = ZERO
@@ -140,15 +142,31 @@ class PositionLedger {
 
     fun buyCostEur(tx: Transaction): BigDecimal = plus(tx.notionalEur, tx.feesEur)
 
-    fun eurPerUsdOn(date: LocalDate, rates: List<CurrencyRate>): BigDecimal? {
+    fun eurPerUsdOn(date: LocalDate, rates: List<CurrencyRate>): BigDecimal? =
+        eurPerUnitOn(date, rates, Currency.USD)
+
+    /**
+     * EUR per 1 unit of [currency] on [date].
+     *
+     * Uses the latest stored bar on or before [date]. When none exists, the
+     * earliest stored bar is the deterministic fallback (not a later bar and
+     * not 1.0). [Currency.GBX] uses the GBP bar; pence scaling is in [MoneyMath.toEur].
+     */
+    fun eurPerUnitOn(date: LocalDate, rates: List<CurrencyRate>, currency: Currency): BigDecimal? {
+        if (currency == Currency.EUR) return BigDecimal.ONE
         if (rates.isEmpty()) return null
-        rates
-            .filter { !it.date.isAfter(date) }
-            .maxByOrNull { it.date }
-            ?.eurPerUsd
-            ?.let { return it }
-        // A single latest quote must still value earlier NAV points; do not silently use 1.0.
-        return rates.minBy { it.date }.eurPerUsd
+        val quoted = if (currency == Currency.GBX) {
+            Currency.GBP
+        } else {
+            currency
+        }
+        fun pick(rate: CurrencyRate): BigDecimal? = if (quoted == Currency.USD) {
+            rate.eurPerUsd
+        } else {
+            rate.perUnit[quoted]
+        }
+        rates.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.let { pick(it) }?.let { return it }
+        return pick(rates.minBy { it.date })
     }
 
     fun marketOnOrBefore(assetId: String, date: LocalDate, byAsset: Map<String, List<DailyMarketData>>): DailyMarketData? {

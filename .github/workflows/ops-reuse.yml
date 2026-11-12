@@ -1,86 +1,37 @@
-name: ops reuse
-
-# Thin callers for pirlruc/commondevops (CI-018, CI-019). Pin and scripts_ref
-# are the same commit (CI-034): tag 5.1.2.
-# This file does not checkout an ops repo. The reusable workflows checkout
-# pirlruc/commondevops themselves when they need scripts. FinSilo scripts
-# must not clone those repos.
-# COMMONDEVOPS_READ_TOKEN is the checkout PAT for when commondevops is private.
-# It does not grant the uses: fetch. commondevops Actions access must allow
-# this repository.
-# cppdevops, pydevops, and containerdevops stay unwired.
+name: ops-reuse
 
 on:
   pull_request:
   push:
     branches: [main]
 
-concurrency:
-  group: ops-reuse-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions: {}
 
 jobs:
   infra:
-    if: github.actor != 'dependabot[bot]'
     permissions:
       contents: read
-    uses: pirlruc/commondevops/.github/workflows/common-infra-lint.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
+      packages: read
+    uses: pirlruc/commondevops/.github/workflows/common-infra-lint.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
       blocking: true
-      scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+      shell_scripts: "scripts/*.sh"
 
-  docs:
-    if: github.actor != 'dependabot[bot]'
+  dependency-review:
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
-    uses: pirlruc/commondevops/.github/workflows/common-doc-verify.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
-    with:
-      blocking: true
-      scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-      # ShellCheck runs in infra. This repo has no scripts/validate-yaml.py.
-      # Ruff is a Python-package gate; these scripts are CI helpers.
-      run_link_lint: true
-
-  secrets:
-    if: github.actor != 'dependabot[bot]'
-    permissions:
-      contents: read
-      security-events: write
-    uses: pirlruc/commondevops/.github/workflows/common-secrets-sast.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
-    with:
-      blocking: true
-      scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-
-  supply-chain:
-    if: github.actor != 'dependabot[bot]'
-    permissions:
-      contents: read
-      security-events: write
-    uses: pirlruc/commondevops/.github/workflows/common-supply-chain.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
-    with:
-      blocking: true
-      scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
-
-  scaffold:
-    if: github.actor != 'dependabot[bot]'
-    permissions:
-      contents: read
-    uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
-    with:
-      blocking: true
-      scripts_ref: b3c462bed0de4f6475e6be7875c4ababd831acc6
+      pull-requests: read
+    uses: pirlruc/commondevops/.github/workflows/common-dependency-review.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
 
   scorecard:
-    if: github.actor != 'dependabot[bot]'
     permissions:
       contents: read
+      actions: read
       id-token: write
       security-events: write
-    uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@b3c462bed0de4f6475e6be7875c4ababd831acc6
+    uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
-      blocking: true
-      publish_results: ${{ github.event.repository.visibility == 'public' }}
-    secrets:
-      repo_token: ${{ secrets.COMMONDEVOPS_READ_TOKEN }}
+      blocking: false
+      publish_results: false

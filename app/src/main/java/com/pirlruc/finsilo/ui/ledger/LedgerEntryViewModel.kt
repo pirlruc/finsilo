@@ -13,6 +13,7 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
+import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import com.pirlruc.finsilo.domain.usecase.ProbeMarketQuoteUseCase
@@ -43,6 +44,25 @@ class LedgerEntryViewModel(
 
     fun prepare() {
         viewModelScope.launch { reload(resetForm = true) }
+    }
+
+    fun edit(transaction: Transaction) {
+        viewModelScope.launch {
+            reload(resetForm = false)
+            _state.update {
+                it.copy(
+                    replaceId = transaction.id,
+                    type = transaction.type,
+                    date = transaction.date.toString(),
+                    quantity = transaction.quantity.stripTrailingZeros().toPlainString(),
+                    unitPriceNative = transaction.unitPriceNative.stripTrailingZeros().toPlainString(),
+                    feesEur = transaction.feesEur.stripTrailingZeros().toPlainString(),
+                    existingAssetId = transaction.assetId,
+                    newInstrument = false,
+                    error = null,
+                )
+            }
+        }
     }
 
     fun setType(type: TransactionType) {

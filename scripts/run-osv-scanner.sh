@@ -16,27 +16,27 @@ OUT="$OUT_DIR/osv-scanner.sarif"
 BOM="${OSV_BOM:-$ROOT/build/reports/cyclonedx/bom.json}"
 mkdir -p "$WORKDIR" "$OUT_DIR"
 if [[ ! -x "$WORKDIR/osv-scanner" ]]; then
-  curl -fsSL "$URL" -o "$WORKDIR/$BIN"
-  echo "${SHA256}  $WORKDIR/$BIN" | sha256sum -c -
-  chmod +x "$WORKDIR/$BIN"
-  mv "$WORKDIR/$BIN" "$WORKDIR/osv-scanner"
+	curl -fsSL "$URL" -o "$WORKDIR/$BIN"
+	echo "${SHA256}  $WORKDIR/$BIN" | sha256sum -c -
+	chmod +x "$WORKDIR/$BIN"
+	mv "$WORKDIR/$BIN" "$WORKDIR/osv-scanner"
 fi
 cd "$ROOT"
 ./gradlew cyclonedxBom --stacktrace
 if [[ ! -f "$BOM" ]]; then
-  echo "error: OSV Scanner needs CycloneDX BOM at $BOM (fail closed)" >&2
-  exit 1
+	echo "error: OSV Scanner needs CycloneDX BOM at $BOM (fail closed)" >&2
+	exit 1
 fi
 
 status=0
 "$WORKDIR/osv-scanner" scan source -L "$BOM" --format sarif --output-file "$OUT" || status=$?
 # 0 = clean, 1 = vulnerabilities reported (severity gate is the SARIF script).
 if [[ "$status" -gt 1 ]]; then
-  exit "$status"
+	exit "$status"
 fi
 if [[ ! -s "$OUT" ]]; then
-  echo "error: OSV Scanner wrote no SARIF (fail closed)" >&2
-  exit 1
+	echo "error: OSV Scanner wrote no SARIF (fail closed)" >&2
+	exit 1
 fi
 echo "Wrote $OUT"
 python3 "$ROOT/scripts/fail-on-sarif-severity.py" --min-severity high "$OUT"

@@ -38,6 +38,7 @@ internal fun HoldingAlertDialog(
         title = { Text("${holding.asset.symbol} alerts") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
                 Text("Evaluated on stored closes after sync. No extra Yahoo feed.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(eur, { eur = it }, label = { Text("EUR level") }, singleLine = true)
                 OutlinedTextField(percent, { percent = it }, label = { Text("Day move %") }, singleLine = true)
@@ -74,6 +75,7 @@ internal fun InstrumentEditDialog(asset: Asset, onDismiss: () -> Unit, onSave: (
         title = { Text("Edit ${asset.symbol}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
                 Text(
                     "Changing the quote symbol drops stored daily bars for this holding and refetches on the next sync.",
                     style = MaterialTheme.typography.bodySmall,

@@ -31,4 +31,5 @@ data class LedgerUiState(
     val remainingQty: String? = null,
     val templates: List<LedgerTemplate> = emptyList(),
     val manualClose: String = "",
+    val replaceId: String? = null,
 )

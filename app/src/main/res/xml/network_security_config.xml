@@ -5,4 +5,15 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.frankfurter.app</domain>
+        <domain includeSubdomains="false">api.frankfurter.dev</domain>
+        <domain includeSubdomains="false">www.alphavantage.co</domain>
+        <domain includeSubdomains="false">api.coingecko.com</domain>
+        <domain includeSubdomains="false">stooq.com</domain>
+        <domain includeSubdomains="false">stooq.pl</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

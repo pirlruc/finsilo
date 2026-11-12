@@ -9,6 +9,7 @@ import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
@@ -36,6 +37,8 @@ data class LedgerEntryRequest(
     val newAsset: NewAssetDraft? = null,
     val eurPerUsd: BigDecimal? = null,
     val source: BrokerSource? = null,
+    /** When set, this write replaces that transaction id instead of appending. */
+    val replaceId: String? = null,
 )
 
 /** Validation result for a ledger write. Persistence is the caller's job. */
@@ -65,10 +68,13 @@ class RecordLedgerEntryUseCase(
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) {
     operator fun invoke(snapshot: PortfolioSnapshot, request: LedgerEntryRequest, fundBuyWithDeposit: Boolean = false): LedgerEntryResult {
+        val book = request.replaceId?.let { id ->
+            snapshot.copy(transactions = snapshot.transactions.filter { it.id != id })
+        } ?: snapshot
         val amountError = validateAmounts(request)
         if (amountError != null) return amountError
-        val resolved = resolveAsset(snapshot, request) ?: return missingAsset(request)
-        return recordResolved(snapshot, request, resolved, fundBuyWithDeposit)
+        val resolved = resolveAsset(book, request) ?: return missingAsset(request)
+        return recordResolved(book, request, resolved, fundBuyWithDeposit)
     }
 
     private fun recordResolved(
@@ -136,7 +142,7 @@ class RecordLedgerEntryUseCase(
 
     private fun transactionFor(snapshot: PortfolioSnapshot, asset: Asset, request: LedgerEntryRequest, rate: BigDecimal): Transaction =
         Transaction(
-            id = newId(),
+            id = request.replaceId ?: newId(),
             assetId = asset.id,
             date = request.date,
             type = request.type,
@@ -153,7 +159,8 @@ class RecordLedgerEntryUseCase(
         val reason =
             when {
                 request.quantity.signum() <= 0 -> "Quantity must be greater than zero."
-                request.unitPriceNative.signum() < 0 -> "Price cannot be negative."
+                request.unitPriceNative.signum() < 0 && request.type != TransactionType.DIVIDEND ->
+                    "Price cannot be negative."
                 request.feesEur.signum() < 0 -> "Fees cannot be negative."
                 request.eurPerUsd != null && request.eurPerUsd.signum() <= 0 ->
                     "EUR per 1 USD must be greater than zero."
@@ -232,7 +239,8 @@ class RecordLedgerEntryUseCase(
 
     private fun fxRate(asset: Asset, request: LedgerEntryRequest, snapshot: PortfolioSnapshot): BigDecimal? {
         if (asset.baseCurrency == Currency.EUR) return BigDecimal.ONE
-        return request.eurPerUsd ?: ledger.eurPerUsdOn(request.date, snapshot.fxRates)
+        val quoted = if (asset.baseCurrency == Currency.GBX) Currency.GBP else asset.baseCurrency
+        return request.eurPerUsd ?: ledger.eurPerUnitOn(request.date, snapshot.fxRates, quoted)
     }
 
     /**
@@ -248,10 +256,26 @@ class RecordLedgerEntryUseCase(
     }
 
     private fun validateAgainstLedger(snapshot: PortfolioSnapshot, asset: Asset, transaction: Transaction): LedgerEntryResult.Rejected? {
-        val prior = ledger.preceding(snapshot.transactions, transaction)
-        return when (transaction.type) {
+        val merged = ledger.ordered(snapshot.transactions + transaction)
+        val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
+        val start = merged.indexOfFirst { it.id == transaction.id }
+        for (index in start until merged.size) {
+            val tx = merged[index]
+            val prior = merged.subList(0, index)
+            val rejection = constraint(prior, assetsById, tx) ?: continue
+            val laterWithdrawal = tx.id != transaction.id && tx.type == TransactionType.WITHDRAWAL
+            if (!laterWithdrawal) return rejection
+        }
+        return null
+    }
+
+    private fun constraint(
+        prior: List<Transaction>,
+        assetsById: Map<String, Asset>,
+        transaction: Transaction,
+    ): LedgerEntryResult.Rejected? = when (transaction.type) {
             TransactionType.SELL -> {
-                val remaining = ledger.position(prior.filter { it.assetId == asset.id }).quantity
+                val remaining = ledger.position(prior.filter { it.assetId == transaction.assetId }).quantity
                 if (transaction.quantity > remaining) {
                     LedgerEntryResult.Rejected(
                         "Sell quantity ${transaction.quantity.toPlainString()} exceeds remaining " +
@@ -262,10 +286,9 @@ class RecordLedgerEntryUseCase(
                 }
             }
             TransactionType.WITHDRAWAL -> {
-                val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
                 val cash = ledger.cashEur(prior, assetsById)
                 val amount = transaction.notionalEur
-                if (amount > cash) {
+                if (exceedsCash(amount, cash)) {
                     LedgerEntryResult.Rejected(
                         "Withdrawal ${amount.stripTrailingZeros().toPlainString()} EUR exceeds " +
                             "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
@@ -275,10 +298,9 @@ class RecordLedgerEntryUseCase(
                 }
             }
             TransactionType.BUY -> {
-                val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
                 val cash = ledger.cashEur(prior, assetsById)
-                val cost = ledger.buyCostEur(transaction)
-                if (cost > cash) {
+                val cost = MoneyMath.round(transaction.notionalEur.add(transaction.feesEur))
+                if (exceedsCash(cost, cash)) {
                     LedgerEntryResult.Rejected(
                         "Buy ${cost.stripTrailingZeros().toPlainString()} EUR exceeds " +
                             "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
@@ -288,8 +310,9 @@ class RecordLedgerEntryUseCase(
                 }
             }
             else -> null
-        }
     }
+
+    private fun exceedsCash(amount: BigDecimal, cash: BigDecimal): Boolean = MoneyMath.round(amount) > MoneyMath.round(cash)
 
     private fun cashAsset(): Asset = Asset(
         id = CASH_ASSET_ID,

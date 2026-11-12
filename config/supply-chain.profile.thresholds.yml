@@ -1,6 +1,7 @@
-# Consumer copy of docs/guardrails/supply-chain/profile.thresholds.yml (submodule pin 1.6.0).
+# Consumer copy of docs/guardrails/supply-chain/profile.thresholds.yml.
 dependency_update_interval: monthly
 dependency_update_open_pr_limit: 5
 dependency_update_blocked_semver_levels: none
-license_deny_list: []
+dependency_update_cooldown_days: 7
+license_deny_list: ["AGPL-3.0", "SSPL-1.0", "BUSL-1.1", "Commons-Clause", "CC-BY-NC"]
 license_allow_list: []

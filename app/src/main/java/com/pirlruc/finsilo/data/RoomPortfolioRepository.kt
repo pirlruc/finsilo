@@ -155,6 +155,11 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
         dao.replaceTargets(targets.map(TargetAllocationEntity::from))
     }
 
+    suspend fun deleteTransaction(id: String, changedFrom: LocalDate) {
+        dao.deleteTransaction(id)
+        rebuildNavHistoryIfNeeded(load(), changedFrom = changedFrom)
+    }
+
     override suspend fun saveLedgerEntry(asset: Asset?, transaction: Transaction, fxRate: CurrencyRate?) {
         dao.insertLedgerEntry(
             asset = asset?.let(AssetEntity::from),

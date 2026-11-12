@@ -36,17 +36,32 @@ internal object BrokerQuoteSymbol {
             "PT" to "LS",
             "BE" to "BR",
             "IE" to "DE",
+            "DK" to "CO",
         )
 
-    fun fromTrading212(ticker: String): String {
+    fun fromTrading212(ticker: String, isin: String? = null): String {
         val trimmed = ticker.trim()
         if (trimmed.isEmpty()) return trimmed
+        val listed = listedTicker(trimmed)
+        if (listed != null) return listed
+        val suffix = bareListingSuffix(isin) ?: return trimmed
+        return "$trimmed.$suffix"
+    }
+
+    private fun listedTicker(trimmed: String): String? {
         val parts = trimmed.split('_')
-        if (parts.size < 2) return trimmed
+        if (parts.size < 2) return trimmed.takeIf { '.' in it }
         val root = parts.first()
         val exchange = parts.getOrNull(parts.lastIndex - 1)?.uppercase()
         val suffix = t212Exchange[exchange] ?: return root
         return "$root.$suffix"
+    }
+
+    /** IE and DK listings arrive without an exchange suffix on Trading 212. */
+    private fun bareListingSuffix(isin: String?): String? = when (isin?.take(2)?.uppercase()) {
+        "IE" -> "DE"
+        "DK" -> "CO"
+        else -> null
     }
 
     /** DEGIRO exports a product name and ISIN, not a listed ticker. */

@@ -15,21 +15,30 @@ object RealizedGainsPdf {
             textSize = 14f
             isFakeBoldText = true
         }
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        var page = document.startPage(pageInfo)
+        var pageNumber = 1
+        fun start(): PdfDocument.Page {
+            val info = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
+            pageNumber += 1
+            return document.startPage(info)
+        }
+        var page = start()
         var canvas = page.canvas
         var y = 40f
+        fun advance() {
+            if (y <= 800f) return
+            document.finishPage(page)
+            page = start()
+            canvas = page.canvas
+            y = 40f
+        }
         canvas.drawText("Mais-valias FIFO ${report.year}", 40f, y, title)
         y += 24f
-        val lines = RealizedGainsCsv.write(report).lineSequence()
+        val lines = RealizedGainsCsv.write(report).lineSequence().flatMap { line ->
+            line.chunked(90).asSequence()
+        }
         for (line in lines) {
-            if (y > 800f) {
-                document.finishPage(page)
-                page = document.startPage(pageInfo)
-                canvas = page.canvas
-                y = 40f
-            }
-            canvas.drawText(line.take(110), 40f, y, paint)
+            advance()
+            canvas.drawText(line, 40f, y, paint)
             y += 14f
         }
         document.finishPage(page)

@@ -49,6 +49,16 @@ class DashboardViewModel(
             }
     }
 
+    fun deleteTransaction(id: String, date: LocalDate) {
+        viewModelScope.launch {
+            runCatching { repository.deleteTransaction(id, date) }
+                .onSuccess { refresh() }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.message ?: error.javaClass.simpleName) }
+                }
+        }
+    }
+
     fun setRange(range: HistoryRange) {
         if (range == _state.value.range) return
         _state.update { it.copy(range = range) }

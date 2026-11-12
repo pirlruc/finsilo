@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -20,9 +22,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import java.time.Instant
+import java.time.ZoneOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +75,7 @@ fun LedgerEntryRoute(viewModel: LedgerEntryViewModel, onClose: () -> Unit) {
 @Composable
 internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions) {
     val cashLike = state.type == TransactionType.DEPOSIT_CASH || state.type == TransactionType.WITHDRAWAL
+    var showDate by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -95,6 +105,26 @@ internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions)
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            TextButton(onClick = { showDate = true }) { Text("Pick date") }
+            if (showDate) {
+                val picker = rememberDatePickerState()
+                DatePickerDialog(
+                    onDismissRequest = { showDate = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                picker.selectedDateMillis?.let { millis ->
+                                    val date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                                    actions.amounts.onDate(date.toString())
+                                }
+                                showDate = false
+                            },
+                        ) { Text("OK") }
+                    },
+                ) {
+                    DatePicker(state = picker)
+                }
+            }
             if (cashLike) {
                 CashMovementFields(state, actions.amounts.onQuantity)
             } else {

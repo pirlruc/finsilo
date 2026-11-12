@@ -17,7 +17,7 @@ governs containers shipped as a **product artifact** (published images, Compose 
 that deploy them). Do not treat the two as interchangeable Docker advice.
 
 Org principles and numeric gates: `docs/guardrails/docker/` (`DOCKER-*` IDs,
-`profile.thresholds.yml`). Reusable workflows: [pirlruc/containerdevops](https://github.com/pirlruc/containerdevops).
+`profile.thresholds.yml`). Reusable workflows: the org container ops host.
 
 ## When editing a Dockerfile or image publish path
 

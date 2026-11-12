@@ -21,7 +21,7 @@ object RealizedGainsCsv {
                     csv(kindLabel(line.kind)),
                     csv(line.sellDate.toString()),
                     csv(line.acquiredDate.toString()),
-                    csv(plain(line.quantity)),
+                    csv(quantity(line.quantity)),
                     csv(plain(line.costEur)),
                     csv(plain(line.proceedsEur)),
                     csv(plain(line.gainEur)),
@@ -38,8 +38,13 @@ object RealizedGainsCsv {
 
     private fun plain(value: java.math.BigDecimal): String = value.setScale(2, RoundingMode.HALF_EVEN).toPlainString()
 
+    private fun quantity(value: java.math.BigDecimal): String = value.setScale(8, RoundingMode.HALF_EVEN).toPlainString()
+
     private fun csv(value: String): String {
-        if (value.none { it == ';' || it == '"' || it == '\n' }) return value
-        return "\"" + value.replace("\"", "\"\"") + "\""
+        val safe = if (value.firstOrNull() in FORMULA) "'$value" else value
+        if (safe.none { it == ';' || it == '"' || it == '\n' }) return safe
+        return "\"" + safe.replace("\"", "\"\"") + "\""
     }
+
+    private val FORMULA = setOf('=', '+', '-', '@', '\t', '\r')
 }

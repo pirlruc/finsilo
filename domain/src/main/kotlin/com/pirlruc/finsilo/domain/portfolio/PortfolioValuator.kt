@@ -7,6 +7,7 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HoldingValuation
+import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
@@ -21,11 +22,10 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     fun valueHoldings(snapshot: PortfolioSnapshot, asOf: LocalDate): List<HoldingValuation> {
         val txsByAsset = ledger.transactionsOnOrBefore(snapshot.transactions, asOf).groupBy { it.assetId }
         val marketByAsset = ledger.indexMarket(snapshot.marketData)
-        val eurPerUsd = ledger.eurPerUsdOn(asOf, snapshot.fxRates)
         return snapshot.assets.mapNotNull { asset ->
             val txs = txsByAsset[asset.id].orEmpty()
             if (txs.isEmpty()) return@mapNotNull null
-            holdingFor(asset, txs, asOf, marketByAsset, eurPerUsd)
+            holdingFor(asset, txs, asOf, marketByAsset, snapshot.fxRates)
         }
     }
 
@@ -80,7 +80,7 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
     fun allocation(snapshot: PortfolioSnapshot, asOf: LocalDate): AllocationReport {
         val holdings = valueHoldings(snapshot, asOf)
         val cash = cashEur(snapshot, asOf)
-        return AllocationComposer.compose(snapshot, holdings, cash)
+        return AllocationComposer.compose(snapshot, holdings, cash, asOf)
     }
 
     private fun holdingFor(
@@ -88,11 +88,11 @@ class PortfolioValuator(private val ledger: PositionLedger = PositionLedger()) {
         txs: List<Transaction>,
         asOf: LocalDate,
         marketByAsset: Map<String, List<DailyMarketData>>,
-        eurPerUsd: BigDecimal?,
+        rates: List<CurrencyRate>,
     ): HoldingValuation? = if (asset.locallyValued) {
-        LocalInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, eurPerUsd)
+        LocalInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, ledger.eurPerUsdOn(asOf, rates))
     } else {
-        MarketInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, eurPerUsd)
+        MarketInstrumentValuator.holding(ledger, asset, txs, asOf, marketByAsset, rates)
     }
 
     companion object {

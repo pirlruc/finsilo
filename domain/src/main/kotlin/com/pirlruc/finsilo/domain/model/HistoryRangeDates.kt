@@ -8,6 +8,8 @@ fun HistoryRange.startDate(asOf: LocalDate, firstTx: LocalDate): LocalDate {
         when (this) {
             HistoryRange.ONE_MONTH -> asOf.minusMonths(1)
             HistoryRange.THREE_MONTHS -> asOf.minusMonths(3)
+            HistoryRange.SIX_MONTHS -> asOf.minusMonths(6)
+            HistoryRange.ONE_YEAR -> asOf.minusYears(1)
             HistoryRange.YTD -> LocalDate.of(asOf.year, 1, 1)
             HistoryRange.ALL -> firstTx
         }

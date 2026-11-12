@@ -9,10 +9,10 @@ SHA256="a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb"
 WORKDIR="${TMPDIR:-/tmp}/finsilo-gitleaks-${VERSION}"
 mkdir -p "$WORKDIR"
 if [[ ! -x "$WORKDIR/gitleaks" ]]; then
-  curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
-  echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
-  tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" gitleaks
-  chmod +x "$WORKDIR/gitleaks"
+	curl -fsSL "$URL" -o "$WORKDIR/$ARCHIVE"
+	echo "${SHA256}  $WORKDIR/$ARCHIVE" | sha256sum -c -
+	tar -xzf "$WORKDIR/$ARCHIVE" -C "$WORKDIR" gitleaks
+	chmod +x "$WORKDIR/gitleaks"
 fi
 cd "$ROOT"
 exec "$WORKDIR/gitleaks" detect --source "$ROOT" --verbose --redact --exit-code 1 "$@"

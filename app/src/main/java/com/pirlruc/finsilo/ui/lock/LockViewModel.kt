@@ -578,12 +578,12 @@ class LockViewModel(
     }
 
     private fun lockoutError(): String? {
-        val remaining = PinLockoutPolicy.remainingMs(nowMs(), store.pinLockoutUntilMs())
+        val remaining = store.lockoutRemaining(nowMs())
         return if (remaining > 0L) lockoutMessage(remaining) else null
     }
 
     private fun failedSecretMessage(mismatch: String): String {
-        val remaining = PinLockoutPolicy.remainingMs(nowMs(), store.pinLockoutUntilMs())
+        val remaining = store.lockoutRemaining(nowMs())
         return if (remaining > 0L) lockoutMessage(remaining) else mismatch
     }
 

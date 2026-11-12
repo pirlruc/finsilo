@@ -28,7 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.domain.model.AssetType
-import com.pirlruc.finsilo.ui.importcsv.BrokerImportCard
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.lock.LockUiState
@@ -120,14 +119,9 @@ internal fun TargetSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Data", style = MaterialTheme.typography.titleLarge)
-            BrokerImportCard(
-                state = importState,
-                onImportCsvs = actions.onImportCsvs,
-                onQuoteSymbol = actions.onDraftQuote,
-                onConfirmReview = actions.onConfirmImport,
-                onCancelReview = actions.onCancelImport,
-                onPickerBusy = actions.onPickerBusy,
-                onPickerError = actions.onPickerError,
+            Text(
+                "Broker CSV import is on Overview. ${importState.status.orEmpty()}",
+                style = MaterialTheme.typography.bodySmall,
             )
             PortfolioToolsCard(state = tools, actions = actions.tools)
             Text("Target allocation", style = MaterialTheme.typography.titleLarge)

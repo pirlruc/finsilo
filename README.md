@@ -14,11 +14,14 @@ The app shows the PIN screen when you leave it. A document picker or the biometr
 
 ## Daily use
 
-- **Dashboard** — allocation pie, NAV history for the selected chip (1M / 3M / YTD / All), TWR, yield on cost, ratings, SMA 50/200 from stored closes, and a capital card (money put in, uninvested cash, cash-sweep interest, gain/loss per broker). Gains are green and losses are red.
+- **Overview** — NAV, net invested, return, TWR, history chips (1M / 3M / 6M / 1Y / YTD / All), capital by broker, and broker CSV import.
 - **Add a transaction** — Buy, Sell, Deposit, Withdrawal, Dividend, Interest. Sells above remaining FIFO quantity and withdrawals above cash are refused. A buy that needs more cash than you have books a same-day deposit first. Unlisted PPR interest stays in NAV. Selling CT, a deposit, or unlisted PPR is a redemption.
 - **ISIN / quote symbol** — optional on the instrument. Changing the quote symbol drops that holding’s stored daily bars and refetches on the next sync.
 - **Watchlist** — followed symbols only. They never change FIFO, TWR, or the pie.
-- **Settings** — target weights (must sum to 100%), lock/recovery, tax CSV/PDF, encrypted backup, broker CSV import.
+- **Holdings** — search, sort, FIFO lots, dividends, and alerts.
+- **Activity** — ledger rows with edit, delete, and a date picker.
+- **Insights** — allocation, rebalance amounts, yield on cost, signals, and an in-app Mais-Valias preview.
+- **Settings** — target weights (must sum to 100%), lock/recovery, tax CSV/PDF, and encrypted backup.
 
 A **synthetic sample portfolio** is on the empty dashboard so you can review charts with no network. It is not market data and is not a backup.
 
@@ -36,7 +39,7 @@ USD quotes stay USD and convert with stored EUR-per-USD even when the instrument
 
 ## Broker CSV
 
-From the dashboard (empty or with holdings) or Settings, import Trading 212 History, DEGIRO Transactions + Account statement, or Revolut Stocks/Invest account statement. You can import again later; duplicate rows are skipped. Export CSV, not Excel. DEGIRO files work in English, Dutch, Portuguese, Spanish, French, German, and Italian. Revolut statements can use English, Spanish, or Portuguese headers.
+From Overview, import Trading 212 History, DEGIRO Transactions + Account statement, or Revolut Stocks/Invest account statement. You can import again later; duplicate rows are skipped. Export CSV, not Excel. DEGIRO files work in English, Dutch, Portuguese, Spanish, French, German, and Italian. Revolut statements can use English, Spanish, or Portuguese headers.
 
 Lots always persist. You can edit quote symbols on the review screen if a ticker has no live close; those names still import, with a warning. Cash interest on uninvested balances is booked separately from deposits (not extra money you put in). Live Trading 212 API sync is not built.
 

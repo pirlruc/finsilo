@@ -7,6 +7,8 @@ import com.pirlruc.finsilo.domain.model.YocReport
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.HUNDRED
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.div
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath.min
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
@@ -31,14 +33,21 @@ class GetYocUseCase(private val ledger: PositionLedger = PositionLedger()) {
             if (lots.quantity.signum() <= 0 || lots.remainingCostEur.signum() <= 0) return@mapNotNull null
             val dividends = txs.filter { it.type == TransactionType.DIVIDEND }
             if (dividends.isEmpty()) return@mapNotNull null
-            val ttm = dividends.filter { !it.date.isBefore(ttmStart) }
-            val ttmSum = ttm.fold(ZERO) { acc, tx -> acc.add(tx.notionalEur) }
+            val remaining = lots.quantity
+            val scaled = dividends.groupBy { it.date }.map { (date, rows) ->
+                val held = ledger.position(txs.filter { !it.date.isAfter(date) }).quantity
+                val factor = if (held.signum() == 0) ZERO else min(BigDecimal.ONE, div(remaining, held))
+                val amount = rows.fold(ZERO) { acc, tx -> plus(acc, tx.notionalEur) }
+                date to times(amount, factor)
+            }
+            val ttm = scaled.filter { !it.first.isBefore(ttmStart) }
+            val ttmSum = ttm.fold(ZERO) { acc, row -> plus(acc, row.second) }
             val ttmPercent = if (ttm.isEmpty()) null else times(div(ttmSum, lots.remainingCostEur), HUNDRED)
-            val last = dividends.maxBy { it.date }
+            val lastAmount = scaled.maxBy { it.first }.second
             val paymentsPerYear = inferPaymentsPerYear(ttm.size)
             val lastTimesFreq =
                 paymentsPerYear?.let { freq ->
-                    val annualized = times(last.notionalEur, BigDecimal(freq))
+                    val annualized = times(lastAmount, BigDecimal(freq))
                     times(div(annualized, lots.remainingCostEur), HUNDRED)
                 }
             YocReport(

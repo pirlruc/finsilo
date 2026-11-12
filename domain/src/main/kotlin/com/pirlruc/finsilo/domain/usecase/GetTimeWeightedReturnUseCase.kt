@@ -108,8 +108,17 @@ class GetTimeWeightedReturnUseCase(
             )
         }
 
-        private fun navWith(txs: List<Transaction>, date: LocalDate): BigDecimal =
-            storedByDate[date]?.valueEur ?: valuator.totalNavEur(snapshot.copy(transactions = txs), date)
+        private fun navWith(txs: List<Transaction>, date: LocalDate): BigDecimal {
+            val stored = storedByDate[date]
+            if (stored != null && coversStoredNav(txs, date)) return stored.valueEur
+            return valuator.totalNavEur(snapshot.copy(transactions = txs), date)
+        }
+
+        /** End-of-day NAV already includes every cashflow on [date]. A prefix does not. */
+        private fun coversStoredNav(txs: List<Transaction>, date: LocalDate): Boolean {
+            val ids = txs.map { it.id }.toHashSet()
+            return snapshot.transactions.all { tx -> tx.date.isAfter(date) || tx.id in ids }
+        }
     }
 
     private fun splitReason(tx: Transaction, cashBefore: BigDecimal): TwrSplit? = when (tx.type) {
