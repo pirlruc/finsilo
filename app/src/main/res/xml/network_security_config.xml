@@ -12,6 +12,7 @@
         <domain includeSubdomains="false">api.coingecko.com</domain>
         <domain includeSubdomains="false">stooq.com</domain>
         <domain includeSubdomains="false">stooq.pl</domain>
+        <domain includeSubdomains="false">live.trading212.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

@@ -46,13 +46,13 @@ class AppLockStore(
 
     override fun biometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC, false)
 
-    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commit()
+    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commitObserved()
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
         if (!AppLockCrypto.pinOk(pin)) return false
         val editor = prefs.edit()
         applySetup(editor, pin, recoveryCode, biometric)
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     override fun verifyPin(pin: String): Boolean = verifyStored(pin, KEY_PIN_SALT, KEY_PIN_HASH)
@@ -64,7 +64,7 @@ class AppLockStore(
         if (!AppLockCrypto.pinOk(newPin)) return false
         val editor = prefs.edit()
         applyPinReset(editor, newPin)
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     override fun rotateRecovery(newCode: String): Boolean {
@@ -72,7 +72,7 @@ class AppLockStore(
         if (recovery.length < 16) return false
         val editor = prefs.edit()
         applyRecoveryHash(editor, newCode)
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     override fun failedUnlockAttempts(): Int = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
@@ -104,7 +104,7 @@ class AppLockStore(
             .putLong(KEY_LOCKOUT_UNTIL, nowMs + wait)
             .putLong(KEY_LOCKOUT_ELAPSED, sample.elapsedMs + wait)
             .putInt(KEY_LOCKOUT_BOOT, sample.bootCount)
-            .commit()
+            .commitObserved()
     }
 
     override fun clearUnlockFailures() {
@@ -113,7 +113,7 @@ class AppLockStore(
             .remove(KEY_LOCKOUT_UNTIL)
             .remove(KEY_LOCKOUT_ELAPSED)
             .remove(KEY_LOCKOUT_BOOT)
-            .commit()
+            .commitObserved()
     }
 
     internal fun applySetup(editor: SharedPreferences.Editor, pin: String, recoveryCode: String, biometric: Boolean) {

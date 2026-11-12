@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricPrompt
 import androidx.core.app.ActivityOptionsCompat
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -39,7 +40,6 @@ import com.pirlruc.finsilo.ui.settings.launchOpen
 import com.pirlruc.finsilo.ui.settings.planPickedWrite
 import com.pirlruc.finsilo.ui.settings.writePicked
 import com.pirlruc.finsilo.widget.NavWidgetProvider
-import androidx.biometric.BiometricPrompt
 import java.io.ByteArrayInputStream
 import java.math.BigDecimal
 import java.security.GeneralSecurityException

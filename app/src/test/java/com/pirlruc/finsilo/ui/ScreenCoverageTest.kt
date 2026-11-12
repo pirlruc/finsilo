@@ -5,10 +5,9 @@ import androidx.compose.runtime.Composer
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.input.ImeAction
 import com.pirlruc.finsilo.data.ClearSelection
 import com.pirlruc.finsilo.domain.importcsv.ImportSymbolDraft
 import com.pirlruc.finsilo.domain.model.AllocationReport
@@ -19,10 +18,12 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.BrokerCapital
 import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Currency
+import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.HistoryReport
 import com.pirlruc.finsilo.domain.model.HoldingValuation
+import com.pirlruc.finsilo.domain.model.LedgerTemplate
 import com.pirlruc.finsilo.domain.model.MarketSignal
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
@@ -35,6 +36,7 @@ import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.model.TwrReport
 import com.pirlruc.finsilo.domain.model.TwrSplit
 import com.pirlruc.finsilo.domain.model.TwrSubPeriod
+import com.pirlruc.finsilo.domain.model.WatchlistItem
 import com.pirlruc.finsilo.domain.model.YocReport
 import com.pirlruc.finsilo.ui.dashboard.AllocationCard
 import com.pirlruc.finsilo.ui.dashboard.AllocationPie
@@ -76,10 +78,9 @@ import com.pirlruc.finsilo.ui.lock.LockScreenColumn
 import com.pirlruc.finsilo.ui.lock.LockSetupScreen
 import com.pirlruc.finsilo.ui.lock.LockUiState
 import com.pirlruc.finsilo.ui.lock.LockWorkingIndicator
-import com.pirlruc.finsilo.ui.lock.PinSecretField
 import com.pirlruc.finsilo.ui.lock.PickerPrivacyCover
+import com.pirlruc.finsilo.ui.lock.PinSecretField
 import com.pirlruc.finsilo.ui.lock.RecoverPinScreen
-import com.pirlruc.finsilo.ui.lock.RecoveryCodeRow
 import com.pirlruc.finsilo.ui.lock.SecureFlagPolicy
 import com.pirlruc.finsilo.ui.lock.SecuritySettingsCard
 import com.pirlruc.finsilo.ui.lock.SensitiveLockAction
@@ -102,9 +103,6 @@ import com.pirlruc.finsilo.ui.watchlist.WatchlistEditor
 import com.pirlruc.finsilo.ui.watchlist.WatchlistItems
 import com.pirlruc.finsilo.ui.watchlist.WatchlistScreen
 import com.pirlruc.finsilo.ui.watchlist.WatchlistUiState
-import com.pirlruc.finsilo.domain.model.DailyMarketData
-import com.pirlruc.finsilo.domain.model.LedgerTemplate
-import com.pirlruc.finsilo.domain.model.WatchlistItem
 import java.lang.reflect.Proxy
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -187,7 +185,15 @@ class ScreenCoverageTest {
                         ToolMessages("ok", "no")
                         ToolMessages(null, null)
                         PortfolioToolsCard(PortfolioToolsUiState(), toolsActions())
-                        LockScreenColumn { FinSiloBrand(); PinSecretField("1", {}, "PIN", true); CheckRow(true, true, "Saved", {}); LockWorkingIndicator(true); LockError("no"); PickerPrivacyCover(); SecureFlagPolicy.SecureOn() }
+                        LockScreenColumn {
+                            FinSiloBrand()
+                            PinSecretField("1", {}, "PIN", true)
+                            CheckRow(true, true, "Saved", {})
+                            LockWorkingIndicator(true)
+                            LockError("no")
+                            PickerPrivacyCover()
+                            SecureFlagPolicy.SecureOn()
+                        }
                         PinSecretField("1", {}, "PIN", false, onDone = {})
                         LockWorkingIndicator(false)
                         LockError(null)
@@ -303,8 +309,7 @@ class ScreenCoverageTest {
         )
     }
 
-    private fun slice(target: BigDecimal?, type: AssetType = AssetType.ETF) =
-        AllocationSlice(type, BigDecimal.TEN, BigDecimal("50"), target, target?.let { BigDecimal("6") })
+    private fun slice(target: BigDecimal?, type: AssetType = AssetType.ETF) = AllocationSlice(type, BigDecimal.TEN, BigDecimal("50"), target, target?.let { BigDecimal("6") })
 
     private fun holding() = HoldingValuation(asset, BigDecimal.ONE, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ONE, BigDecimal("9"), Currency.EUR)
 

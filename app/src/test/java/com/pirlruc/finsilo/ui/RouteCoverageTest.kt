@@ -37,8 +37,8 @@ import com.pirlruc.finsilo.ui.watchlist.WatchlistRoute
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
 import java.math.BigDecimal
 import java.time.LocalDate
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -145,8 +145,7 @@ class RouteCoverageTest {
 private class QuietFeed(private val day: LocalDate) : MarketFeed {
     override suspend fun eurPerUsd(): BigDecimal = BigDecimal("0.92")
 
-    override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> =
-        listOf(CurrencyRate(to, BigDecimal("0.92")))
+    override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> = listOf(CurrencyRate(to, BigDecimal("0.92")))
 
     override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> = listOf(PriceBar(day, BigDecimal.TEN))
 

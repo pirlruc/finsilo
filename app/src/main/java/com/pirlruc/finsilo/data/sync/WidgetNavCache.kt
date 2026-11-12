@@ -2,6 +2,7 @@ package com.pirlruc.finsilo.data.sync
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.pirlruc.finsilo.data.security.SecurePreferences
 import com.pirlruc.finsilo.domain.model.NavPoint
 import com.pirlruc.finsilo.widget.NavWidgetProvider
@@ -29,12 +30,12 @@ class WidgetNavCache(context: Context, prefsOverride: SharedPreferences? = null)
     fun write(point: NavPoint?) {
         val target = prefs ?: return
         if (point == null) {
-            target.edit().clear().apply()
+            target.edit { clear() }
         } else {
-            target.edit()
-                .putString(KEY_DATE, point.date.toString())
-                .putString(KEY_VALUE, point.valueEur.toPlainString())
-                .apply()
+            target.edit {
+                putString(KEY_DATE, point.date.toString())
+                putString(KEY_VALUE, point.valueEur.toPlainString())
+            }
         }
         NavWidgetProvider.refreshAll(appContext)
     }
@@ -64,12 +65,12 @@ class WidgetNavCache(context: Context, prefsOverride: SharedPreferences? = null)
             val old = context.getSharedPreferences(PREFS_PLAIN, Context.MODE_PRIVATE)
             if (!old.contains(KEY_DATE) && !old.contains(KEY_VALUE)) return
             if (!encrypted.contains(KEY_DATE)) {
-                encrypted.edit()
-                    .putString(KEY_DATE, old.getString(KEY_DATE, null))
-                    .putString(KEY_VALUE, old.getString(KEY_VALUE, null))
-                    .apply()
+                encrypted.edit {
+                    putString(KEY_DATE, old.getString(KEY_DATE, null))
+                    putString(KEY_VALUE, old.getString(KEY_VALUE, null))
+                }
             }
-            old.edit().clear().apply()
+            old.edit { clear() }
         }
     }
 }

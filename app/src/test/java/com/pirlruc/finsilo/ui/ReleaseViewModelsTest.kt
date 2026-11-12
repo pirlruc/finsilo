@@ -16,12 +16,10 @@ import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.HistoryRange
-import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.PriceBar
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.RatingAlertScope
-import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import com.pirlruc.finsilo.ui.dashboard.DashboardMutations
@@ -36,9 +34,9 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -328,8 +326,7 @@ class ReleaseViewModelsTest {
 
         override suspend fun eurPerUsd(): BigDecimal = BigDecimal("0.92")
 
-        override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> =
-            listOf(CurrencyRate(to, BigDecimal("0.92")))
+        override suspend fun eurPerUsdHistory(from: LocalDate, to: LocalDate): List<CurrencyRate> = listOf(CurrencyRate(to, BigDecimal("0.92")))
 
         override suspend fun dailyHistory(asset: Asset, asOf: LocalDate): List<PriceBar> {
             if (fail) error("feed down")

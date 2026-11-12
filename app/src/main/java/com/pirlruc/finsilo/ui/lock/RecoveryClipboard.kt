@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.getSystemService
 
 internal const val RECOVERY_CLIPBOARD_MS: Long = 60_000L
 
@@ -58,13 +59,12 @@ private val clipboardClearHandler = Handler(Looper.getMainLooper())
 
 private fun copyRecoveryAction(context: Context): (String) -> Unit {
     val app = context.applicationContext
-    return { code ->
-        if (code.isNotBlank()) {
-            val clipboard = app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(sensitiveClip(code))
-            clipboardClearHandler.removeCallbacksAndMessages(null)
-            clipboardClearHandler.postDelayed({ clearClip(clipboard) }, RECOVERY_CLIPBOARD_MS)
-        }
+    return copy@{ code ->
+        if (code.isBlank()) return@copy
+        val clipboard = app.getSystemService<ClipboardManager>() ?: return@copy
+        clipboard.setPrimaryClip(sensitiveClip(code))
+        clipboardClearHandler.removeCallbacksAndMessages(null)
+        clipboardClearHandler.postDelayed({ clearClip(clipboard) }, RECOVERY_CLIPBOARD_MS)
     }
 }
 

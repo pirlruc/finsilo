@@ -24,6 +24,7 @@ data class DashboardUiState(
     val ratingPrefs: Map<String, RatingAlertPref> = emptyMap(),
     val transactions: List<Transaction> = emptyList(),
     val assets: List<Asset> = emptyList(),
+    val performance: PerformanceSummary? = null,
 )
 
 /** Which home tab is showing the dashboard report. */

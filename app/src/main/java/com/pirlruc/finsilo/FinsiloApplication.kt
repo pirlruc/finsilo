@@ -9,13 +9,13 @@ import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
 import com.pirlruc.finsilo.data.security.AppLockStore
-import com.pirlruc.finsilo.domain.market.MarketFeed
-import com.pirlruc.finsilo.data.security.LockoutSample
 import com.pirlruc.finsilo.data.security.CredentialKeys
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
+import com.pirlruc.finsilo.data.security.LockoutSample
 import com.pirlruc.finsilo.data.security.SecurePreferences
 import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
+import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
