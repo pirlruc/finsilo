@@ -5,13 +5,13 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   secrets:
     permissions:
       contents: read
+      packages: read
     uses: pirlruc/commondevops/.github/workflows/common-secrets-sast.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
       blocking: true
@@ -23,6 +23,9 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
     permissions:
       contents: read
+      actions: read
+      packages: read
+      security-events: write
     uses: pirlruc/commondevops/.github/workflows/common-supply-chain.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
       blocking: true

@@ -5,8 +5,7 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   pins:
@@ -30,6 +29,7 @@ jobs:
   scaffold:
     permissions:
       contents: read
+      issues: read
     uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
       blocking: true

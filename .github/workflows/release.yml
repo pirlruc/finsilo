@@ -4,8 +4,7 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   apk:
@@ -27,6 +26,8 @@ jobs:
     needs: apk
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     uses: pirlruc/commondevops/.github/workflows/common-release.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
     with:
       tag: ${{ github.ref_name }}

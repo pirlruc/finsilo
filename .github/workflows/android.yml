@@ -9,8 +9,7 @@ concurrency:
   group: android-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   gradle:
@@ -30,6 +29,7 @@ jobs:
   codeql:
     permissions:
       contents: read
+      actions: read
       security-events: write
     uses: pirlruc/androiddevops/.github/workflows/android-codeql.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
     with:
