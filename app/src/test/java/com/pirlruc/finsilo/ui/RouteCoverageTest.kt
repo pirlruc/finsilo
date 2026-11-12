@@ -3,7 +3,9 @@ package com.pirlruc.finsilo.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.currentComposer
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -94,9 +96,10 @@ class RouteCoverageTest {
                 WatchlistRoute(watchlist) {}
                 TargetSettingsRoute(targets, lock, importer, {}, {}, container)
                 AppLockGate(lock) {}
-                renderUnlocked(container, lock, step)
+                RenderUnlocked(container, lock, step)
                 if (step % 2 == 0) FinsiloApp(container)
-                LockChromeLayer(lock.state.value, lock) {}
+                val lockState by lock.state.collectAsState()
+                LockChromeLayer(lockState, lock) {}
             }
         }
         repeat(4) { step ->
@@ -113,7 +116,7 @@ class RouteCoverageTest {
     }
 
     @Composable
-    private fun renderUnlocked(container: AppContainer, lock: LockViewModel, step: Int) {
+    private fun RenderUnlocked(container: AppContainer, lock: LockViewModel, step: Int) {
         val composer = currentComposer
         if (step < 0) return
         val method = Class.forName("com.pirlruc.finsilo.ui.FinsiloAppKt").declaredMethods.first { it.name == "UnlockedApp" }

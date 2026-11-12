@@ -69,6 +69,16 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
         warningsAsErrors = true
+        // Version-available checks fail on every upstream release. Dependabot owns bumps.
+        // targetSdk is pinned. PIN and key writes call commit() so the caller can see failure.
+        disable += listOf(
+            "GradleDependency",
+            "NewerVersionAvailable",
+            "AndroidGradlePluginVersion",
+            "OldTargetApi",
+            "ApplySharedPref",
+            "UseKtx",
+        )
     }
 
     testOptions {

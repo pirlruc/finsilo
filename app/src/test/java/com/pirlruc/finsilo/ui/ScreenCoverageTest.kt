@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -136,8 +137,8 @@ class ScreenCoverageTest {
         assertNotNull(pickerError(byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11, 0xE0.toByte())))
         assertTrue(decodeCsv("a,b".toByteArray()).contains("a,b"))
         assertTrue(decodeCsv(byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 'A'.code.toByte(), 0)).contains("A"))
-        hiddenFromA11y(true)
-        hiddenFromA11y(false)
+        Modifier.hiddenFromA11y(true)
+        Modifier.hiddenFromA11y(false)
 
         compose.setContent {
             FinsiloTheme(darkTheme = phase.intValue % 2 == 1) {
