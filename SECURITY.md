@@ -5,9 +5,8 @@ the screen secure while the lock overlay is up.
 
 ## Reporting a vulnerability
 
-Report a vulnerability through GitHub private vulnerability reporting:
-
-https://github.com/pirlruc/finsilo/security/advisories/new
+Report a vulnerability through
+[GitHub private vulnerability reporting](https://github.com/pirlruc/finsilo/security/advisories/new).
 
 Do not open a public issue for an unfixed security bug.
 

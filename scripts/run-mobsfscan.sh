@@ -18,12 +18,14 @@ install_mobsfscan() {
 			uv venv --seed "$VENV"
 		fi
 	fi
+	# --no-deps: scripts/mobsfscan-overrides.txt replaces semgrep's exact mcp pin.
+	# pip would reject that override while checking dependencies.
 	if [[ -x "$VENV/bin/pip" ]]; then
-		"$VENV/bin/pip" install --disable-pip-version-check --quiet --require-hashes -r "$req"
+		"$VENV/bin/pip" install --disable-pip-version-check --quiet --require-hashes --no-deps -r "$req"
 		echo "$VENV/bin/mobsfscan"
 		return
 	fi
-	python3 -m pip install --user --disable-pip-version-check --quiet --require-hashes -r "$req"
+	python3 -m pip install --user --disable-pip-version-check --quiet --require-hashes --no-deps -r "$req"
 	if command -v mobsfscan >/dev/null 2>&1; then
 		command -v mobsfscan
 		return
