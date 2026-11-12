@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.div
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
+import java.math.BigDecimal as Jbd
 import com.pirlruc.finsilo.domain.usecase.parseDecimal
 import java.math.BigDecimal
 
@@ -52,6 +53,12 @@ internal object BrokerMoney {
     ): Triple<BigDecimal, Currency, BigDecimal?>? = when (priceCcy) {
         "EUR", "" -> eurUnit(quantity, price, total)
         "USD" -> usdUnit(quantity, price, total, parts)
+        "GBP", "CHF", "DKK", "SEK", "NOK" -> foreignUnit(quantity, price, total, priceCcy, parts)
+        "GBX" -> if (currencyCode(parts.totalCurrency, "") == "EUR" && total != null) {
+            eurTotalUnit(quantity, total, parts)
+        } else {
+            gbxUnit(quantity, price, total, parts)
+        }
         else -> eurTotalUnit(quantity, total, parts)
     }
 
@@ -68,6 +75,34 @@ internal object BrokerMoney {
     ): Triple<BigDecimal, Currency, BigDecimal?>? {
         if (price != null) return Triple(price, Currency.USD, usdFx(quantity, price, total, parts))
         return eurTotalUnit(quantity, total, parts)
+    }
+
+    private fun foreignUnit(
+        quantity: BigDecimal,
+        price: BigDecimal?,
+        total: BigDecimal?,
+        code: String,
+        parts: MoneyParts,
+    ): Triple<BigDecimal, Currency, BigDecimal?>? {
+        val currency = Currency.fromCode(code) ?: return null
+        val native = price ?: return eurTotalUnit(quantity, total, parts)
+        val rate = fxFromEurTotal(quantity, native, total, currencyCode(parts.totalCurrency, ""))
+            ?: eurPerUsdRate(parts.exchangeRate)
+            ?: return null
+        return Triple(native, currency, rate)
+    }
+
+    private fun gbxUnit(
+        quantity: BigDecimal,
+        price: BigDecimal?,
+        total: BigDecimal?,
+        parts: MoneyParts,
+    ): Triple<BigDecimal, Currency, BigDecimal?>? {
+        val native = price ?: return null
+        val rate = fxFromEurTotal(quantity, div(native, Jbd("100")), total, currencyCode(parts.totalCurrency, ""))
+            ?: eurPerUsdRate(parts.exchangeRate)
+            ?: return null
+        return Triple(native, Currency.GBX, rate)
     }
 
     private fun eurTotalUnit(quantity: BigDecimal, total: BigDecimal?, parts: MoneyParts): Triple<BigDecimal, Currency, BigDecimal?>? {
@@ -98,18 +133,20 @@ internal object BrokerMoney {
         return if (invert) div(BigDecimal.ONE, rate) else rate
     }
 
-    fun toEurCash(amount: BigDecimal, currency: String, exchangeRate: String): BigDecimal? = when (currencyCode(currency, "")) {
+    fun toEurCash(amount: BigDecimal, currency: String, exchangeRate: String): BigDecimal? = when (val code = currencyCode(currency, "")) {
         "EUR", "" -> amount
-        "USD" -> eurPerUsdRate(exchangeRate)?.let { times(amount, it) }
-        else -> null
+        "USD", "GBP", "CHF", "DKK", "SEK", "NOK" -> eurPerUsdRate(exchangeRate)?.let { times(amount, it) }
+        "GBX" -> eurPerUsdRate(exchangeRate)?.let { times(div(amount, Jbd("100")), it) }
+        else -> null.also { if (code.isNotEmpty() && amount.signum() != 0) return null }
     }
 
     private fun feesEur(parts: MoneyParts, eurPerUsd: BigDecimal?): BigDecimal {
         val fee = absAmount(parts.fees) ?: return BigDecimal.ZERO
         return when (currencyCode(parts.feesCurrency, parts.totalCurrency)) {
-            "USD" -> eurPerUsd?.let { times(fee, it) } ?: BigDecimal.ZERO
+            "USD", "GBP", "CHF", "DKK", "SEK", "NOK" -> eurPerUsd?.let { times(fee, it) } ?: BigDecimal.ZERO
+            "GBX" -> eurPerUsd?.let { times(div(fee, Jbd("100")), it) } ?: BigDecimal.ZERO
             "EUR", "" -> fee
-            else -> BigDecimal.ZERO
+            else -> if (fee.signum() == 0) BigDecimal.ZERO else BigDecimal.ZERO
         }
     }
 

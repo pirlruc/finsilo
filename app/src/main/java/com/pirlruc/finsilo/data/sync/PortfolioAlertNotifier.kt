@@ -21,17 +21,18 @@ class PortfolioAlertNotifier(private val context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         ensureChannels(manager)
         unseen.forEach { alert ->
+            val locked = ShadePrivacy.redact
             val notification =
                 Notification.Builder(context, channelId(alert.channel))
                     .setSmallIcon(R.drawable.ic_stat_silo)
-                    .setContentTitle(alert.title)
-                    .setContentText(alert.body)
+                    .setContentTitle(if (locked) "Portfolio alert" else alert.title)
+                    .setContentText(if (locked) "Open FinSilo to view" else alert.body)
                     .setAutoCancel(true)
                     .setVisibility(Notification.VISIBILITY_PRIVATE)
                     .setPublicVersion(redacted(channelId(alert.channel)))
                     .build()
             manager.notify(notificationId(alert), notification)
-            remember(alert)
+            if (!locked) remember(alert)
         }
     }
 
@@ -71,8 +72,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty().contains(alertKey(alert))
 
     private fun remember(alert: PortfolioAlert) {
-        val next = prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty().toMutableSet()
-        next += alertKey(alert)
+        val next = AlertPublishKey.bound(prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty(), alertKey(alert))
         prefs().edit().putStringSet(KEY_PUBLISHED, next).apply()
     }
 
@@ -92,4 +92,10 @@ class PortfolioAlertNotifier(private val context: Context) {
         private const val PREFS = "finsilo-alerts"
         private const val KEY_PUBLISHED = "published"
     }
+}
+
+/** True while the in-app lock overlay is showing, so shade text stays generic. */
+object ShadePrivacy {
+    @Volatile
+    var redact: Boolean = false
 }

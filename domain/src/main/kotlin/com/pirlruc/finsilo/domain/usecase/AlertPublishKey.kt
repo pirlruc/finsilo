@@ -9,6 +9,24 @@ import java.security.MessageDigest
  * holding names, ratings, or prices.
  */
 object AlertPublishKey {
+    /** Cap on stored digests so the preference file cannot grow without bound. */
+    const val MAX_STORED: Int = 256
+
+    /**
+     * Keep at most [MAX_STORED] digests. [next] is retained. Older entries
+     * drop from the front of [existing] iteration order.
+     */
+    fun bound(existing: Set<String>, next: String, max: Int = MAX_STORED): Set<String> {
+        val ordered = existing.toMutableList()
+        ordered.remove(next)
+        ordered.add(next)
+        val overflow = ordered.size - max
+        if (overflow > 0) {
+            repeat(overflow) { ordered.removeAt(0) }
+        }
+        return ordered.toSet()
+    }
+
     /** Hex SHA-256 of channel, title, and body. */
     fun digest(channel: String, title: String, body: String): String {
         val raw = "$channel|$title|$body".toByteArray(Charsets.UTF_8)

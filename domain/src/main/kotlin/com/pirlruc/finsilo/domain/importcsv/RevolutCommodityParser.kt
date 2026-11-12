@@ -34,8 +34,18 @@ internal object RevolutCommodityParser {
     }
 
     private fun buy(sourceLine: Int, date: LocalDate, symbol: String, row: CsvRow): BrokerCsvLine {
+        val eur = eurNotional(row)
         val booked = BrokerMoney.book(
-            MoneyParts(row.get("Amount"), "0", "EUR", "0", "EUR", "", "0", "EUR"),
+            MoneyParts(
+                row.get("Amount"),
+                if (eur == null) "0" else "",
+                "EUR",
+                eur?.toPlainString() ?: "0",
+                "EUR",
+                "",
+                row.get("Fee"),
+                "EUR",
+            ),
         )
         return StatementRows.bookedHolding(
             ListedTrade(
@@ -52,6 +62,12 @@ internal object RevolutCommodityParser {
                 missingBook = "Commodity row missing amount",
             ),
         )
+    }
+
+    /** EUR spent when the description names it. The metal row then books that cash leg as the price. */
+    private fun eurNotional(row: CsvRow): java.math.BigDecimal? {
+        val described = Regex("(?i)(\\d+[\\d.,]*)\\s*EUR").find(row.get("Description")) ?: return null
+        return BrokerMoney.parseAmount(described.groupValues[1])
     }
 
     private fun metal(row: CsvRow): String {

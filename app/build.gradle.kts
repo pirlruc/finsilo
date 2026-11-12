@@ -2,12 +2,14 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.kover)
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -18,9 +20,21 @@ android {
         applicationId = "com.pirlruc.finsilo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    val releaseStore = System.getenv("FINSILO_KEYSTORE_FILE")
+    signingConfigs {
+        create("release") {
+            if (!releaseStore.isNullOrBlank()) {
+                storeFile = file(releaseStore)
+                storePassword = System.getenv("FINSILO_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("FINSILO_KEY_ALIAS")
+                keyPassword = System.getenv("FINSILO_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -31,8 +45,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // CI assembleRelease needs a signing config; production keys are not in-repo.
-            signingConfig = signingConfigs.getByName("debug")
+            // Fail closed: a release APK is signed only when the keystore env is set.
+            signingConfig = if (releaseStore.isNullOrBlank()) null else signingConfigs.getByName("release")
         }
     }
 
@@ -54,7 +68,7 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
-        warningsAsErrors = false
+        warningsAsErrors = true
     }
 
     testOptions {
@@ -63,11 +77,16 @@ android {
             isReturnDefaultValues = true
         }
     }
+
+    sourceSets.named("test") {
+        assets.directories.add("$projectDir/schemas")
+    }
 }
 
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        allWarningsAsErrors.set(true)
     }
 }
 
@@ -104,6 +123,38 @@ dependencies {
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+val statementCoverage = readKotlinThreshold("statement_coverage")
+val branchCoverage = readKotlinThreshold("branch_coverage")
+
+kover {
+    reports {
+        verify {
+            rule("statement coverage") {
+                bound {
+                    coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE
+                    minValue = statementCoverage
+                }
+            }
+            rule("branch coverage") {
+                bound {
+                    coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH
+                    minValue = branchCoverage
+                }
+            }
+        }
+    }
+}
+
+fun readKotlinThreshold(key: String): Int {
+    val file = rootProject.file("config/kotlin.profile.thresholds.yml")
+    require(file.isFile) { "Missing ${file.path}" }
+    val line = file.readLines().first { it.trimStart().startsWith("$key:") }
+    return line.substringAfter(":").substringBefore("#").trim().toInt()
 }
 
 ktlint {

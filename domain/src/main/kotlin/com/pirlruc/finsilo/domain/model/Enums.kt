@@ -23,10 +23,21 @@ enum class AssetType {
         get() = this == STOCK || this == ETF || this == PPR
 }
 
-/** Quote currency. Valuation stores FX as EUR per 1 USD. */
+/** Quote and booking currency. FX is stored as EUR per 1 unit of the currency. GBX is pence. */
 enum class Currency {
     EUR,
     USD,
+    GBP,
+    GBX,
+    CHF,
+    DKK,
+    SEK,
+    NOK,
+    ;
+
+    companion object {
+        fun fromCode(code: String): Currency? = entries.firstOrNull { it.name == code.trim().uppercase() }
+    }
 }
 
 /** Ledger row kind. Same-day replay uses [ledgerRank]. */
@@ -101,6 +112,8 @@ enum class AnalystRating(val code: Int) {
 enum class HistoryRange {
     ONE_MONTH,
     THREE_MONTHS,
+    SIX_MONTHS,
+    ONE_YEAR,
     YTD,
     ALL,
 }

@@ -15,6 +15,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pirlruc.finsilo.data.sync.ShadePrivacy
 
 @Composable
 fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
@@ -25,6 +26,7 @@ fun AppLockGate(viewModel: LockViewModel, content: @Composable () -> Unit) {
     AutoBiometricPrompt(state, prompt)
     var sessionReady by remember { mutableStateOf(false) }
     SideEffect {
+        ShadePrivacy.redact = !state.unlocked || state.pendingBiometricSeal
         if (state.sessionEvicted) {
             sessionReady = false
         } else if (state.setupComplete && state.unlocked && !state.wrapUpgradeRequired) {

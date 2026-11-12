@@ -30,6 +30,7 @@ internal fun ClearSelectionDialog(
         title = { Text("Clear on this device?") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
                 Text(
                     "Choose what to wipe. This cannot be undone. Encrypted backups are not deleted.",
                     style = MaterialTheme.typography.bodySmall,

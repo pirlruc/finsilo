@@ -31,6 +31,7 @@ fun DashboardRoute(
     onOpenSettings: () -> Unit,
     onOpenWatchlist: () -> Unit,
     onPickerBusy: (Boolean) -> Unit,
+    section: HomeSection = HomeSection.ALL,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val importState by importer.state.collectAsStateWithLifecycle()
@@ -57,6 +58,7 @@ fun DashboardRoute(
             onSaveKey = viewModel::saveAlphaVantageKey,
             onLoadSample = viewModel::loadSample,
         ),
+        section = section,
         clear = DashboardClearActions(
             onRequestClear = viewModel::requestClear,
             onConfirmClear = viewModel::confirmClear,
@@ -75,6 +77,7 @@ internal fun DashboardScreen(
     importState: BrokerImportUiState,
     nav: DashboardNavActions,
     clear: DashboardClearActions,
+    section: HomeSection = HomeSection.ALL,
 ) {
     var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
@@ -124,6 +127,9 @@ internal fun DashboardScreen(
                         holdings = HoldingActions(nav.onSaveThreshold, nav.onSaveRating, nav.onSaveInstrument),
                         importState = importState,
                         importNav = nav.import,
+                        section = section,
+                        transactions = state.transactions,
+                        assets = state.assets,
                     )
             }
         }

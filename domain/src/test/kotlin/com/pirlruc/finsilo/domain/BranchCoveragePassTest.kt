@@ -332,7 +332,7 @@ class BrokerHelpersBranchCoverageTest {
             BrokerMoney.book(MoneyParts("2", "150", "USD", "300", "USD", "0.92", "1", "GBP"))
         assertEquals(Currency.USD, usdViaRate!!.currency)
         assertEquals(0, bd("0.92").compareTo(usdViaRate.eurPerUsd))
-        assertEquals(0, BigDecimal.ZERO.compareTo(usdViaRate.feesEur))
+        assertEquals(0, bd("0.92").compareTo(usdViaRate.feesEur))
         assertNull(BrokerMoney.eurPerUsdRate(""))
         assertNull(BrokerMoney.eurPerUsdRate("0"))
         assertEquals(0, bd("1").compareTo(BrokerMoney.eurPerUsdRate("-1")))

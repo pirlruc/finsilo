@@ -10,6 +10,7 @@ object MarketHttpsPolicy {
     val allowedHosts: Set<String> =
         setOf(
             "api.frankfurter.app",
+            "api.frankfurter.dev",
             "www.alphavantage.co",
             "api.coingecko.com",
             "stooq.com",

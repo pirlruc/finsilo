@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-12
+
+- License the app as GPL-3.0-only and reserve EU text-and-data-mining rights in NOTICE.
+- Value GBP, GBX, CHF, DKK, SEK, and NOK with Frankfurter crosses and a stored-rate fallback.
+- Read CoinGecko prices with a typed JSON parser.
+- Split the home screen into Overview, Holdings, Activity, and Insights.
+- Call shared Android and common CI workflows. Release signing fails closed without a keystore.
+
 ## [Unreleased]
 
 - Fix broker CSV import for DEGIRO transactions and account statements,

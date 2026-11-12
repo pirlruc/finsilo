@@ -18,7 +18,21 @@ object QuoteCurrency {
     fun of(asset: Asset): Currency {
         if (asset.locallyValued || asset.assetType == AssetType.CASH) return asset.baseCurrency
         if (usdQuotedType(asset.assetType)) return Currency.USD
-        return if (ListedQuoteRouting.looksEuropean(asset.feedSymbol)) Currency.EUR else Currency.USD
+        return listingCurrency(asset.feedSymbol)
+    }
+
+    /** Stooq suffix to quote currency. EUR listings stay EUR. Unknown suffixes stay USD. */
+    fun listingCurrency(symbol: String): Currency {
+        val suffix = symbol.trim().uppercase().substringAfterLast('.', "")
+        return when (suffix) {
+            "L", "LON", "UK" -> Currency.GBP
+            "CO" -> Currency.DKK
+            "SW", "VX" -> Currency.CHF
+            "ST" -> Currency.SEK
+            "OL" -> Currency.NOK
+            "DE", "PA", "AS", "MI", "MC", "BR", "LS", "HE", "IR", "VI", "AT" -> Currency.EUR
+            else -> if (ListedQuoteRouting.looksEuropean(symbol)) Currency.EUR else Currency.USD
+        }
     }
 
     /** True when mark-to-market needs an EUR-per-USD row even if the instrument is booked in EUR. */

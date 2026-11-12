@@ -105,6 +105,7 @@ private fun RestoreConfirmDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
         onDismissRequest = onCancel,
         title = { Text("Replace live data?") },
         text = {
+            com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
             Text(
                 "Restore overwrites the ledger, watchlist, templates, and alerts on this device. Encrypted backups on disk are not deleted.",
             )

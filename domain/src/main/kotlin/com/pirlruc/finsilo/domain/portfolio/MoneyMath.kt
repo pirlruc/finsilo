@@ -42,11 +42,14 @@ object MoneyMath {
     /**
      * Convert a native amount to EUR.
      *
-     * [eurPerUsd] is EUR per 1 USD (e.g. 0.92 means 1 USD = 0.92 EUR).
-     * USD amounts become `native * eurPerUsd`. EUR amounts are unchanged.
+     * [eurPerUnit] is EUR per 1 unit of [currency]. For [Currency.GBX] it is
+     * EUR per 1 GBP, and the pence amount is divided by 100 first.
+     * EUR amounts ignore the rate.
      */
-    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUsd: BigDecimal): BigDecimal = when (currency) {
+    fun toEur(amountNative: BigDecimal, currency: Currency, eurPerUnit: BigDecimal): BigDecimal = when (currency) {
         Currency.EUR -> amountNative
-        Currency.USD -> times(amountNative, eurPerUsd)
+        Currency.GBX -> times(div(amountNative, HUNDRED), eurPerUnit)
+        Currency.USD, Currency.GBP, Currency.CHF, Currency.DKK, Currency.SEK, Currency.NOK ->
+            times(amountNative, eurPerUnit)
     }
 }

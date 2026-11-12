@@ -67,6 +67,7 @@ private fun WatchlistAlertDialog(item: WatchlistItem, pref: RatingAlertPref?, on
         onDismissRequest = onDismiss,
         title = { Text("${item.symbol} rating alerts") },
         text = {
+            com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
             RatingLevelColumn(levels) { rating, checked ->
                 levels = if (checked) levels + rating else levels - rating
             }

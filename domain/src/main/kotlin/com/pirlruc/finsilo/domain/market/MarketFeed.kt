@@ -2,12 +2,20 @@ package com.pirlruc.finsilo.domain.market
 
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
+import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PriceBar
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import java.math.BigDecimal
 import java.time.LocalDate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** GET-only quote source used by [com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase]. */
 interface MarketFeed {
@@ -126,55 +134,73 @@ object StooqParser {
         .toList()
 }
 
-/** Parser for Frankfurter EUR-per-USD JSON. */
+/** Typed parser for Frankfurter JSON. Reads rate objects, not a currency regex. */
 object FrankfurterParser {
-    private val eur = Regex("\"EUR\"\\s*:\\s*([0-9.]+)")
-    private val datedEur = Regex("\"(\\d{4}-\\d{2}-\\d{2})\"\\s*:\\s*\\{\\s*\"EUR\"\\s*:\\s*([0-9.]+)")
+    private val json = Json { ignoreUnknownKeys = true }
 
-    fun eurPerUsd(json: String): BigDecimal? {
-        val match = eur.find(json) ?: return null
-        return BigDecimal(match.groupValues[1])
+    fun eurPerUsd(body: String): BigDecimal? = numberFor(body, "EUR")
+
+    fun eurPerUsdSeries(body: String): List<CurrencyRate> = crossSeries(body).map { (date, rates) ->
+        CurrencyRate(date, rates[Currency.USD] ?: rates.values.first(), rates.filterKeys { it != Currency.USD })
     }
 
-    fun eurPerUsdSeries(json: String): List<CurrencyRate> = datedEur
-        .findAll(json)
-        .map { match ->
-            CurrencyRate(LocalDate.parse(match.groupValues[1]), BigDecimal(match.groupValues[2]))
-        }.sortedBy { it.date }
-        .toList()
+    /** Latest EUR-per-unit map. Keys are the quoted currencies present in the document. */
+    fun latestCrosses(body: String): Map<Currency, BigDecimal> {
+        val root = root(body) ?: return emptyMap()
+        val rates = root["rates"]?.let { runCatching { it.jsonObject }.getOrNull() } ?: root
+        return rates.entries.mapNotNull { (code, value) ->
+            val currency = Currency.fromCode(code) ?: return@mapNotNull null
+            number(value)?.let { currency to it }
+        }.toMap()
+    }
+
+    private fun crossSeries(body: String): List<Pair<LocalDate, Map<Currency, BigDecimal>>> {
+        val root = root(body) ?: return emptyList()
+        val table = root["rates"]?.let { runCatching { it.jsonObject }.getOrNull() } ?: root
+        return table.entries.mapNotNull { (key, value) ->
+            val date = runCatching { LocalDate.parse(key) }.getOrNull() ?: return@mapNotNull null
+            val obj = runCatching { value.jsonObject }.getOrNull() ?: return@mapNotNull null
+            val rates = obj.entries.mapNotNull { (code, amount) ->
+                val currency = Currency.fromCode(code) ?: return@mapNotNull null
+                number(amount)?.let { currency to it }
+            }.toMap()
+            if (rates.isEmpty()) null else date to rates
+        }.sortedBy { it.first }
+    }
+
+    private fun numberFor(body: String, code: String): BigDecimal? {
+        val root = root(body) ?: return null
+        number(root[code])?.let { return it }
+        val rates = root["rates"]?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        return number(rates[code])
+    }
+
+    private fun root(body: String): JsonObject? = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+
+    private fun number(value: kotlinx.serialization.json.JsonElement?): BigDecimal? {
+        val primitive = value as? JsonPrimitive ?: return null
+        val text = primitive.contentOrNull ?: return null
+        return text.toBigDecimalOrNull()
+    }
 }
 
-/** Parser for CoinGecko `market_chart` prices. */
+/** Typed parser for CoinGecko `market_chart`. Only [prices] is read. */
 object CoinGeckoParser {
-    /**
-     * Parses `market_chart` prices: `{"prices":[[epochMs, price], ...]}`.
-     */
-    private val pair = Regex("\\[\\s*(\\d+)\\s*,\\s*([0-9.eE+-]+)\\s*\\]")
-    private val topLevelKey = Regex("\"[A-Za-z0-9_]+\"\\s*:")
+    private val json = Json { ignoreUnknownKeys = true }
 
-    fun dailyCloses(json: String): List<PriceBar> {
-        val block = pricesArray(json)
-        return pair
-            .findAll(block)
-            .map { match ->
-                val epochDay =
-                    java.time.Instant
-                        .ofEpochMilli(match.groupValues[1].toLong())
-                        .atZone(java.time.ZoneOffset.UTC)
-                        .toLocalDate()
-                PriceBar(epochDay, BigDecimal(match.groupValues[2]))
-            }.groupBy { it.date }
+    @Serializable
+    private data class Chart(val prices: List<List<Double>> = emptyList())
+
+    fun dailyCloses(body: String): List<PriceBar> {
+        val chart = runCatching { json.decodeFromString<Chart>(body) }.getOrNull() ?: return emptyList()
+        return chart.prices.mapNotNull { pair ->
+            if (pair.size < 2) return@mapNotNull null
+            val epochDay = java.time.Instant.ofEpochMilli(pair[0].toLong())
+                .atZone(java.time.ZoneOffset.UTC)
+                .toLocalDate()
+            PriceBar(epochDay, BigDecimal.valueOf(pair[1]))
+        }.groupBy { it.date }
             .map { (date, bars) -> bars.last().copy(date = date) }
             .sortedBy { it.date }
-    }
-
-    /** The `prices` array only, stopping at the next object key such as `total_volumes`. */
-    private fun pricesArray(json: String): String {
-        val marker = "\"prices\""
-        val start = json.indexOf(marker)
-        if (start < 0) return ""
-        val from = start + marker.length
-        val next = topLevelKey.find(json, from)?.range?.first ?: json.length
-        return json.substring(from, next)
     }
 }

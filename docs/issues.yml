@@ -132,7 +132,7 @@ milestones:
               - bash scripts/check-analog-pins.sh
 
       - id: TOOL-003
-        status: open
+        status: done
         title: Publish the authored backlog to GitHub issues
         overview:
           problem: >-
@@ -170,7 +170,7 @@ milestones:
           - KT-DELIV-001
         tasks:
           - id: TOOL-003-T1
-            status: open
+            status: done
             title: Grant Issues write and run scaffold plus issues-sync
             instructions:
               files:
@@ -677,7 +677,7 @@ milestones:
               - Stored series is preserved when Stooq succeeds
 
       - id: FS-008
-        status: open
+        status: done
         title: Replace regex quote parsers when a third JSON feed lands
         overview:
           problem: >-
@@ -698,7 +698,7 @@ milestones:
           - KT-SEC-001
         tasks:
           - id: FS-008-T1
-            status: open
+            status: done
             title: Adopt kotlinx.serialization for JSON quotes when a third feed is added
             instructions:
               files:
@@ -1905,7 +1905,7 @@ milestones:
             - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv
         acceptance_criteria:
           - Key stored on-device like the Alpha Vantage key; never logged
-          - Read-only: positions and history, no order placement
+          - "Read-only: positions and history, no order placement"
           - Failures stay local (quota/401) without unofficial fallbacks
         guardrail_refs:
           - KT-API-001
@@ -2085,6 +2085,92 @@ milestones:
             verification:
               - AllocationPieSpecTest.singleSliceIsAFullDisk
               - AllocationPieSpecTest.multipleSlicesKeepDonutGaps
+
+      - id: FS-038
+        status: done
+        title: Publish FinSilo under GPL-3.0-only with an EU text-and-data-mining reservation
+        overview:
+          problem: >-
+            The repository had no LICENSE. The supply-chain deny list matches
+            AGPL-3.0, so the SPDX identifier has to stay GPL-3.0-only.
+          goal: >-
+            Ship the canonical GPL-3.0 text, a NOTICE that reserves EU
+            Directive 2019/790 Article 4(3) text-and-data-mining and AI-training
+            rights, SECURITY.md, and REUSE metadata.
+        decision: >-
+          In the context of publishing FinSilo, facing a missing license and
+          an AGPL deny-list substring, we decided GPL-3.0-only plus an EU
+          Directive 2019/790 Article 4(3) NOTICE, to keep a standard SPDX
+          identifier while reserving AI-training rights, accepting that the
+          reservation sits beside the GPL text and does not modify it.
+        acceptance_criteria:
+          - LICENSE is the unmodified GPL-3.0 text
+          - NOTICE states the Article 4(3) reservation
+          - REUSE.toml annotates the tree as GPL-3.0-only
+        tasks:
+          - id: FS-038-T1
+            status: done
+            title: Add LICENSE, NOTICE, SECURITY.md, and REUSE.toml
+            verification:
+              - LICENSE begins with the GNU GPL version 3 heading
+              - NOTICE names Directive 2019/790 Article 4(3)
+
+      - id: FS-039
+        status: done
+        title: Book multi-broker CSV rows in EUR, GBP, GBX, CHF, and Nordic currencies
+        overview:
+          problem: >-
+            Listings outside EUR and USD were dropped or stored as zero-fee
+            guesses, and quote JSON was still scanned with regular expressions.
+          goal: >-
+            Read CoinGecko prices with kotlinx.serialization, take Frankfurter
+            crosses for EUR, USD, GBP, GBX, CHF, DKK, SEK, and NOK, and map
+            Stooq suffixes for London, Copenhagen, Switzerland, Stockholm, and Oslo.
+        decision: >-
+          In the context of broker CSV and non-EUR listings, facing regex JSON
+          and a USD-only FX map, we decided typed price JSON plus Frankfurter
+          crosses and a deterministic stored-rate fallback, to value GBP, GBX,
+          CHF, DKK, SEK, and NOK, accepting that the Trading 212 live API stays
+          deferred.
+        acceptance_criteria:
+          - CoinGecko decoding reads only the prices array
+          - Frankfurter hosts are on the network allowlist
+          - Domain tests cover the currency set with synthetic rows
+        tasks:
+          - id: FS-039-T1
+            status: done
+            title: Typed market JSON, FX crosses, and commodity quote symbols
+            verification:
+              - ./gradlew :domain:test
+              - FS-026 stays open
+
+      - id: FS-040
+        status: done
+        title: Split the home screen into four tabs
+        overview:
+          problem: >-
+            Overview, holdings, activity, and insights were one scrolling page,
+            and broker import appeared twice.
+          goal: >-
+            Use a Material 3 navigation bar for Overview, Holdings, Activity,
+            and Insights. Keep settings for security, weights, backup, API keys,
+            and tax export. Import lives on Overview.
+        decision: >-
+          In the context of daily portfolio use, facing a single scrolling
+          dashboard, we decided a four-tab Material 3 bar with settings kept
+          separate, to reach holdings, activity, and insights without a long
+          scroll, accepting that instrumented emulator tests stay off the pull
+          request path.
+        acceptance_criteria:
+          - FinsiloApp shows Overview, Holdings, Activity, and Insights
+          - Settings no longer embeds the import card
+          - A Robolectric test selects each tab
+        tasks:
+          - id: FS-040-T1
+            status: done
+            title: Navigation bar and sectioned home
+            verification:
+              - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.ui.MainNavigationBarTest
 
   - name: Phase 8 — Quotes, lock, and alerts
     epics:
@@ -2372,7 +2458,7 @@ milestones:
               - KT-API-001
 
       - id: FS-034
-        status: open
+        status: done
         title: Pin market HTTPS certificates
         overview:
           problem: >-
@@ -2401,7 +2487,7 @@ milestones:
           - KT-SEC-002
         tasks:
           - id: FS-034-T1
-            status: open
+            status: done
             title: Choose pinning vs system CAs and implement or record the decision
             instructions:
               files:
@@ -2459,7 +2545,7 @@ milestones:
               - KT-API-002
 
       - id: FS-036
-        status: open
+        status: done
         title: Finish the review follow-ups that are not yet in code
         overview:
           problem: >-
@@ -2515,7 +2601,7 @@ milestones:
               - KT-SEC-002
               - KT-TEST-002
           - id: FS-036-T2
-            status: open
+            status: done
             title: Decide FX for dates before the first stored rate
             instructions:
               files:
@@ -2526,7 +2612,7 @@ milestones:
             guardrail_refs:
               - KT-TEST-001
           - id: FS-036-T3
-            status: open
+            status: done
             title: Stop booking unsupported import fee currencies as zero EUR
             instructions:
               files:
@@ -2537,7 +2623,7 @@ milestones:
             guardrail_refs:
               - KT-TEST-001
           - id: FS-036-T4
-            status: open
+            status: done
             title: Redact shade alerts while the in-app lock overlay is showing
             instructions:
               files:
@@ -2549,7 +2635,7 @@ milestones:
             guardrail_refs:
               - KT-SEC-002
           - id: FS-036-T5
-            status: open
+            status: done
             title: Rebuild NAV from the changed date instead of a full daily walk
             instructions:
               files:
@@ -2564,7 +2650,7 @@ milestones:
   - name: Android CI adoption
     epics:
       - id: FS-037
-        status: open
+        status: done
         title: Call androiddevops for the Gradle jobs
         overview:
           problem: >-
@@ -2583,7 +2669,7 @@ milestones:
           - scripts_ref equals that SHA
         tasks:
           - id: FS-037-T1
-            status: open
+            status: done
             title: Point the Android jobs at androiddevops
             instructions:
               files:

@@ -184,6 +184,12 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
             "XAU" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
             "GOLD" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
             "XAUUSD" to listOf("xauusd", "xauusd.pl", "xauusd.us"),
+            "XAG" to listOf("xagusd"),
+            "XAGUSD" to listOf("xagusd"),
+            "XPT" to listOf("xptusd"),
+            "XPTUSD" to listOf("xptusd"),
+            "XPD" to listOf("xpdusd"),
+            "XPDUSD" to listOf("xpdusd"),
         )
         private val COMMODITY_FUNCTIONS = mapOf(
             "WTI" to "WTI",

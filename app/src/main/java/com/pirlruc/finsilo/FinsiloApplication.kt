@@ -1,11 +1,14 @@
 package com.pirlruc.finsilo
 
 import android.app.Application
+import android.os.SystemClock
+import android.provider.Settings
 import androidx.room.Room
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
 import com.pirlruc.finsilo.data.security.AppLockStore
+import com.pirlruc.finsilo.data.security.LockoutSample
 import com.pirlruc.finsilo.data.security.CredentialKeys
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.security.SecurePreferences
@@ -32,7 +35,13 @@ class AppContainer(val application: Application) {
     val widgetNav = WidgetNavCache(application)
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
     val marketFeed = CompositeMarketFeed(keys = keys)
-    val lockStore = AppLockStore(credentials)
+    val lockStore = AppLockStore(credentials) {
+        LockoutSample(
+            wallMs = System.currentTimeMillis(),
+            elapsedMs = SystemClock.elapsedRealtime(),
+            bootCount = Settings.Global.getInt(application.contentResolver, Settings.Global.BOOT_COUNT, 0),
+        )
+    }
 
     @Volatile
     private var database: FinsiloDatabase? = null

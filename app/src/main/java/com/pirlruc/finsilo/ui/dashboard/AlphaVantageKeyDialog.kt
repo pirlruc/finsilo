@@ -23,6 +23,7 @@ internal fun AlphaVantageKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSav
         title = { Text("Alpha Vantage key") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.pirlruc.finsilo.ui.lock.SecureFlagPolicy.SecureOn()
                 Text(alphaVantageDialogCopy(hasKey), style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
                     value = value,

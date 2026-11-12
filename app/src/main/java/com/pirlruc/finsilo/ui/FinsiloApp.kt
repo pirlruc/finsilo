@@ -8,6 +8,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,7 +24,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.pirlruc.finsilo.ui.dashboard.HomeSection
+import com.pirlruc.finsilo.ui.ledger.ActivityLedger
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -32,11 +44,33 @@ import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
 import com.pirlruc.finsilo.ui.watchlist.WatchlistRoute
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
 
+enum class HomeTab {
+    OVERVIEW,
+    HOLDINGS,
+    ACTIVITY,
+    INSIGHTS,
+}
+
 private enum class AppScreen {
-    DASHBOARD,
+    HOME,
     LEDGER,
     SETTINGS,
     WATCHLIST,
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainNavigationBar(selected: HomeTab, onSelect: (HomeTab) -> Unit) {
+    NavigationBar {
+        HomeTab.entries.forEach { tab ->
+            NavigationBarItem(
+                selected = tab == selected,
+                onClick = { onSelect(tab) },
+                icon = { Text(tab.name.take(1)) },
+                label = { Text(tab.name.lowercase().replaceFirstChar { it.titlecase() }) },
+            )
+        }
+    }
 }
 
 @Composable
@@ -50,33 +84,67 @@ fun FinsiloApp(container: AppContainer) {
 
 @Composable
 private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
-    var screen by rememberSaveable { mutableStateOf(AppScreen.DASHBOARD) }
+    var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var tab by rememberSaveable { mutableStateOf(HomeTab.OVERVIEW) }
     val dashboard: DashboardViewModel = viewModel(factory = DashboardViewModel.factory(container))
     val importer: BrokerImportViewModel = viewModel(factory = BrokerImportViewModel.factory(container))
     val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
     val onPickerBusy = rememberPickerBusy(lock)
-    BackHandler(enabled = screen != AppScreen.DASHBOARD) {
-        screen = AppScreen.DASHBOARD
+    val dashState by dashboard.state.collectAsStateWithLifecycle()
+    BackHandler(enabled = screen != AppScreen.HOME) {
+        screen = AppScreen.HOME
         dashboard.refresh()
     }
+    Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
+        bottomBar = {
+            if (screen == AppScreen.HOME) {
+                MainNavigationBar(tab) { tab = it }
+            }
+        },
+    ) { padding ->
     when (screen) {
-        AppScreen.DASHBOARD ->
-            DashboardRoute(
-                viewModel = dashboard,
-                importer = importer,
-                onAddTransaction = {
-                    ledger.prepare()
-                    screen = AppScreen.LEDGER
-                },
-                onOpenSettings = { screen = AppScreen.SETTINGS },
-                onOpenWatchlist = { screen = AppScreen.WATCHLIST },
-                onPickerBusy = onPickerBusy,
-            )
+        AppScreen.HOME ->
+            androidx.compose.foundation.layout.Column(Modifier.padding(padding).imePadding()) {
+            when (tab) {
+                HomeTab.ACTIVITY ->
+                    ActivityLedger(
+                        transactions = dashState.transactions,
+                        assets = dashState.assets,
+                        onAdd = {
+                            ledger.prepare()
+                            screen = AppScreen.LEDGER
+                        },
+                        onEdit = { tx ->
+                            ledger.edit(tx)
+                            screen = AppScreen.LEDGER
+                        },
+                        onDelete = dashboard::deleteTransaction,
+                    )
+                else ->
+                    DashboardRoute(
+                        viewModel = dashboard,
+                        importer = importer,
+                        onAddTransaction = {
+                            ledger.prepare()
+                            screen = AppScreen.LEDGER
+                        },
+                        onOpenSettings = { screen = AppScreen.SETTINGS },
+                        onOpenWatchlist = { screen = AppScreen.WATCHLIST },
+                        onPickerBusy = onPickerBusy,
+                        section = when (tab) {
+                            HomeTab.HOLDINGS -> HomeSection.HOLDINGS
+                            HomeTab.INSIGHTS -> HomeSection.INSIGHTS
+                            else -> HomeSection.OVERVIEW
+                        },
+                    )
+            }
+            }
         AppScreen.LEDGER ->
             LedgerEntryRoute(
                 viewModel = ledger,
                 onClose = {
-                    screen = AppScreen.DASHBOARD
+                    screen = AppScreen.HOME
                     dashboard.refresh()
                 },
             )
@@ -87,7 +155,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                 lock = lock,
                 importer = importer,
                 onClose = {
-                    screen = AppScreen.DASHBOARD
+                    screen = AppScreen.HOME
                     dashboard.refresh()
                 },
                 onPickerBusy = onPickerBusy,
@@ -98,9 +166,10 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
             val watchlist: WatchlistViewModel = viewModel(factory = WatchlistViewModel.factory(container))
             WatchlistRoute(
                 viewModel = watchlist,
-                onClose = { screen = AppScreen.DASHBOARD },
+                onClose = { screen = AppScreen.HOME },
             )
         }
+    }
     }
 }
 

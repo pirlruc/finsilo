@@ -10,6 +10,7 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.minus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
 import java.math.BigDecimal
+import java.time.LocalDate
 
 /** Contributed capital vs cash-sweep interest, optionally split by import broker. */
 internal data class CapitalTotals(
@@ -20,12 +21,20 @@ internal data class CapitalTotals(
 )
 
 internal object CapitalComposer {
-    fun compose(snapshot: PortfolioSnapshot, holdings: List<HoldingValuation>, cash: BigDecimal): CapitalTotals {
-        val assets = snapshot.assets.associateBy { it.id }
+    fun compose(
+        snapshot: PortfolioSnapshot,
+        holdings: List<HoldingValuation>,
+        cash: BigDecimal,
+        asOf: LocalDate? = null,
+    ): CapitalTotals {
+        val book = if (asOf == null) snapshot else snapshot.copy(
+            transactions = snapshot.transactions.filter { !it.date.isAfter(asOf) },
+        )
+        val assets = book.assets.associateBy { it.id }
         val total = plus(holdings.fold(ZERO) { acc, holding -> plus(acc, holding.valueEur) }, cash)
         var contributed = ZERO
         var interest = ZERO
-        for (tx in snapshot.transactions) {
+        for (tx in book.transactions) {
             contributed = applyContributed(contributed, tx)
             if (isCashInterest(tx, assets[tx.assetId]?.assetType)) {
                 interest = plus(interest, tx.notionalEur)
@@ -35,7 +44,7 @@ internal object CapitalComposer {
             contributedEur = contributed,
             cashInterestEur = interest,
             totalGainEur = minus(total, contributed),
-            brokers = CapitalAttributor.slices(snapshot, holdings),
+            brokers = CapitalAttributor.slices(book, holdings),
         )
     }
 

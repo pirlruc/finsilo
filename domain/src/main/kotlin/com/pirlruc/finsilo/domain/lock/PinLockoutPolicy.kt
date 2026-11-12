@@ -28,4 +28,25 @@ object PinLockoutPolicy {
 
     /** Remaining cooldown at [nowMs]; zero when not locked out. */
     fun remainingMs(nowMs: Long, lockoutUntilMs: Long): Long = (lockoutUntilMs - nowMs).coerceAtLeast(0L)
+
+    /**
+     * Remaining cooldown that does not shrink when the wall clock jumps.
+     *
+     * On the same [lockBoot], the longer of the wall-clock remainder and the
+     * elapsed-realtime remainder wins. A new boot count falls back to the wall
+     * clock because elapsed realtime reset.
+     */
+    fun remainingMs(
+        nowWallMs: Long,
+        untilWallMs: Long,
+        nowElapsedMs: Long,
+        untilElapsedMs: Long,
+        nowBoot: Int,
+        lockBoot: Int,
+    ): Long {
+        val wall = remainingMs(nowWallMs, untilWallMs)
+        if (lockBoot < 0 || nowBoot != lockBoot) return wall
+        val elapsed = (untilElapsedMs - nowElapsedMs).coerceAtLeast(0L)
+        return maxOf(wall, elapsed)
+    }
 }
