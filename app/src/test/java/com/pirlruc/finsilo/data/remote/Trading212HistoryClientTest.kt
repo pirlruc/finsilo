@@ -21,13 +21,17 @@ class Trading212HistoryClientTest {
     @Test
     fun requestsStayOnHistoryGets() = runBlocking {
         val calls = mutableListOf<Pair<String, String>>()
-        val pull = client(calls) { url ->
-            if (url.endsWith("/orders")) {
-                Trading212HttpResult(200, """{"items":[],"nextPagePath":"/api/v0/equity/history/orders?cursor=2"}""")
-            } else {
-                Trading212HttpResult(200, """{"items":[]}""")
-            }
-        }.pull(KEY, SECRET)
+        val history = Trading212HistoryClient(
+            transport(calls) { url ->
+                if (url.endsWith("/orders")) {
+                    Trading212HttpResult(200, """{"items":[],"nextPagePath":"/api/v0/equity/history/orders?cursor=2"}""")
+                } else {
+                    Trading212HttpResult(200, """{"items":[]}""")
+                }
+            },
+            maxRequests = 5,
+        )
+        val pull = history.pull(KEY, SECRET)
         assertTrue(pull.lines != null)
         assertTrue(calls.all { it.first == "GET" })
         assertTrue(
@@ -38,6 +42,7 @@ class Trading212HistoryClientTest {
         )
         assertTrue(calls.none { it.second.contains(KEY) || it.second.contains(SECRET) })
         assertTrue(calls.any { it.second.endsWith(Trading212HistoryClient.SUMMARY) })
+        assertTrue(history.pull(KEY, SECRET).lines != null)
     }
 
     @Test

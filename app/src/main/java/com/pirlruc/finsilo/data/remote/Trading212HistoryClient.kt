@@ -24,6 +24,8 @@ class Trading212HistoryClient(
     private val maxRequests: Int = REQUESTS_PER_MINUTE,
 ) {
     suspend fun pull(key: String, secret: String): Trading212Pull {
+        sent = 0
+        cursor = null
         val orders = fetch(ORDERS, key, secret)
         val dividends = if (orders.error == null) fetch(DIVIDENDS, key, secret) else orders
         val cash = if (dividends.error == null) fetch(CASH, key, secret) else dividends
