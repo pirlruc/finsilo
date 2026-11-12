@@ -86,6 +86,7 @@ fun TargetSettingsRoute(
                 onPickerBusy = onPickerBusy,
             ),
         ),
+        trading212 = { Trading212SettingsCard(container.keys) },
     )
 }
 
@@ -97,6 +98,7 @@ internal fun TargetSettingsScreen(
     importState: BrokerImportUiState,
     tools: PortfolioToolsUiState,
     actions: TargetSettingsActions,
+    trading212: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -119,6 +121,7 @@ internal fun TargetSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Data", style = MaterialTheme.typography.titleLarge)
+            trading212()
             Text(
                 "Broker CSV import is on Overview. ${importState.status.orEmpty()}",
                 style = MaterialTheme.typography.bodySmall,

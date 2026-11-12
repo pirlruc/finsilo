@@ -1508,7 +1508,7 @@ milestones:
               - ./gradlew :domain:koverVerify
 
       - id: GATE-007
-        status: open
+        status: done
         title: Restore analog threshold matching in CI
         overview:
           problem: >-
@@ -1542,7 +1542,7 @@ milestones:
           - SC-DEP-004
         tasks:
           - id: GATE-007-T1
-            status: open
+            status: done
             title: Renew GUARDRAILS_READ_TOKEN and confirm analog clone in CI
             instructions:
               files:
@@ -1913,24 +1913,26 @@ milestones:
               - ./gradlew :app:lintDebug
 
       - id: FS-026
-        status: open
+        status: done
         title: Optional Trading 212 official API sync
         overview:
           problem: >-
             CSV import is manual. Trading 212 publishes a personal REST API
-            (positions, orders, dividends, CSV export jobs) that could refresh
-            the ledger without a file picker.
+            that can refresh history without a file picker.
           goal: >-
-            Optional, read-only sync using a user-generated Trading 212 API key
-            stored on-device (same pattern as the Alpha Vantage key). Do not
-            request order-placement scopes. Do not scrape. Do not reopen
-            FS-DEC-001 — this is authenticated personal data, not a public
-            GET-only market feed.
+            Optional read-only sync. Auth is HTTP Basic with an API key and
+            secret (not a single key), stored on-device like the Alpha Vantage
+            key and never logged. The client follows nextPagePath cursors,
+            stays at 20 requests per minute, and calls only GET history and
+            account summary. Read-only scopes only. On HTTP 429 it backs off
+            and stops. 401 and 403 stay local and do not write the ledger.
+            Do not scrape. Do not reopen FS-DEC-001 — this is authenticated
+            personal data, not a public GET-only market feed.
             The Trading 212 public API is not a paid product: Invest and Stocks
-            & Shares ISA holders can generate a key in Settings → API (Beta) at
-            no extra fee. It is beta, rate-limited, unavailable for SIPP, and
-            can place orders if those permissions are granted — FinSilo must
-            use read-only keys only.
+            & Shares ISA holders can generate a key and secret in Settings →
+            API (Beta) at no extra fee. It is beta, rate-limited, unavailable
+            for SIPP, and can place orders if those permissions are granted —
+            FinSilo must use read-only scopes only.
         architecture:
           target: Authenticated Trading 212 REST client, reuse ImportBrokerCsvUseCase mapping
           modules:
@@ -1945,7 +1947,7 @@ milestones:
           - KT-SEC-001
         tasks:
           - id: FS-026-T1
-            status: open
+            status: done
             title: Read-only Trading 212 client and key store
             instructions:
               files:
@@ -1954,7 +1956,7 @@ milestones:
               - ./gradlew :app:testDebugUnitTest
               - Order-placement endpoints are not called
           - id: FS-026-T2
-            status: open
+            status: done
             title: Settings toggle to sync T212 into the ledger
             instructions:
               files:
@@ -2400,7 +2402,7 @@ milestones:
               - ./gradlew :app:testDebugUnitTest --tests com.pirlruc.finsilo.data.security.DatabaseKeyStoreTest
 
       - id: FS-033
-        status: open
+        status: done
         title: Remaining security and quality follow-ups
         overview:
           problem: >-
@@ -2460,7 +2462,7 @@ milestones:
             guardrail_refs:
               - KT-SEC-002
           - id: FS-033-T3
-            status: open
+            status: done
             title: Evaluate medium-severity scanner fail bars and license allow-list
             instructions:
               files:
@@ -2712,6 +2714,176 @@ milestones:
             guardrail_refs:
               - CI-018
               - CI-034
+
+  - name: Phase 9 — Accuracy and Pro
+    epics:
+      - id: FS-042
+        status: done
+        title: Import and FX correctness
+        overview:
+          problem: >-
+            FS-036-T3 was closed while a non-zero fee with no rate still booked
+            as 0 EUR, a commodity buy with no EUR amount booked at unit price 0,
+            and a USD invert band was applied to GBP and other currencies.
+            Dates before the first FX bar borrowed that bar, and cash that
+            would go negative was clamped to zero.
+          goal: >-
+            Book an EUR notional when the commodity row or a paired cash leg
+            has one, otherwise skip the row. Skip a non-zero fee whose currency
+            or rate is missing. Trust an explicit EUR total, and do not use the
+            USD invert band for non-USD. Omit a holding before the first FX
+            bar. Fail the operation when cash would go negative. This epic
+            finishes the FS-036-T3 acceptance.
+        decision: >-
+          In the context of broker CSV import, facing rows that booked a zero
+          price or a zero fee, we decided to skip the row with an explicit
+          reason, to achieve a ledger that does not invent a cost, accepting
+          that those rows stay out until the file contains an EUR amount or rate.
+        acceptance_criteria:
+          - A commodity buy with no EUR amount is skipped and is not stored at price 0
+          - A non-zero fee with no rate is skipped and is not stored as 0 EUR
+          - Cash that would go negative fails the operation
+        tasks:
+          - id: FS-042-T1
+            status: done
+            title: Commodity cost basis
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv/RevolutCommodityParser.kt
+            verification:
+              - ./gradlew :domain:test
+              - A buy with no EUR amount is skipped
+          - id: FS-042-T2
+            status: done
+            title: Fees and FX orientation
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv/BrokerMoney.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/portfolio/PositionLedger.kt
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - The USD invert band is not applied to GBP, CHF, or other non-USD currencies
+
+      - id: FS-PRO-001
+        status: open
+        title: Pro tier for ongoing cost
+        overview:
+          problem: >-
+            Broker sync upkeep, yearly tax-rule updates, and a future cloud
+            relay have an ongoing cost. Features that already ship have to stay
+            free.
+          goal: >-
+            A subscription pays for that ongoing cost. Suggested price, in this
+            overview only, is about 3.99 EUR/month or 34.99 EUR/year, plus a
+            tax-season pass around 12.99 EUR per tax year. Out of scope:
+            charging for the manual ledger, SQLCipher, PIN, CSV import, or the
+            core Overview, Holdings, and Activity screens.
+        decision: >-
+          In the context of a local-first portfolio app, facing ongoing broker
+          and tax-rule cost, we decided a subscription pays for that ongoing
+          cost and features that already ship free stay free, to achieve a
+          paid tier that does not lock the ledger the user already has,
+          accepting that sync, tax packs, and projections wait on the
+          subscription.
+        acceptance_criteria:
+          - XIRR, a benchmark comparison, the IRS annual report, and the dividend calendar ship in the app
+          - The manual ledger, SQLCipher, PIN, CSV import, and the core screens stay free
+          - IBKR, Kraken, Coinbase, family vaults, cloud sync, billing, and fuzzing stay open
+        tasks:
+          - id: FS-PRO-001-T1
+            status: done
+            title: XIRR and a VWCE / S&P 500 benchmark comparison
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance
+            verification:
+              - ./gradlew :domain:test
+              - A known two-flow case returns 10 percent and a no-solution case returns null
+          - id: FS-PRO-001-T2
+            status: done
+            title: Portuguese IRS Anexo J/G annual report as PDF and CSV
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/IrsAnnualReport.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings/IrsAnnualPdf.kt
+            verification:
+              - ./gradlew :domain:test
+              - The report is not the official XML
+          - id: FS-PRO-001-T3
+            status: done
+            title: Dividend calendar and forward 12-month income
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/DividendCalendar.kt
+            verification:
+              - ./gradlew :domain:test
+              - Irregular history yields no projection
+          - id: FS-PRO-001-T4
+            status: open
+            title: IBKR Flex, Kraken, and Coinbase read-only sync
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/remote
+            verification:
+              - Read-only clients exist for IBKR Flex, Kraken, and Coinbase
+          - id: FS-PRO-001-T5
+            status: open
+            title: Multi-portfolio and family vaults
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+            verification:
+              - More than one ledger can be unlocked on the device
+          - id: FS-PRO-001-T6
+            status: open
+            title: Zero-knowledge sync to Drive, WebDAV, or Nextcloud
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+            verification:
+              - A backup can upload without the server reading the ledger
+          - id: FS-PRO-001-T7
+            status: open
+            title: Rebalancing simulator
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            verification:
+              - The simulator lists exact EUR trades to target weights
+          - id: FS-PRO-001-T8
+            status: open
+            title: FIRE and DRIP projections
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+            verification:
+              - FIRE and DRIP projections are shown from the ledger
+          - id: FS-PRO-001-T9
+            status: open
+            title: One-time tax-season pass entitlement
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo
+            verification:
+              - A tax-year pass unlocks the annual report without the monthly plan
+          - id: FS-PRO-001-T10
+            status: open
+            title: Play Billing in a play flavor and a foss flavor with no billing SDK
+            instructions:
+              files:
+                - app/build.gradle.kts
+                - NOTICE
+            verification:
+              - The foss flavor has no billing SDK
+              - NOTICE records the GPL linking exception for the billing library when the play flavor exists
+          - id: FS-PRO-001-T11
+            status: open
+            title: Jazzer fuzz targets for the CSV parsers
+            instructions:
+              files:
+                - domain/src/test
+            verification:
+              - Jazzer targets cover the broker CSV parsers
 
 
 

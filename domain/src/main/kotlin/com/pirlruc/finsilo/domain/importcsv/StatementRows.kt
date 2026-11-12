@@ -59,6 +59,9 @@ internal object StatementRows {
         return BrokerLines.cash(booking.format, booking.sourceLine, booking.date, booking.type, eur)
     }
 
+    fun skipBook(parts: MoneyParts, fallback: String): String =
+        if (BrokerMoney.unconvertibleFee(parts)) "Fee currency or FX rate is missing" else fallback
+
     fun bookedHolding(trade: ListedTrade): BrokerCsvLine {
         if (trade.ticker.isBlank() && trade.isin == null) {
             return BrokerLines.skip(trade.format, trade.sourceLine, trade.missingInstrument, trade.date)

@@ -3,6 +3,7 @@ package com.pirlruc.finsilo.domain.usecase
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.AssetType
+import com.pirlruc.finsilo.domain.model.BrokerReference
 import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
@@ -39,6 +40,8 @@ data class LedgerEntryRequest(
     val source: BrokerSource? = null,
     /** When set, this write replaces that transaction id instead of appending. */
     val replaceId: String? = null,
+    /** Stable broker reference. Stored as the transaction id so a later sync dedupes. */
+    val externalId: String? = null,
 )
 
 /** Validation result for a ledger write. Persistence is the caller's job. */
@@ -142,7 +145,7 @@ class RecordLedgerEntryUseCase(
 
     private fun transactionFor(snapshot: PortfolioSnapshot, asset: Asset, request: LedgerEntryRequest, rate: BigDecimal): Transaction =
         Transaction(
-            id = request.replaceId ?: newId(),
+            id = request.replaceId ?: BrokerReference.ledgerId(request.externalId) ?: newId(),
             assetId = asset.id,
             date = request.date,
             type = request.type,
@@ -274,42 +277,42 @@ class RecordLedgerEntryUseCase(
         assetsById: Map<String, Asset>,
         transaction: Transaction,
     ): LedgerEntryResult.Rejected? = when (transaction.type) {
-            TransactionType.SELL -> {
-                val remaining = ledger.position(prior.filter { it.assetId == transaction.assetId }).quantity
-                if (transaction.quantity > remaining) {
-                    LedgerEntryResult.Rejected(
-                        "Sell quantity ${transaction.quantity.toPlainString()} exceeds remaining " +
-                            "${remaining.stripTrailingZeros().toPlainString()}.",
-                    )
-                } else {
-                    null
-                }
+        TransactionType.SELL -> {
+            val remaining = ledger.position(prior.filter { it.assetId == transaction.assetId }).quantity
+            if (transaction.quantity > remaining) {
+                LedgerEntryResult.Rejected(
+                    "Sell quantity ${transaction.quantity.toPlainString()} exceeds remaining " +
+                        "${remaining.stripTrailingZeros().toPlainString()}.",
+                )
+            } else {
+                null
             }
-            TransactionType.WITHDRAWAL -> {
-                val cash = ledger.cashEur(prior, assetsById)
-                val amount = transaction.notionalEur
-                if (exceedsCash(amount, cash)) {
-                    LedgerEntryResult.Rejected(
-                        "Withdrawal ${amount.stripTrailingZeros().toPlainString()} EUR exceeds " +
-                            "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
-                    )
-                } else {
-                    null
-                }
+        }
+        TransactionType.WITHDRAWAL -> {
+            val cash = ledger.cashEur(prior, assetsById)
+            val amount = transaction.notionalEur
+            if (exceedsCash(amount, cash)) {
+                LedgerEntryResult.Rejected(
+                    "Withdrawal ${amount.stripTrailingZeros().toPlainString()} EUR exceeds " +
+                        "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
+                )
+            } else {
+                null
             }
-            TransactionType.BUY -> {
-                val cash = ledger.cashEur(prior, assetsById)
-                val cost = MoneyMath.round(transaction.notionalEur.add(transaction.feesEur))
-                if (exceedsCash(cost, cash)) {
-                    LedgerEntryResult.Rejected(
-                        "Buy ${cost.stripTrailingZeros().toPlainString()} EUR exceeds " +
-                            "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
-                    )
-                } else {
-                    null
-                }
+        }
+        TransactionType.BUY -> {
+            val cash = ledger.cashEur(prior, assetsById)
+            val cost = MoneyMath.round(transaction.notionalEur.add(transaction.feesEur))
+            if (exceedsCash(cost, cash)) {
+                LedgerEntryResult.Rejected(
+                    "Buy ${cost.stripTrailingZeros().toPlainString()} EUR exceeds " +
+                        "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
+                )
+            } else {
+                null
             }
-            else -> null
+        }
+        else -> null
     }
 
     private fun exceedsCash(amount: BigDecimal, cash: BigDecimal): Boolean = MoneyMath.round(amount) > MoneyMath.round(cash)

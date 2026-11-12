@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.importcsv
 
+import com.pirlruc.finsilo.domain.model.BrokerReference
 import com.pirlruc.finsilo.domain.model.BrokerSource
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
@@ -10,6 +11,8 @@ import java.time.LocalDate
 /** Count matching broker rows so a second same-day lot is not treated as a duplicate. */
 internal object ImportFingerprints {
     fun of(line: BrokerCsvLine): String {
+        val ref = BrokerReference.canonical(line.brokerReference)
+        if (ref != null) return refKey(line.format.source, ref)
         val date = line.date ?: return ""
         val type = line.type ?: return ""
         val id = line.isin?.ifBlank { null } ?: line.symbol
@@ -34,9 +37,13 @@ internal object ImportFingerprints {
     }
 
     private fun of(tx: Transaction, isin: String?, symbol: String?): String {
+        val ref = BrokerReference.fromLedgerId(tx.id)
+        if (ref != null && tx.source == BrokerSource.TRADING_212) return refKey(BrokerSource.TRADING_212, ref)
         val id = isin?.ifBlank { null } ?: symbol ?: tx.assetId
         return key(tx.date, tx.type, id, tx.quantity, tx.unitPriceNative, tx.source)
     }
+
+    private fun refKey(source: BrokerSource, reference: String): String = "ref|${source.name}|$reference"
 
     private fun key(
         date: LocalDate,

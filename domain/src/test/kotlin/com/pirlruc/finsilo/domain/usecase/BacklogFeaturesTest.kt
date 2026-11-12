@@ -51,11 +51,11 @@ class BacklogFeaturesTest {
     fun manualCloseRefusesListedTickersAndValuesLocalInstrument() {
         val listed = RecordManualQuoteUseCase()(book(etfBuy()), etf.id, asOf, bd("110"))
         assertTrue(listed is ManualQuoteResult.Rejected)
-        val accepted = RecordManualQuoteUseCase()(book(ctBuy()), ct.id, asOf, bd("1.10"))
+        val accepted = RecordManualQuoteUseCase()(book(deposit(), ctBuy()), ct.id, asOf, bd("1.10"))
         val row = (accepted as ManualQuoteResult.Accepted).row
         val valued =
             PortfolioValuator().allocation(
-                book(ctBuy()).copy(marketData = listOf(row)),
+                book(deposit(), ctBuy()).copy(marketData = listOf(row)),
                 asOf,
             )
         val holding = valued.holdings.single { it.asset.id == ct.id }
@@ -148,7 +148,7 @@ class BacklogFeaturesTest {
 
     @Test
     fun watchlistQuotesDoNotChangeLiveAllocation() {
-        val live = book(etfBuy())
+        val live = book(deposit(), etfBuy())
         val watch =
             WatchlistItem("w1", "MSFT", "Microsoft", AssetType.STOCK, Currency.USD)
         val extra =

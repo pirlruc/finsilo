@@ -14,13 +14,13 @@ The app shows the PIN screen when you leave it. A document picker or the biometr
 
 ## Daily use
 
-- **Overview** — NAV, net invested, return, TWR, history chips (1M / 3M / 6M / 1Y / YTD / All), capital by broker, and broker CSV import.
+- **Overview** — NAV, net invested, return, TWR, XIRR, a VWCE / S&P 500 comparison when stored history exists (a comparison, not a promised return), history chips (1M / 3M / 6M / 1Y / YTD / All), capital by broker, and broker CSV import.
 - **Add a transaction** — Buy, Sell, Deposit, Withdrawal, Dividend, Interest. Sells above remaining FIFO quantity and withdrawals above cash are refused. A buy that needs more cash than you have books a same-day deposit first. Unlisted PPR interest stays in NAV. Selling CT, a deposit, or unlisted PPR is a redemption.
 - **ISIN / quote symbol** — optional on the instrument. Changing the quote symbol drops that holding’s stored daily bars and refetches on the next sync.
 - **Watchlist** — followed symbols only. They never change FIFO, TWR, or the pie.
 - **Holdings** — search, sort, FIFO lots, dividends, and alerts.
 - **Activity** — ledger rows with edit, delete, and a date picker.
-- **Insights** — allocation, rebalance amounts, yield on cost, signals, and an in-app Mais-Valias preview.
+- **Insights** — allocation, rebalance amounts, yield on cost, signals, a dividend calendar with forward 12-month income, an IRS annual summary (not tax advice and not the official XML), and an in-app Mais-Valias preview.
 - **Settings** — target weights (must sum to 100%), lock/recovery, tax CSV/PDF, and encrypted backup.
 
 A **synthetic sample portfolio** is on the empty dashboard so you can review charts with no network. It is not market data and is not a backup.
@@ -41,7 +41,9 @@ USD quotes stay USD and convert with stored EUR-per-USD even when the instrument
 
 From Overview, import Trading 212 History, DEGIRO Transactions + Account statement, or Revolut Stocks/Invest account statement. You can import again later; duplicate rows are skipped. Export CSV, not Excel. DEGIRO files work in English, Dutch, Portuguese, Spanish, French, German, and Italian. Revolut statements can use English, Spanish, or Portuguese headers.
 
-Lots always persist. You can edit quote symbols on the review screen if a ticker has no live close; those names still import, with a warning. Cash interest on uninvested balances is booked separately from deposits (not extra money you put in). Live Trading 212 API sync is not built.
+Lots always persist. You can edit quote symbols on the review screen if a ticker has no live close; those names still import, with a warning. Cash interest on uninvested balances is booked separately from deposits (not extra money you put in). A commodity row with no EUR amount, and a non-zero fee with no FX rate, are skipped instead of booked at zero.
+
+Settings can turn on Trading 212 read-only sync. It uses HTTP Basic (API key and secret), follows history cursors, and does not place orders. Sync runs after unlock. A second sync does not double-book the same broker reference.
 
 ## Alerts
 
@@ -67,11 +69,11 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 - Ledger is SQLCipher. PIN, recovery, and optional biometrics wrap the database key. Leaving the app shows PIN immediately; after 15 minutes in the background the in-memory key is wiped. Preference secrets use Keystore AES-GCM.
 - Screenshots of the ledger and PIN are blocked (`FLAG_SECURE`). While a system file picker is open the flag is cleared and an opaque cover hides ledger pixels.
 - No cloud backup of the database (`allowBackup=false`).
-- Network is HTTPS GET only to Frankfurter, Alpha Vantage, CoinGecko, and Stooq (`stooq.pl`, with `stooq.com` still allowed if the host redirects).
+- Network is HTTPS GET only to Frankfurter, Alpha Vantage, CoinGecko, and Stooq (`stooq.pl`, with `stooq.com` still allowed if the host redirects). Trading 212 sync, when enabled, is HTTPS GET to `live.trading212.com` only.
 
 ## Build from source
 
-JDK 17+, Android SDK (compile 37 / target 36). `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`.
+JDK 17+, Android SDK (compile 37 / target 37). `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. The 0.3.0 tag is cut after this release merges.
 
 ```bash
 ./gradlew :app:assembleDebug

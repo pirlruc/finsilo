@@ -11,7 +11,6 @@ import com.pirlruc.finsilo.data.security.AppLockStore
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
-import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException

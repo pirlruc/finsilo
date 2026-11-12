@@ -64,8 +64,9 @@ class BrokerParserBranchTest {
         assertEquals(5, lines.size)
         assertTrue(lines[0].skipReason?.contains("amount") == true)
         assertTrue(lines[1].skipReason?.contains("PENDING") == true)
-        assertEquals("XAU", lines[2].symbol)
+        assertTrue(lines[2].skipReason?.contains("no EUR") == true)
         assertEquals("XAU", lines[3].symbol)
+        assertTrue(lines[3].unitPriceNative.signum() > 0)
         assertTrue(lines[4].skipReason?.contains("date") == true)
     }
 }

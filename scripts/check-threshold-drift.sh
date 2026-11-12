@@ -4,7 +4,8 @@ set -eu
 ROOT="$(cd -- "$(dirname "$0")/.." && pwd)"
 
 extract() {
-	grep -E '^[a-zA-Z0-9_]+:' "$1" | sed 's/[[:space:]]*#.*//' | sed 's/[[:space:]]*$//'
+	# license_allow_list is the consumer's third-party SPDX set. The analog ships [].
+	grep -E '^[a-zA-Z0-9_]+:' "$1" | sed 's/[[:space:]]*#.*//' | sed 's/[[:space:]]*$//' | grep -v '^license_allow_list:'
 }
 
 check_pair() {

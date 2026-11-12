@@ -47,6 +47,7 @@ internal fun DashboardContent(
     section: HomeSection = HomeSection.ALL,
     transactions: List<com.pirlruc.finsilo.domain.model.Transaction> = emptyList(),
     assets: List<com.pirlruc.finsilo.domain.model.Asset> = emptyList(),
+    performance: PerformanceSummary? = null,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -58,33 +59,16 @@ internal fun DashboardContent(
         report.warnings.forEach { warning ->
             Text(warning, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
-        val showOverview = section == HomeSection.OVERVIEW || section == HomeSection.ALL
-        val showHoldings = section == HomeSection.HOLDINGS || section == HomeSection.ALL
-        val showInsights = section == HomeSection.INSIGHTS || section == HomeSection.ALL
-        if (showOverview) {
-            SummaryColumn(report)
-            CapitalCard(report.allocation)
-            HistoryCard(report.history, range, onRangeSelected)
+        if (shows(section, HomeSection.OVERVIEW)) {
+            OverviewColumn(report, range, onRangeSelected, performance)
         }
-        if (showHoldings) {
-            HoldingsBrowser(
-                holdings = report.allocation.holdings,
-                cashEur = report.allocation.cashEur,
-                thresholds = thresholds,
-                ratingPrefs = ratingPrefs,
-                actions = holdings,
-                transactions = transactions,
-                assets = assets,
-            )
+        if (shows(section, HomeSection.HOLDINGS)) {
+            HoldingsColumn(report, thresholds, ratingPrefs, holdings, transactions, assets)
         }
-        if (showInsights) {
-            AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
-            RebalanceCard(report.allocation.slices, report.allocation.totalValueEur)
-            if (report.yoc.isNotEmpty()) YocCard(report.yoc)
-            if (report.signals.isNotEmpty()) SignalsCard(report.signals)
-            MaisValiasPreview(transactions, assets, report.asOf.year)
+        if (shows(section, HomeSection.INSIGHTS)) {
+            InsightsColumn(report, transactions, assets, performance)
         }
-        if (showOverview && importState != null && importNav != null) {
+        if (shows(section, HomeSection.OVERVIEW) && importState != null && importNav != null) {
             BrokerImportCard(
                 state = importState,
                 onImportCsvs = importNav.onImportCsvs,
@@ -166,6 +150,64 @@ internal fun MetricCard(
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = valueColor)
             Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+private fun shows(section: HomeSection, part: HomeSection): Boolean = section == part || section == HomeSection.ALL
+
+@Composable
+private fun OverviewColumn(
+    report: DashboardReport,
+    range: HistoryRange,
+    onRangeSelected: (HistoryRange) -> Unit,
+    performance: PerformanceSummary?,
+) {
+    SummaryColumn(report)
+    performance?.let { PerformanceLine(it.xirr, it.benchmark) }
+    CapitalCard(report.allocation)
+    HistoryCard(report.history, range, onRangeSelected)
+}
+
+@Composable
+private fun HoldingsColumn(
+    report: DashboardReport,
+    thresholds: Map<String, PriceAlertThreshold>,
+    ratingPrefs: Map<String, RatingAlertPref>,
+    holdings: HoldingActions,
+    transactions: List<com.pirlruc.finsilo.domain.model.Transaction>,
+    assets: List<com.pirlruc.finsilo.domain.model.Asset>,
+) {
+    HoldingsBrowser(
+        holdings = report.allocation.holdings,
+        cashEur = report.allocation.cashEur,
+        thresholds = thresholds,
+        ratingPrefs = ratingPrefs,
+        actions = holdings,
+        transactions = transactions,
+        assets = assets,
+    )
+}
+
+@Composable
+private fun InsightsColumn(
+    report: DashboardReport,
+    transactions: List<com.pirlruc.finsilo.domain.model.Transaction>,
+    assets: List<com.pirlruc.finsilo.domain.model.Asset>,
+    performance: PerformanceSummary?,
+) {
+    AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
+    RebalanceCard(report.allocation.slices, report.allocation.totalValueEur)
+    if (report.yoc.isNotEmpty()) YocCard(report.yoc)
+    if (report.signals.isNotEmpty()) SignalsCard(report.signals)
+    MaisValiasPreview(transactions, assets, report.asOf.year)
+    performance?.let { PerformanceLine(it.dividends, it.taxNote) }
+}
+
+@Composable
+internal fun PerformanceLine(primary: String, secondary: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(primary, style = MaterialTheme.typography.bodyMedium)
+        Text(secondary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

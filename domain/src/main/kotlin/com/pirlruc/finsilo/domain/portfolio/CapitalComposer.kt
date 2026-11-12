@@ -21,15 +21,14 @@ internal data class CapitalTotals(
 )
 
 internal object CapitalComposer {
-    fun compose(
-        snapshot: PortfolioSnapshot,
-        holdings: List<HoldingValuation>,
-        cash: BigDecimal,
-        asOf: LocalDate? = null,
-    ): CapitalTotals {
-        val book = if (asOf == null) snapshot else snapshot.copy(
-            transactions = snapshot.transactions.filter { !it.date.isAfter(asOf) },
-        )
+    fun compose(snapshot: PortfolioSnapshot, holdings: List<HoldingValuation>, cash: BigDecimal, asOf: LocalDate? = null): CapitalTotals {
+        val book = if (asOf == null) {
+            snapshot
+        } else {
+            snapshot.copy(
+                transactions = snapshot.transactions.filter { !it.date.isAfter(asOf) },
+            )
+        }
         val assets = book.assets.associateBy { it.id }
         val total = plus(holdings.fold(ZERO) { acc, holding -> plus(acc, holding.valueEur) }, cash)
         var contributed = ZERO

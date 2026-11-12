@@ -132,6 +132,5 @@ class FormatAndLedgerRulesTest {
         assertEquals("INTEREST", draft.label)
     }
 
-    private fun asset(id: String, symbol: String, type: AssetType, currency: Currency = Currency.EUR) =
-        Asset(id, symbol, "Synthetic $symbol", type, currency)
+    private fun asset(id: String, symbol: String, type: AssetType, currency: Currency = Currency.EUR) = Asset(id, symbol, "Synthetic $symbol", type, currency)
 }

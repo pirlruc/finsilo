@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.content.getSystemService
 import com.pirlruc.finsilo.R
 import com.pirlruc.finsilo.domain.usecase.AlertChannel
 import com.pirlruc.finsilo.domain.usecase.AlertPublishKey
@@ -18,7 +20,7 @@ class PortfolioAlertNotifier(private val context: Context) {
         if (!canNotify()) return
         val unseen = alerts.filterNot { alreadyPublished(it) }
         if (unseen.isEmpty()) return
-        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val manager = context.getSystemService<NotificationManager>() ?: return
         ensureChannels(manager)
         unseen.forEach { alert ->
             val locked = ShadePrivacy.redact
@@ -73,7 +75,7 @@ class PortfolioAlertNotifier(private val context: Context) {
 
     private fun remember(alert: PortfolioAlert) {
         val next = AlertPublishKey.bound(prefs().getStringSet(KEY_PUBLISHED, emptySet()).orEmpty(), alertKey(alert))
-        prefs().edit().putStringSet(KEY_PUBLISHED, next).apply()
+        prefs().edit { putStringSet(KEY_PUBLISHED, next) }
     }
 
     private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

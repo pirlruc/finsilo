@@ -128,19 +128,18 @@ private fun allocate(type: Class<*>): Any? = runCatching {
     unsafe.javaClass.getMethod("allocateInstance", Class::class.java).invoke(unsafe, type)
 }.getOrNull()
 
-private fun interfaceProxy(type: Class<*>): Any =
-    Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, _ ->
-        when (method.returnType) {
-            java.lang.Boolean.TYPE -> false
-            Integer.TYPE -> 0
-            java.lang.Float.TYPE -> 0f
-            java.lang.Long.TYPE -> 0L
-            java.lang.Double.TYPE -> 0.0
-            java.lang.Void.TYPE -> null
-            java.lang.String::class.java -> "synthetic"
-            else -> if (method.returnType.name == "kotlin.Unit") Unit else null
-        }
+private fun interfaceProxy(type: Class<*>): Any = Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, _ ->
+    when (method.returnType) {
+        java.lang.Boolean.TYPE -> false
+        Integer.TYPE -> 0
+        java.lang.Float.TYPE -> 0f
+        java.lang.Long.TYPE -> 0L
+        java.lang.Double.TYPE -> 0.0
+        java.lang.Void.TYPE -> null
+        java.lang.String::class.java -> "synthetic"
+        else -> if (method.returnType.name == "kotlin.Unit") Unit else null
     }
+}
 
 private fun compositionLocal(key: Any?): Any? {
     val name = key?.javaClass?.name.orEmpty() + key?.toString().orEmpty()

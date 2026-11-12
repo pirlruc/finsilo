@@ -53,7 +53,22 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
 
-    fun setAlphaVantageKey(key: String): Boolean = prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).commit()
+    fun setAlphaVantageKey(key: String): Boolean = prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).commitObserved()
+
+    fun trading212SyncEnabled(): Boolean = prefs.getBoolean(KEY_T212_SYNC, false)
+
+    fun setTrading212SyncEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_T212_SYNC, enabled).commitObserved()
+
+    fun trading212Key(): String? = prefs.getString(KEY_T212_KEY, null)?.takeIf { it.isNotBlank() }
+
+    fun trading212Secret(): String? = prefs.getString(KEY_T212_SECRET, null)?.takeIf { it.isNotBlank() }
+
+    fun setTrading212Credentials(key: String, secret: String): Boolean {
+        val editor = prefs.edit()
+        if (key.isNotBlank()) editor.putString(KEY_T212_KEY, key.trim())
+        if (secret.isNotBlank()) editor.putString(KEY_T212_SECRET, secret.trim())
+        return editor.commitObserved()
+    }
 
     /** Copy of the unwrapped SQLCipher key; throws when this process has not unlocked. */
     fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
@@ -81,7 +96,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
             .remove(KEY_WRAP_PIN)
             .remove(KEY_WRAP_RECOVERY)
             .remove(KEY_WRAP_BIOMETRIC)
-            .commit()
+            .commitObserved()
     }
 
     override fun rollbackLastWrap(): Boolean {
@@ -89,7 +104,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         lastWrapUndo = null
         val editor = prefs.edit()
         editor.undo()
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     override fun unlockWithPin(pin: String): Boolean = unlockWithSecret(pin, KEY_WRAP_PIN)
@@ -111,7 +126,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         } else {
             editor.putString(KEY_WRAP_BIOMETRIC, AppLockCrypto.toHex(blob))
         }
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     override fun rewrapPin(newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin)
@@ -154,7 +169,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         if (key == null) return false
         session = key
         if (hasLegacyPassphrase()) {
-            prefs.edit().remove(KEY_PASSPHRASE).commit()
+            prefs.edit().remove(KEY_PASSPHRASE).commitObserved()
         }
         return true
     }
@@ -182,7 +197,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         val editor = prefs.edit()
         applyWraps(editor, pin, recovery, key)
         editor.extra()
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     private fun migrateLegacy(pin: String, recovery: String, extra: SharedPreferences.Editor.() -> Unit = {}): Boolean {
@@ -193,7 +208,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         applyWraps(editor, pin, recovery, key)
         editor.remove(KEY_PASSPHRASE)
         editor.extra()
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     private fun applyWraps(editor: SharedPreferences.Editor, pin: String, recovery: String, key: ByteArray) {
@@ -208,7 +223,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         val editor = prefs.edit()
         applyRewrap(editor, prefsKey, secret, key)
         editor.extra()
-        return editor.commit()
+        return editor.commitObserved()
     }
 
     private fun applyRewrap(editor: SharedPreferences.Editor, prefsKey: String, secret: String, key: ByteArray) {
@@ -254,6 +269,9 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         private const val KEY_WRAP_RECOVERY = "sqlcipher_wrap_recovery"
         private const val KEY_WRAP_BIOMETRIC = "sqlcipher_wrap_biometric"
         private const val KEY_ALPHA_VANTAGE = "alpha_vantage_key"
+        private const val KEY_T212_SYNC = "trading212_sync"
+        private const val KEY_T212_KEY = "trading212_key"
+        private const val KEY_T212_SECRET = "trading212_secret"
         private const val PASSPHRASE_BYTES: Int = 32
     }
 }

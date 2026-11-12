@@ -33,6 +33,7 @@ internal object Trading212CsvParser {
         val ticker = row.get("Ticker")
         val isin = row.get("ISIN").ifBlank { null }
         val quote = BrokerQuoteSymbol.fromTrading212(ticker.ifBlank { isin.orEmpty() }, isin)
+        val parts = money(row, type)
         return StatementRows.bookedHolding(
             ListedTrade(
                 format = BrokerCsvFormat.TRADING_212,
@@ -43,9 +44,9 @@ internal object Trading212CsvParser {
                 isin = isin,
                 name = row.get("Name"),
                 quote = quote,
-                booked = BrokerMoney.book(money(row, type)),
+                booked = BrokerMoney.book(parts),
                 missingInstrument = "Trade missing ticker",
-                missingBook = "Trade missing quantity/price",
+                missingBook = StatementRows.skipBook(parts, "Trade missing quantity/price"),
             ),
         )
     }

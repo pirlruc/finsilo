@@ -31,17 +31,19 @@ internal object DashboardLoader {
             repository.loadRatingAlerts()
                 .filter { it.scope == RatingAlertScope.HOLDING }
                 .associateBy { it.targetId }
+        val report = getDashboard(loaded, range, resolved, storedNav)
         return DashboardUiState(
             loading = false,
             empty = false,
             range = range,
-            report = getDashboard(loaded, range, resolved, storedNav),
+            report = report,
             statusMessage = statusMessage,
             hasAlphaVantageKey = hasKey,
             thresholds = thresholds,
             ratingPrefs = ratingPrefs,
             transactions = loaded.transactions,
             assets = loaded.assets,
+            performance = PerformanceLabels.of(loaded, report.allocation.totalValueEur, resolved),
         )
     }
 

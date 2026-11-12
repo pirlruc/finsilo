@@ -1,0 +1,9 @@
+# mobsfscan 1.0.0 depends on semgrep 1.172.0, which pins mcp 1.23.3 and
+# PyJWT 2.13.0. Those releases have high and critical advisories. The
+# hashed lock overrides them. pip install uses --no-deps so the exact
+# semgrep pin does not reject the override.
+mcp==1.30.0
+pyjwt==2.15.1
+certifi>=2026.10.18
+opentelemetry-api==1.45.1
+setuptools>=84.1.0

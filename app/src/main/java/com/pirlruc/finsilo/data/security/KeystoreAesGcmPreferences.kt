@@ -104,7 +104,7 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
             return this
         }
 
-        override fun commit(): Boolean = inner.commit()
+        override fun commit(): Boolean = inner.commitObserved()
 
         override fun apply() {
             inner.apply()

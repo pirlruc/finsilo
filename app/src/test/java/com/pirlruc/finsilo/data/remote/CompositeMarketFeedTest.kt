@@ -196,6 +196,5 @@ class CompositeMarketFeedTest {
 
     private fun csv(close: String) = "Date,Open,High,Low,Close,Volume\n2026-01-14,1,1,1,$close,1\n"
 
-    private fun asset(symbol: String, type: AssetType, quote: String? = null) =
-        Asset("id-$symbol", symbol, "Synthetic $symbol", type, Currency.USD, quoteSymbol = quote)
+    private fun asset(symbol: String, type: AssetType, quote: String? = null) = Asset("id-$symbol", symbol, "Synthetic $symbol", type, Currency.USD, quoteSymbol = quote)
 }

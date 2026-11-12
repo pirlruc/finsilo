@@ -8,7 +8,6 @@ import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.ZERO
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.div
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.min
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.minus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
@@ -124,17 +123,16 @@ class PositionLedger {
         lotsByAsset: HashMap<String, ArrayDeque<FifoLot>>,
     ): BigDecimal = when (tx.type) {
         TransactionType.DEPOSIT_CASH -> plus(cash, tx.notionalEur)
-        TransactionType.WITHDRAWAL -> minus(cash, min(tx.notionalEur, cash))
+        TransactionType.WITHDRAWAL -> spend(cash, tx.notionalEur)
         TransactionType.BUY -> {
             lotsByAsset
                 .getOrPut(tx.assetId) { ArrayDeque() }
                 .addLast(FifoLot(tx.quantity, plus(tx.notionalEur, tx.feesEur), tx.date))
-            val cost = plus(tx.notionalEur, tx.feesEur)
-            if (cost <= cash) minus(cash, cost) else ZERO
+            spend(cash, plus(tx.notionalEur, tx.feesEur))
         }
         TransactionType.SELL -> {
             val filled = consumeFifo(lotsByAsset.getOrPut(tx.assetId) { ArrayDeque() }, tx.quantity)
-            plus(cash, minus(times(tx.unitPriceEur, filled), tx.feesEur))
+            credit(cash, minus(times(tx.unitPriceEur, filled), tx.feesEur))
         }
         TransactionType.DIVIDEND, TransactionType.INTEREST ->
             if (locallyValued) cash else plus(cash, tx.notionalEur)
@@ -142,31 +140,32 @@ class PositionLedger {
 
     fun buyCostEur(tx: Transaction): BigDecimal = plus(tx.notionalEur, tx.feesEur)
 
-    fun eurPerUsdOn(date: LocalDate, rates: List<CurrencyRate>): BigDecimal? =
-        eurPerUnitOn(date, rates, Currency.USD)
+    private fun spend(cash: BigDecimal, cost: BigDecimal): BigDecimal {
+        if (cost > cash) throw CashShortfall("Cash would go negative.")
+        return minus(cash, cost)
+    }
+
+    private fun credit(cash: BigDecimal, amount: BigDecimal): BigDecimal {
+        val next = plus(cash, amount)
+        if (next < ZERO) throw CashShortfall("Cash would go negative.")
+        return next
+    }
+
+    fun eurPerUsdOn(date: LocalDate, rates: List<CurrencyRate>): BigDecimal? = eurPerUnitOn(date, rates, Currency.USD)
 
     /**
      * EUR per 1 unit of [currency] on [date].
      *
-     * Uses the latest stored bar on or before [date]. When none exists, the
-     * earliest stored bar is the deterministic fallback (not a later bar and
-     * not 1.0). [Currency.GBX] uses the GBP bar; pence scaling is in [MoneyMath.toEur].
+     * Uses the latest stored bar on or before [date]. Dates before the first
+     * bar are omitted (null) instead of borrowing that first bar.
+     * [Currency.GBX] uses the GBP bar; pence scaling is in [MoneyMath.toEur].
      */
     fun eurPerUnitOn(date: LocalDate, rates: List<CurrencyRate>, currency: Currency): BigDecimal? {
         if (currency == Currency.EUR) return BigDecimal.ONE
         if (rates.isEmpty()) return null
-        val quoted = if (currency == Currency.GBX) {
-            Currency.GBP
-        } else {
-            currency
-        }
-        fun pick(rate: CurrencyRate): BigDecimal? = if (quoted == Currency.USD) {
-            rate.eurPerUsd
-        } else {
-            rate.perUnit[quoted]
-        }
-        rates.filter { !it.date.isAfter(date) }.maxByOrNull { it.date }?.let { pick(it) }?.let { return it }
-        return pick(rates.minBy { it.date })
+        val quoted = if (currency == Currency.GBX) Currency.GBP else currency
+        val bar = rates.filter { !it.date.isAfter(date) }.maxByOrNull { it.date } ?: return null
+        return if (quoted == Currency.USD) bar.eurPerUsd else bar.perUnit[quoted]
     }
 
     fun marketOnOrBefore(assetId: String, date: LocalDate, byAsset: Map<String, List<DailyMarketData>>): DailyMarketData? {
@@ -191,3 +190,6 @@ class PositionLedger {
     fun indexMarket(marketData: List<DailyMarketData>): Map<String, List<DailyMarketData>> =
         marketData.groupBy { it.assetId }.mapValues { (_, rows) -> rows.sortedBy { it.date } }
 }
+
+/** A replay that would book negative uninvested cash. Callers must refuse the write. */
+class CashShortfall(message: String) : IllegalStateException(message)

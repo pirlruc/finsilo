@@ -19,9 +19,9 @@ android {
     defaultConfig {
         applicationId = "com.pirlruc.finsilo"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        targetSdk = 37
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -70,14 +70,10 @@ android {
         checkReleaseBuilds = true
         warningsAsErrors = true
         // Version-available checks fail on every upstream release. Dependabot owns bumps.
-        // targetSdk is pinned. PIN and key writes call commit() so the caller can see failure.
         disable += listOf(
             "GradleDependency",
             "NewerVersionAvailable",
             "AndroidGradlePluginVersion",
-            "OldTargetApi",
-            "ApplySharedPref",
-            "UseKtx",
         )
     }
 

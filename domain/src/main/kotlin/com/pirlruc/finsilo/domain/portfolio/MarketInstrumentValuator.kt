@@ -2,7 +2,6 @@ package com.pirlruc.finsilo.domain.portfolio
 
 import com.pirlruc.finsilo.domain.market.QuoteCurrency
 import com.pirlruc.finsilo.domain.model.Asset
-import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.DailyMarketData
 import com.pirlruc.finsilo.domain.model.HoldingValuation

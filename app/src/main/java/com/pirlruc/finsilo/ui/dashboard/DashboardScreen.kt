@@ -130,6 +130,7 @@ internal fun DashboardScreen(
                         section = section,
                         transactions = state.transactions,
                         assets = state.assets,
+                        performance = state.performance,
                     )
             }
         }
