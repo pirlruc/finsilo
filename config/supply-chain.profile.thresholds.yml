@@ -4,4 +4,5 @@ dependency_update_open_pr_limit: 5
 dependency_update_blocked_semver_levels: none
 dependency_update_cooldown_days: 7
 license_deny_list: ["AGPL-3.0", "SSPL-1.0", "BUSL-1.1", "Commons-Clause", "CC-BY-NC"]
-license_allow_list: []
+license_allow_list:
+  - Apache-2.0

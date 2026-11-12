@@ -10,12 +10,20 @@ OUT="${MOBSF_SARIF:-$ROOT/app/build/reports/mobsfscan.sarif}"
 mkdir -p "$(dirname "$OUT")"
 
 install_mobsfscan() {
-	if python3 -m venv "$VENV" >/dev/null 2>&1; then
-		"$VENV/bin/pip" install --disable-pip-version-check --quiet "mobsfscan==${VERSION}"
+	local req="$ROOT/scripts/requirements-mobsfscan.txt"
+	if [[ ! -x "$VENV/bin/pip" ]]; then
+		rm -rf "$VENV"
+		if ! python3 -m venv "$VENV" >/dev/null 2>&1 || [[ ! -x "$VENV/bin/pip" ]]; then
+			rm -rf "$VENV"
+			uv venv --seed "$VENV"
+		fi
+	fi
+	if [[ -x "$VENV/bin/pip" ]]; then
+		"$VENV/bin/pip" install --disable-pip-version-check --quiet --require-hashes -r "$req"
 		echo "$VENV/bin/mobsfscan"
 		return
 	fi
-	python3 -m pip install --user --disable-pip-version-check --quiet "mobsfscan==${VERSION}"
+	python3 -m pip install --user --disable-pip-version-check --quiet --require-hashes -r "$req"
 	if command -v mobsfscan >/dev/null 2>&1; then
 		command -v mobsfscan
 		return

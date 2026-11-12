@@ -46,3 +46,19 @@ jobs:
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
     secrets:
       guardrails_token: ${{ secrets.GUARDRAILS_READ_TOKEN }}
+
+  guardrails-analog:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+      - name: Clone analog and compare Kotlin keys
+        env:
+          GUARDRAILS_READ_TOKEN: ${{ secrets.GUARDRAILS_READ_TOKEN }}
+        run: |
+          bash scripts/ci-init-guardrails.sh
+          python3 scripts/read_kotlin_threshold.py statement_coverage
+          python3 scripts/read_kotlin_threshold.py branch_coverage

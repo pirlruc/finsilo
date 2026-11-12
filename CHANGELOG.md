@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-12
+
+- Skip commodity buys that have no EUR amount, and skip a non-zero fee when its currency or FX rate is missing. A USD invert band is no longer applied to other currencies. Holdings before the first FX bar are omitted, and cash that would go negative is refused.
+- Optional Trading 212 read-only sync (HTTP Basic, history only) from Settings, after unlock.
+- Overview shows XIRR and a VWCE / S&P 500 comparison when stored history exists. The comparison is not a promised return.
+- Insights shows a dividend calendar with forward 12-month income, and an IRS Anexo J/G annual summary as CSV and PDF. That report is not tax advice and not the official XML.
+
 ## [0.2.0] - 2026-11-12
 
 - License the app as GPL-3.0-only and reserve EU text-and-data-mining rights in NOTICE.
