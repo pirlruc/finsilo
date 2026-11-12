@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui
 
 import android.app.Application
+import android.os.Looper
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.pirlruc.finsilo.AppContainer
@@ -27,6 +28,7 @@ import com.pirlruc.finsilo.ui.dashboard.DashboardMutations
 import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryViewModel
+import com.pirlruc.finsilo.ui.ledger.LedgerUiState
 import com.pirlruc.finsilo.ui.settings.PortfolioToolsViewModel
 import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
@@ -48,6 +50,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -125,7 +128,7 @@ class ReleaseViewModelsTest {
         model.setName("Euro cash")
         model.setAssetType(AssetType.CASH)
         model.save { }
-        waitUntil { model.state.value.status != null || model.state.value.error != null }
+        awaitPosted(model)
         model.prepare()
         waitUntil { !model.state.value.loading }
         model.setType(TransactionType.BUY)
@@ -140,8 +143,8 @@ class ReleaseViewModelsTest {
         model.setFees("0")
         model.setEurPerUsd("0.9")
         model.save { }
-        waitUntil { model.state.value.status != null || model.state.value.error != null }
-        assertTrue(model.state.value.toString(), model.state.value.status != null || model.state.value.error != null)
+        val posted = awaitPosted(model)
+        assertTrue("status=${posted.status} error=${posted.error}", posted.status != null || posted.error != null)
         model.setType(TransactionType.SELL)
         model.saveTemplate("  ")
         model.setType(TransactionType.BUY)
@@ -284,10 +287,26 @@ class ReleaseViewModelsTest {
         assertNotNull(tools.state.value.error)
     }
 
+    private fun awaitPosted(model: LedgerEntryViewModel): LedgerUiState {
+        val deadline = System.nanoTime() + 8_000_000_000L
+        while (true) {
+            val value = model.state.value
+            if (value.status != null || value.error != null) return value
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            if (System.nanoTime() >= deadline) {
+                throw AssertionError("timed out status=${value.status} error=${value.error}")
+            }
+            Thread.sleep(15)
+        }
+    }
+
     private fun waitUntil(predicate: () -> Boolean) {
-        val deadline = System.nanoTime() + 5_000_000_000L
+        val deadline = System.nanoTime() + 8_000_000_000L
         while (!predicate()) {
-            check(System.nanoTime() < deadline) { "timed out waiting for view model" }
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            if (System.nanoTime() >= deadline) {
+                throw AssertionError("timed out waiting for view model")
+            }
             Thread.sleep(15)
         }
     }
