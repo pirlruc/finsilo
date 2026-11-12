@@ -1474,6 +1474,39 @@ milestones:
               - bash scripts/run-shellcheck.sh
               - rg -n "setup-android@be39fa83" .github/workflows
 
+      - id: FS-041
+        status: done
+        title: Hold the app module below the org coverage floor
+        overview:
+          problem: >-
+            :app cannot reach the org 95/95 Kover floor. Compose compiler
+            branches, Android Keystore, and PdfDocument do not run under
+            Robolectric, and those groups must stay in the report.
+          goal: >-
+            Keep :domain on 95/95 and verify :app at the measured floor so
+            0.2.0 can ship.
+        decision: >-
+          In the context of the FinSilo 0.2.0 release, facing an :app module
+          that Robolectric leaves at 88.0% lines and 76.2% branches, we decided
+          to record a KT-TEST-002 deviation of 87% lines and 75% branches for
+          :app only, to ship the release without excluding compiler groups,
+          accepting that the org 95 floor still applies to :domain and that
+          the deviation is reviewed on 2027-02-12.
+        acceptance_criteria:
+          - docs/guardrail-deviations.yml records both KT-TEST-002 keys
+          - :app Kover verify reads those repo values
+          - :domain Kover verify still reads the org 95 floor
+          - config/kotlin.profile.thresholds.yml stays equal to the guardrails pin
+        guardrail_refs:
+          - KT-TEST-002
+        tasks:
+          - id: FS-041-T1
+            status: done
+            title: Record the app coverage deviation and read it from the app module
+            verification:
+              - ./gradlew :app:koverVerifyDebug
+              - ./gradlew :domain:koverVerify
+
       - id: GATE-007
         status: open
         title: Restore analog threshold matching in CI
@@ -2679,5 +2712,6 @@ milestones:
             guardrail_refs:
               - CI-018
               - CI-034
+
 
 

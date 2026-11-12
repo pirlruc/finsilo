@@ -8,7 +8,31 @@
 #
 # Being stricter than the org default is always allowed and needs no entry here.
 
-deviations: []
+deviations:
+  - id: KT-TEST-002
+    key: statement_coverage
+    org_default: 95
+    repo_value: 87
+    why: >-
+      :app line coverage is 88.0% after Robolectric tests. The rest is Compose
+      compiler state, Android Keystore, and PdfDocument, which this JVM cannot
+      execute. :domain stays on the org floor of 95. :app reads repo_value.
+    epic: FS-041
+    owner: Nuno Monteiro
+    approved_by: Nuno Monteiro
+    review: 2027-02-12
+  - id: KT-TEST-002
+    key: branch_coverage
+    org_default: 95
+    repo_value: 75
+    why: >-
+      :app branch coverage is 76.2%. Compose dirty-flag branches and Keystore
+      paths stay uncovered under Robolectric, and KT-TEST-002 forbids excluding
+      those compiler groups. :domain stays on the org floor of 95.
+    epic: FS-041
+    owner: Nuno Monteiro
+    approved_by: Nuno Monteiro
+    review: 2027-02-12
 
 # Parameterized guardrail — the org default is a number and the repo uses a different one.
 # Lowering a gate requires `epic` and `approved_by`.

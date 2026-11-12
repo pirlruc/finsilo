@@ -167,7 +167,27 @@ fun readKotlinThreshold(key: String): Int {
     val file = rootProject.file("config/kotlin.profile.thresholds.yml")
     require(file.isFile) { "Missing ${file.path}" }
     val line = file.readLines().first { it.trimStart().startsWith("$key:") }
-    return line.substringAfter(":").substringBefore("#").trim().toInt()
+    val org = line.substringAfter(":").substringBefore("#").trim().toInt()
+    return appDeviation(key) ?: org
+}
+
+/** :app only. :domain keeps the org floor. See docs/guardrail-deviations.yml. */
+fun appDeviation(key: String): Int? {
+    val file = rootProject.file("docs/guardrail-deviations.yml")
+    if (!file.isFile) return null
+    var matched = false
+    for (raw in file.readLines()) {
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("- id:")) {
+            if (matched) return null
+            matched = false
+        }
+        if (trimmed == "key: $key") matched = true
+        if (matched && trimmed.startsWith("repo_value:")) {
+            return trimmed.substringAfter(":").substringBefore("#").trim().toInt()
+        }
+    }
+    return null
 }
 
 ktlint {
