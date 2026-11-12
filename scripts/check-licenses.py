@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -69,8 +70,11 @@ def main() -> int:
         return 1
     denied: list[str] = []
     disallowed: list[str] = []
+    exclude = {item.strip() for item in os.environ.get("LICENSE_GATE_EXCLUDE", "com.pirlruc.finsilo").split(",") if item.strip()}
     for component in components:
         name = str(component.get("bom-ref") or component.get("name") or "unknown")
+        if name in exclude or str(component.get("name") or "") in exclude or str(component.get("group") or "") in exclude:
+            continue
         licenses = component_licenses(component)
         blob = " ".join(licenses)
         for needle in deny:

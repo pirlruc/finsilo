@@ -42,10 +42,7 @@ build-host/       # host-native
 
 ## Reference implementation
 
-[heimdall](https://github.com/pirlruc/heimdall) runs host PATH plus project-local virtualenvs first and fills the
-remaining gaps in Docker via
-[`scripts/check-ci-docker.sh`](https://github.com/pirlruc/heimdall/blob/main/scripts/check-ci-docker.sh), with a
-per-tool host-vs-Docker resolution table. Mirror that structure when adding container runners to a repo.
+A consumer runs host PATH plus a project-local virtualenv first and fills the remaining gaps in Docker via `scripts/check-ci-docker.sh`, with a per-tool host-versus-Docker table. Mirror that structure when adding container runners to a repo.
 
 ## Related
 

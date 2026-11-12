@@ -1,0 +1,30 @@
+---
+description: Prove CPP-* quality gates still hold before finishing C++ edits
+globs: "**/*.{h,hh,hpp,hxx,c,cc,cpp,cxx},**/CMakeLists.txt,**/*.cmake,**/.clang-tidy"
+alwaysApply: false
+---
+
+# C++ quality gates
+
+When you add or edit C or C++ sources, CMake, or `.clang-tidy`, prove the org C++ guardrails still hold. Read numbers from `docs/guardrails/cpp/profile.thresholds.yml`. Do not copy those numbers into this rule.
+
+## Prefer local CI
+
+If the repo has `scripts/check-ci-local.sh` or `common/scripts/check-ci-local.sh`, run it. Otherwise configure with the `ci-linux` preset (binary dir `build`) and run `ctest`.
+
+## What to check
+
+| Topic | Guardrail |
+|-------|-----------|
+| C++20 via `target_compile_features` | CPP-BUILD-001, CPP-BUILD-030 |
+| `FILE_SET`, `EXPORT_NAME`, `GNUInstallDirs`, hidden visibility, `SOVERSION` | CPP-BUILD-031 through CPP-BUILD-036 |
+| One standard library for every linked port | CPP-BUILD-038 |
+| Manifest dependency has a `find_package` | CPP-BUILD-039 |
+| `<PROJ>_BUILD_TESTS` defaults to `PROJECT_IS_TOP_LEVEL` | CPP-BUILD-040 |
+| `openat2` `RESOLVE_BENEATH` or a per-component `openat` walk | CPP-SEC-005 |
+| Checked size arithmetic and a byte cap | CPP-SEC-006 |
+| Unique compile-time table keys | CPP-GEN-004 |
+| clang-tidy header filter includes the library headers | CPP-LINT-002 |
+| Clang AST documentation warnings | CPP-DOC-001, CPP-DOC-004 |
+
+Cite the Guardrail ID in the pull request when a gate fails.

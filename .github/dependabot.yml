@@ -69,8 +69,10 @@ updates:
       default-days: 7
   - package-ecosystem: gitsubmodule
     directory: /
-    patterns: ["*"]
-    multi-ecosystem-group: all-dependencies
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: Europe/Lisbon
     cooldown:
       default-days: 7
     registries:

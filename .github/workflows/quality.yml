@@ -5,94 +5,44 @@ on:
   push:
     branches: [main]
 
-concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
 jobs:
-  wrapper:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+  pins:
+    permissions:
+      contents: read
+    uses: pirlruc/commondevops/.github/workflows/common-pins-verify.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+      pin_script: scripts/check-analog-pins.sh
 
-      - name: Gradle wrapper validation
-        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+  drift:
+    permissions:
+      contents: read
+    uses: pirlruc/commondevops/.github/workflows/common-threshold-drift.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+      drift_script: scripts/check-threshold-drift.sh
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}
 
-  quality:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          # Do not set submodules: recursive — that would also clone
-          # .github/scaffold, which CI does not need (templates are synced).
+  scaffold:
+    permissions:
+      contents: read
+    uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      blocking: true
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Init guardrails analog
-        env:
-          GUARDRAILS_READ_TOKEN: ${{ secrets.GUARDRAILS_READ_TOKEN }}
-        run: bash scripts/ci-init-guardrails.sh
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Complexity gate matches profile (fail closed)
-        run: python3 scripts/check-detekt-complexity.py
-
-      - name: Lint exceptions expire (KT-BUILD-002)
-        run: python3 scripts/check-lint-exceptions.py
-
-      - name: Android profile (ANDROID-LINT-001 / ANDROID-SDK-001)
-        run: python3 scripts/check-android-profile.py
-
-      - name: Kotlin format and detekt
-        run: ./gradlew :domain:ktlintCheck :domain:detekt :app:ktlintCheck :app:detekt --stacktrace
-
-  analog-pins:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Submodule pins match documented refs
-        run: bash scripts/check-analog-pins.sh
-
-  shellcheck:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: ShellCheck
-        run: bash scripts/run-shellcheck.sh
-
-  doc-links:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Relative markdown links
-        run: python3 scripts/lint-doc-links.py --root "$GITHUB_WORKSPACE"
-
+  tokens:
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: read
+    uses: pirlruc/commondevops/.github/workflows/common-token-audit.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}

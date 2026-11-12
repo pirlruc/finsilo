@@ -1,0 +1,15 @@
+version = 1
+
+[[package]]
+name = "finsilo"
+SPDX-PackageName = "finsilo"
+license = "GPL-3.0-only"
+copyright = "Copyright (C) 2026 pirlruc"
+path = "**"
+
+[[package]]
+name = "gradle-wrapper"
+SPDX-PackageName = "gradle-wrapper"
+license = "Apache-2.0"
+copyright = "Copyright Gradle Inc."
+path = "gradle/wrapper/gradle-wrapper.jar"

@@ -12,12 +12,12 @@ Cursor applies the matching `.cursor/rules` file by glob and does not auto-invok
 # Dependency updates (SC-DEP-*)
 
 Governs `.github/dependabot.yml` (and `.yaml`). Cite Guardrail IDs from
-[`docs/guardrails/supply-chain/`](https://github.com/pirlruc/guardrails/tree/1.7.0/supply-chain).
+[`docs/guardrails/supply-chain/`](https://github.com/pirlruc/guardrails/tree/1.15.0/supply-chain).
 Cadence and open-PR limit come from `docs/guardrails/supply-chain/profile.thresholds.yml` — do not bake numbers
 into this rule.
 
 Process companion:
-[dependency-updates.md](https://github.com/pirlruc/methodologies/blob/1.6.0/github-issue-adr/docs/process/dependency-updates.md).
+[dependency-updates.md](https://github.com/pirlruc/methodologies/blob/1.11.0/github-issue-adr/docs/process/dependency-updates.md).
 
 ## Required shape
 
@@ -75,13 +75,19 @@ Org **Grant Dependabot access** is org-only. On a personal account:
 1. Close stale per-ecosystem Dependabot PRs before expecting the grouped PR (open-PR limit).
 2. Merge to the default branch; touch `dependabot.yml` to re-trigger if needed.
 3. Confirm `build(deps): … all-dependencies …` or Insights → Dependabot; record in handoff.
-4. Pilot: [pirlruc/gitlab-mcp](https://github.com/pirlruc/gitlab-mcp).
+4. Pilot: a multi-ecosystem Dependabot consumer.
 
 ## CI interaction
 
-Skip jobs that need **Actions** secrets when `github.actor == 'dependabot[bot]'`
-([CI-024](https://github.com/pirlruc/guardrails/blob/1.7.0/ci/guardrails.md)). Dependabot secrets are for
+Skip jobs that need **Actions** secrets when `github.event.pull_request.user.login == 'dependabot[bot]'`. Do not compare `github.actor`.
+([CI-024](https://github.com/pirlruc/guardrails/blob/1.15.0/ci/guardrails.md)). Dependabot secrets are for
 version updates only.
+
+A pull request whose jobs are all skipped is not evidence the change works. Build it locally before merging.
+
+`scripts_ref` is copied from the `uses:` SHA. Dependabot does not update it. A human commit must.
+
+A Docker `ignore.dependency-name` is the image token the `FROM` line writes. Do not add a prefix the Dockerfile does not use. `scripts/check-dependabot-from.py` fails when the name is not one of those tokens.
 
 ## Do not
 

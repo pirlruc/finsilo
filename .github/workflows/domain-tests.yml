@@ -6,57 +6,20 @@ on:
     branches: [main]
 
 concurrency:
-  group: domain-tests-${{ github.workflow }}-${{ github.ref }}
+  group: domain-tests-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  domain-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Domain unit tests
-        run: ./gradlew :domain:test :domain:koverLog --stacktrace
-
-  kover:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Init guardrails analog
-        env:
-          GUARDRAILS_READ_TOKEN: ${{ secrets.GUARDRAILS_READ_TOKEN }}
-        run: bash scripts/ci-init-guardrails.sh
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Read coverage gates (fail closed)
-        run: |
-          python3 scripts/read_kotlin_threshold.py statement_coverage
-          python3 scripts/read_kotlin_threshold.py branch_coverage
-
-      - name: Kover verify
-        run: ./gradlew :domain:koverVerify --stacktrace
+  domain:
+    permissions:
+      contents: read
+    uses: pirlruc/androiddevops/.github/workflows/android-gradle-ci.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    with:
+      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      java_version: "21"
+      gradle_tasks: :domain:test :domain:koverVerify
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}

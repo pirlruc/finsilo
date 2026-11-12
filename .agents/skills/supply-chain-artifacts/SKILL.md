@@ -12,7 +12,7 @@ Cursor applies the matching `.cursor/rules` file by glob and does not auto-invok
 # Supply-chain artifacts (SC-SBOM / SC-PROV / SC-SIGN / SC-LIC)
 
 Cite Guardrail IDs from
-[`docs/guardrails/supply-chain/`](https://github.com/pirlruc/guardrails/tree/1.7.0/supply-chain).
+[`docs/guardrails/supply-chain/`](https://github.com/pirlruc/guardrails/tree/1.15.0/supply-chain).
 Do not bake threshold numbers into this rule — read `license_deny_list` and related keys from
 `docs/guardrails/supply-chain/profile.thresholds.yml`.
 
@@ -23,7 +23,7 @@ Do not bake threshold numbers into this rule — read `license_deny_list` and re
 | **SC-SBOM-001** / **SC-SBOM-002** | Every published artifact gets a CycloneDX and/or SPDX SBOM, published as attestation or retained artifact |
 | **SC-PROV-001** | SLSA provenance (or equivalent) attached to every published artifact |
 | **SC-SIGN-001** | Sign every published artifact; keyless Sigstore (cosign) is the org default |
-| **SC-LIC-001** / **SC-LIC-002** | License gate against SPDX SBOM deny list; reference implementation is pydevops `license_gate.py` |
+| **SC-LIC-001** / **SC-LIC-002** | License gate against an SPDX SBOM; the reference implementation is the org `license_gate.py` |
 
 Language-local `*-SEC-*` IDs cover secret scan / SAST / dependency review only. Shared SBOM, signing,
 provenance, and license gates are **SC-*** — do not restate them under a language ID.

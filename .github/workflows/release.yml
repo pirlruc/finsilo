@@ -1,0 +1,37 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    permissions:
+      contents: read
+    uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    with:
+      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      java_version: "21"
+      allow_unsigned: false
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}
+      keystore_base64: ${{ secrets.FINSILO_KEYSTORE_BASE64 }}
+      keystore_password: ${{ secrets.FINSILO_KEYSTORE_PASSWORD }}
+      key_alias: ${{ secrets.FINSILO_KEY_ALIAS }}
+      key_password: ${{ secrets.FINSILO_KEY_PASSWORD }}
+
+  publish:
+    needs: apk
+    permissions:
+      contents: write
+    uses: pirlruc/commondevops/.github/workflows/common-release.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    with:
+      tag: ${{ github.ref_name }}
+      attach_sbom: false
+      sign: false
+      release_artifact: android-release-apk
+    secrets:
+      release_token: ${{ secrets.GITHUB_TOKEN }}

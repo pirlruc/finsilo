@@ -50,10 +50,4 @@ assignees: ''
 # e.g. cmake --preset default && ctest --test-dir build/default
 ```
 
-## AI metadata
-
 <!-- Parent epic: use the native sub-issue link (sidebar). Do not duplicate #number here — it drifts. -->
-
-- **creator:** AI_Implementer_1
-- **confidence_score:**
-- **target_branch:** `feature-<purpose>`

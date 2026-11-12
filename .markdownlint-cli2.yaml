@@ -1,0 +1,22 @@
+config:
+  default: true
+  MD013: false
+  MD033: false
+  MD036: false
+  MD041: false
+  MD060: false
+  MD024:
+    siblings_only: true
+globs:
+  - "docs/**/*.md"
+  - "README.md"
+  - "CHANGELOG.md"
+  - "SECURITY.md"
+ignores:
+  - "docs/guardrails/**"
+  - ".github/scaffold/**"
+  - ".github/**"
+  - "AGENTS.md"
+  - "SKILLS.md"
+  - "CLAUDE.md"
+  - ".agents/**"

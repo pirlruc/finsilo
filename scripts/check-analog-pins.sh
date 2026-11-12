@@ -43,12 +43,17 @@ if grep -RInE 'github.com/pirlruc/(commondevops|containerdevops|cppdevops|pydevo
 fi
 uses_hit="$(grep -RInE 'uses:[[:space:]]*pirlruc/(commondevops|containerdevops|cppdevops|pydevops)/' .github/workflows || true)"
 allowed="$(printf '%s\n' \
-  "uses: pirlruc/commondevops/.github/workflows/common-infra-lint.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-dependency-review.yml@${COMMONDEVOPS_SHA}" \
   "uses: pirlruc/commondevops/.github/workflows/common-doc-verify.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-infra-lint.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-pins-verify.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-release.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@${COMMONDEVOPS_SHA}" \
   "uses: pirlruc/commondevops/.github/workflows/common-secrets-sast.yml@${COMMONDEVOPS_SHA}" \
   "uses: pirlruc/commondevops/.github/workflows/common-supply-chain.yml@${COMMONDEVOPS_SHA}" \
-  "uses: pirlruc/commondevops/.github/workflows/common-scaffold-verify.yml@${COMMONDEVOPS_SHA}" \
-  "uses: pirlruc/commondevops/.github/workflows/common-scorecard.yml@${COMMONDEVOPS_SHA}" | sort)"
+  "uses: pirlruc/commondevops/.github/workflows/common-threshold-drift.yml@${COMMONDEVOPS_SHA}" \
+  "uses: pirlruc/commondevops/.github/workflows/common-token-audit.yml@${COMMONDEVOPS_SHA}" | sort)"
 actual="$(printf '%s\n' "$uses_hit" | sed 's/^[^:]*:[0-9]*://' | sed 's/^[[:space:]]*//' | sort)"
 if [[ "$actual" != "$allowed" ]]; then
   echo "error: ops uses: pins != commondevops ${COMMONDEVOPS_REF} ${COMMONDEVOPS_SHA}" >&2
