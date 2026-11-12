@@ -17,8 +17,6 @@ jobs:
       blocking: true
       scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
       shell_scripts: "scripts/*.sh"
-      container_image: ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5
-      install_runner_packages: true
 
   dependency-review:
     if: github.event_name == 'pull_request'
