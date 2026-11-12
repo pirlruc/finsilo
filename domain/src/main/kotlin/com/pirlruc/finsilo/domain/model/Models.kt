@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.model
 
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -59,7 +60,7 @@ data class Transaction(
     /** Broker that produced this row, when it came from a CSV import. */
     val source: BrokerSource? = null,
 ) {
-    val notionalEur: BigDecimal get() = quantity.multiply(unitPriceEur)
+    val notionalEur: BigDecimal get() = MoneyMath.round(quantity.multiply(unitPriceEur))
 }
 
 /** Stored daily quote, rating, and locally computed SMAs. */

@@ -3,7 +3,11 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 internal object RevolutStocksParser {
-    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
+    fun parse(table: CsvTable): List<BrokerCsvLine> = when {
+        BrokerCsvDetect.isCommodity(table.headers) -> RevolutCommodityParser.parse(table)
+        BrokerCsvDetect.isCrypto(table.headers) -> RevolutCryptoParser.parse(table)
+        else -> table.mapRows(::parseRow)
+    }
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine = StatementRows.dispatch(
         format = BrokerCsvFormat.REVOLUT_STOCKS,

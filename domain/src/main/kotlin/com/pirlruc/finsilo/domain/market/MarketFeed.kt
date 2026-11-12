@@ -150,9 +150,10 @@ object CoinGeckoParser {
      * Parses `market_chart` prices: `{"prices":[[epochMs, price], ...]}`.
      */
     private val pair = Regex("\\[\\s*(\\d+)\\s*,\\s*([0-9.eE+-]+)\\s*\\]")
+    private val topLevelKey = Regex("\"[A-Za-z0-9_]+\"\\s*:")
 
     fun dailyCloses(json: String): List<PriceBar> {
-        val block = json.substringAfter("\"prices\"", missingDelimiterValue = json)
+        val block = pricesArray(json)
         return pair
             .findAll(block)
             .map { match ->
@@ -165,5 +166,15 @@ object CoinGeckoParser {
             }.groupBy { it.date }
             .map { (date, bars) -> bars.last().copy(date = date) }
             .sortedBy { it.date }
+    }
+
+    /** The `prices` array only, stopping at the next object key such as `total_volumes`. */
+    private fun pricesArray(json: String): String {
+        val marker = "\"prices\""
+        val start = json.indexOf(marker)
+        if (start < 0) return ""
+        val from = start + marker.length
+        val next = topLevelKey.find(json, from)?.range?.first ?: json.length
+        return json.substring(from, next)
     }
 }

@@ -4,8 +4,7 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.TransactionType
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.plus
-import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
@@ -22,9 +21,10 @@ class CashFunder(private val ledger: PositionLedger = PositionLedger()) {
         if (request.type != TransactionType.BUY) return null
         val rate = executionRate(snapshot, request, asset) ?: return null
         val unitEur = toEur(request.unitPriceNative, asset.baseCurrency, rate)
-        val cost = plus(times(request.quantity, unitEur), request.feesEur)
+        val notional = MoneyMath.round(request.quantity.multiply(unitEur))
+        val cost = MoneyMath.round(notional.add(request.feesEur))
         val assets = snapshot.assets.associateBy { it.id } + (asset.id to asset)
-        val cash = ledger.cashEur(snapshot.transactions, assets)
+        val cash = MoneyMath.round(ledger.cashEur(snapshot.transactions, assets))
         val gap = cost.subtract(cash)
         if (gap.signum() <= 0) return null
         return LedgerEntryRequest(

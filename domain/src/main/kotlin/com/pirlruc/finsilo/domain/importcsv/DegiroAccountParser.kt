@@ -6,6 +6,7 @@ import java.math.BigDecimal
 internal object DegiroAccountParser {
     private val buySellQty =
         Regex("(?i)(?:koop|buy|verkoop|sell|compra|venda|achat|vente|kauf|verkauf|acquisto|vendita)\\s+([0-9]+(?:[.,][0-9]+)?)")
+    private val describedCash = Regex("""(?i):\s*([0-9][0-9.\s]*?(?:,[0-9]+)?)\s*([A-Z]{3})\s*$""")
 
     fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
 
@@ -16,26 +17,39 @@ internal object DegiroAccountParser {
         val description = row.getAny(BrokerHeaders.DESCRIPTION)
         val kind = classify(description)
         val (currency, rawAmount) = row.pairedAny(BrokerHeaders.CHANGE)
-        val change = BrokerMoney.parseAmount(rawAmount) ?: BigDecimal.ZERO
+        val change = BrokerMoney.parseAmount(rawAmount)
+        val external = externalCash(change, currency, description)
         return when (kind) {
             AccountKind.SKIP -> BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Ignored $description", date)
-            AccountKind.DEPOSIT -> cash(sourceLine, date, TransactionType.DEPOSIT_CASH, change.abs(), currency, row)
-            AccountKind.WITHDRAWAL -> cash(sourceLine, date, TransactionType.WITHDRAWAL, change.abs(), currency, row)
-            AccountKind.INTEREST -> creditInterest(sourceLine, date, change, currency, row)
-            AccountKind.DIVIDEND -> dividend(sourceLine, date, row, change.abs(), currency)
+            AccountKind.DEPOSIT -> cash(sourceLine, date, TransactionType.DEPOSIT_CASH, external.second?.abs(), external.first, row)
+            AccountKind.WITHDRAWAL ->
+                cash(sourceLine, date, TransactionType.WITHDRAWAL, external.second?.abs(), external.first, row)
+            AccountKind.INTEREST -> creditInterest(sourceLine, date, change ?: BigDecimal.ZERO, currency, row)
+            AccountKind.DIVIDEND -> dividend(sourceLine, date, row, change ?: BigDecimal.ZERO, currency)
             AccountKind.BUY, AccountKind.SELL -> trade(sourceLine, date, kind, row, change, currency)
         }
+    }
+
+    private fun externalCash(change: BigDecimal?, currency: String, description: String): Pair<String, BigDecimal?> {
+        if (change != null) return currency to change
+        return describedAmount(description) ?: (currency to null)
+    }
+
+    private fun describedAmount(description: String): Pair<String, BigDecimal>? {
+        val match = describedCash.find(description.replace('\u00a0', ' ')) ?: return null
+        val amount = BrokerMoney.parseAmount(match.groupValues[1]) ?: return null
+        return match.groupValues[2].uppercase() to amount
     }
 
     private fun cash(
         sourceLine: Int,
         date: java.time.LocalDate,
         type: TransactionType,
-        amount: BigDecimal,
+        amount: BigDecimal?,
         currency: String,
         row: CsvRow,
     ): BrokerCsvLine {
-        if (amount.signum() <= 0) {
+        if (amount == null || amount.signum() <= 0) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Cash amount missing", date)
         }
         val eur = BrokerMoney.toEurCash(amount, currency, row.getAny(BrokerHeaders.FX))
@@ -59,7 +73,7 @@ internal object DegiroAccountParser {
     private fun dividend(sourceLine: Int, date: java.time.LocalDate, row: CsvRow, amount: BigDecimal, currency: String): BrokerCsvLine {
         val product = row.getAny(BrokerHeaders.PRODUCT)
         val isin = row.get("ISIN").ifBlank { null }
-        if ((product.isBlank() && isin == null) || amount.signum() <= 0) {
+        if ((product.isBlank() && isin == null) || amount.signum() == 0) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Dividend missing product or amount", date)
         }
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
@@ -83,9 +97,12 @@ internal object DegiroAccountParser {
         date: java.time.LocalDate,
         kind: AccountKind,
         row: CsvRow,
-        change: BigDecimal,
+        change: BigDecimal?,
         currency: String,
     ): BrokerCsvLine {
+        if (change == null || change.signum() == 0) {
+            return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account trade missing amount", date)
+        }
         val match = buySellQty.find(row.getAny(BrokerHeaders.DESCRIPTION))
         if (match == null) {
             return BrokerLines.skip(BrokerCsvFormat.DEGIRO_ACCOUNT, sourceLine, "Account buy/sell needs Transactions.csv", date)
@@ -113,8 +130,13 @@ internal object DegiroAccountParser {
 
     private fun classify(description: String): AccountKind {
         val text = normalizeHeader(description)
-        return dividendKind(text) ?: interestKind(text) ?: cashKind(text) ?: tradeKind(text) ?: AccountKind.SKIP
+        return dividendKind(text) ?: interestKind(text) ?: internalCash(text) ?: cashKind(text) ?: tradeKind(text) ?: AccountKind.SKIP
     }
+
+    /** FX legs and cash sweeps are not external deposits or withdrawals. */
+    private fun internalCash(text: String): AccountKind? = if (fxSweep(text)) AccountKind.SKIP else null
+
+    private fun fxSweep(text: String): Boolean = "divisa" in text || "cash sweep" in text
 
     private fun dividendKind(text: String): AccountKind? = when {
         text.contains("dividendbelasting") || text.contains("dividend tax") || text.contains("imposto sobre dividend") -> AccountKind.SKIP

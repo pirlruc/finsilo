@@ -9,6 +9,7 @@ import com.pirlruc.finsilo.domain.model.CurrencyRate
 import com.pirlruc.finsilo.domain.model.PortfolioSnapshot
 import com.pirlruc.finsilo.domain.model.Transaction
 import com.pirlruc.finsilo.domain.model.TransactionType
+import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.toEur
 import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import java.math.BigDecimal
@@ -153,7 +154,8 @@ class RecordLedgerEntryUseCase(
         val reason =
             when {
                 request.quantity.signum() <= 0 -> "Quantity must be greater than zero."
-                request.unitPriceNative.signum() < 0 -> "Price cannot be negative."
+                request.unitPriceNative.signum() < 0 && request.type != TransactionType.DIVIDEND ->
+                    "Price cannot be negative."
                 request.feesEur.signum() < 0 -> "Fees cannot be negative."
                 request.eurPerUsd != null && request.eurPerUsd.signum() <= 0 ->
                     "EUR per 1 USD must be greater than zero."
@@ -265,7 +267,7 @@ class RecordLedgerEntryUseCase(
                 val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
                 val cash = ledger.cashEur(prior, assetsById)
                 val amount = transaction.notionalEur
-                if (amount > cash) {
+                if (exceedsCash(amount, cash)) {
                     LedgerEntryResult.Rejected(
                         "Withdrawal ${amount.stripTrailingZeros().toPlainString()} EUR exceeds " +
                             "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
@@ -277,8 +279,8 @@ class RecordLedgerEntryUseCase(
             TransactionType.BUY -> {
                 val assetsById = snapshot.assets.associateBy { it.id } + (asset.id to asset)
                 val cash = ledger.cashEur(prior, assetsById)
-                val cost = ledger.buyCostEur(transaction)
-                if (cost > cash) {
+                val cost = MoneyMath.round(transaction.notionalEur.add(transaction.feesEur))
+                if (exceedsCash(cost, cash)) {
                     LedgerEntryResult.Rejected(
                         "Buy ${cost.stripTrailingZeros().toPlainString()} EUR exceeds " +
                             "uninvested cash ${cash.stripTrailingZeros().toPlainString()} EUR.",
@@ -290,6 +292,8 @@ class RecordLedgerEntryUseCase(
             else -> null
         }
     }
+
+    private fun exceedsCash(amount: BigDecimal, cash: BigDecimal): Boolean = MoneyMath.round(amount) > MoneyMath.round(cash)
 
     private fun cashAsset(): Asset = Asset(
         id = CASH_ASSET_ID,
