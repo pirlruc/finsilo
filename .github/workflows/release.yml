@@ -1,13 +1,16 @@
+# Builds a release APK and publishes the GitHub Release for an annotated tag.
+# The release environment holds the keystore. Only tag refs may use it.
 name: release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["0.*", "v*"]
 
 permissions: {}
 
 jobs:
   apk:
+    environment: release
     permissions:
       contents: read
     uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
@@ -15,15 +18,17 @@ jobs:
       scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
       java_version: "21"
       allow_unsigned: false
+      environment: release
     secrets:
       checkout_token: ${{ secrets.GITHUB_TOKEN }}
-      keystore_base64: ${{ secrets.FINSILO_KEYSTORE_BASE64 }}
-      keystore_password: ${{ secrets.FINSILO_KEYSTORE_PASSWORD }}
-      key_alias: ${{ secrets.FINSILO_KEY_ALIAS }}
-      key_password: ${{ secrets.FINSILO_KEY_PASSWORD }}
+      keystore_base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      keystore_password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+      key_password: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
   publish:
     needs: apk
+    environment: release
     permissions:
       contents: write
       id-token: write
@@ -32,7 +37,8 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
       attach_sbom: false
-      sign: false
+      sign: true
+      environment: release
       release_artifact: android-release-apk
     secrets:
-      release_token: ${{ secrets.GITHUB_TOKEN }}
+      release_token: ${{ secrets.RELEASE_TOKEN }}
