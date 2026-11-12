@@ -33,7 +33,7 @@ class WaveAccuracyTest {
         val early = CurrencyRate(LocalDate.of(2024, 1, 1), BigDecimal("0.91"), mapOf(Currency.GBP to BigDecimal("1.15")))
         assertNull(ledger.eurPerUnitOn(LocalDate.of(2024, 6, 1), emptyList(), Currency.USD))
         assertEquals(0, BigDecimal.ONE.compareTo(ledger.eurPerUnitOn(LocalDate.of(2024, 6, 1), emptyList(), Currency.EUR)))
-        assertNotNull(ledger.eurPerUnitOn(LocalDate.of(2023, 1, 1), listOf(early), Currency.GBP))
+        assertNull(ledger.eurPerUnitOn(LocalDate.of(2023, 1, 1), listOf(early), Currency.GBP))
         assertNotNull(ledger.eurPerUnitOn(LocalDate.of(2024, 6, 1), listOf(early), Currency.GBX))
         assertNotNull(ledger.eurPerUnitOn(LocalDate.of(2024, 6, 1), listOf(early), Currency.USD))
     }
@@ -98,7 +98,8 @@ class WaveAccuracyTest {
     fun moneyAndFrankfurterEdges() {
         assertNull(BrokerMoney.book(MoneyParts("", "1", "EUR", "1", "EUR", "", "0", "EUR")))
         assertNull(BrokerMoney.book(MoneyParts("1", "", "GBP", "", "", "", "0", "EUR")))
-        assertNotNull(BrokerMoney.book(MoneyParts("2", "", "USD", "184", "EUR", "", "1", "USD")))
+        assertNull(BrokerMoney.book(MoneyParts("2", "", "USD", "184", "EUR", "", "1", "USD")))
+        assertNotNull(BrokerMoney.book(MoneyParts("2", "", "USD", "184", "EUR", "0.92", "1", "USD")))
         assertNotNull(BrokerMoney.book(MoneyParts("2", "10", "USD", "20", "USD", "1.20", "1", "USD")))
         assertNotNull(BrokerMoney.book(MoneyParts("2", "10", "GBP", "", "", "1.20", "1", "GBP")))
         assertNotNull(BrokerMoney.book(MoneyParts("2", "2500", "GBX", "280", "EUR", "", "0", "EUR")))

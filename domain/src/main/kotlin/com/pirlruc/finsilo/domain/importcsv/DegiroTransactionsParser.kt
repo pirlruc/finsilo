@@ -38,8 +38,14 @@ internal object DegiroTransactionsParser {
     private fun trade(sourceLine: Int, date: LocalDate, signedQty: BigDecimal, row: CsvRow): BrokerCsvLine {
         val product = row.getAny(BrokerHeaders.PRODUCT)
         val isin = row.get("ISIN").ifBlank { null }
-        val booked = BrokerMoney.book(money(row, signedQty.abs()))
-            ?: return BrokerLines.skip(BrokerCsvFormat.DEGIRO_TRANSACTIONS, sourceLine, "Missing price", date)
+        val parts = money(row, signedQty.abs())
+        val booked = BrokerMoney.book(parts)
+            ?: return BrokerLines.skip(
+                BrokerCsvFormat.DEGIRO_TRANSACTIONS,
+                sourceLine,
+                StatementRows.skipBook(parts, "Missing price"),
+                date,
+            )
         val symbol = BrokerQuoteSymbol.fromDegiro(product, isin)
         val type = if (signedQty.signum() < 0) TransactionType.SELL else TransactionType.BUY
         return BrokerLines.degiroHolding(

@@ -77,11 +77,7 @@ data class DailyMarketData(
  * Mark-to-market FX. [eurPerUsd] is EUR per 1 USD.
  * [perUnit] holds EUR per 1 GBP, CHF, DKK, SEK, or NOK when those bars exist.
  */
-data class CurrencyRate(
-    val date: LocalDate,
-    val eurPerUsd: BigDecimal,
-    val perUnit: Map<Currency, BigDecimal> = emptyMap(),
-)
+data class CurrencyRate(val date: LocalDate, val eurPerUsd: BigDecimal, val perUnit: Map<Currency, BigDecimal> = emptyMap())
 
 /** Target pie weight for one [AssetType], in percent. */
 data class TargetAllocation(val assetType: AssetType, val weightPercent: BigDecimal)

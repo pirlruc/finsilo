@@ -41,6 +41,8 @@ data class BrokerCsvLine(
     val eurPerUsd: BigDecimal?,
     val sourceLine: Int,
     val format: BrokerCsvFormat,
+    /** Broker fill or cash reference. A second sync with the same reference is a duplicate. */
+    val brokerReference: String? = null,
 )
 
 /** Parse outcome for a single CSV document. */

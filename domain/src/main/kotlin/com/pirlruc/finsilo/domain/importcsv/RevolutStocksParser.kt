@@ -36,7 +36,8 @@ internal object RevolutStocksParser {
     private fun tradeRow(sourceLine: Int, date: java.time.LocalDate, type: TransactionType, row: CsvRow): BrokerCsvLine {
         val ticker = row.get("Ticker", "Symbol")
         val isin = row.get("ISIN").ifBlank { null }
-        val booked = BrokerMoney.book(money(row, type))
+        val parts = money(row, type)
+        val booked = BrokerMoney.book(parts)
         val quote = BrokerQuoteSymbol.fromIsin(ticker.ifBlank { isin.orEmpty() }, isin)
         val fx = booked?.eurPerUsd ?: BrokerMoney.eurPerUsdRate(row.get("FX Rate", "FX"))
         return StatementRows.bookedHolding(
@@ -51,7 +52,7 @@ internal object RevolutStocksParser {
                 quote = quote,
                 booked = booked?.copy(eurPerUsd = fx),
                 missingInstrument = "Trade missing ticker",
-                missingBook = "Trade missing quantity/price",
+                missingBook = StatementRows.skipBook(parts, "Trade missing quantity/price"),
             ),
         )
     }

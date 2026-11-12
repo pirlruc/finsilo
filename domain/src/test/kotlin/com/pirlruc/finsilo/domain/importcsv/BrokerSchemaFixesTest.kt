@@ -135,12 +135,8 @@ class BrokerSchemaFixesTest {
             """.trimIndent()
         val metals = BrokerCsv.parse(commodity)
         assertEquals(BrokerCsvFormat.REVOLUT_STOCKS, metals.format)
-        val gold = metals.lines.single { it.symbol == "XAU" }
-        assertEquals(AssetType.COMMODITY, gold.assetType)
-        assertEquals(TransactionType.BUY, gold.type)
-        assertEquals(0, bd("0.1").compareTo(gold.quantity))
-        assertEquals(0, BigDecimal.ZERO.compareTo(gold.unitPriceNative))
-        assertEquals(AssetType.COMMODITY, metals.lines.single { it.symbol == "XPD" }.assetType)
+        assertTrue(metals.lines.all { it.skipReason == "Commodity buy has no EUR amount" })
+        assertTrue(metals.lines.none { it.unitPriceNative.signum() > 0 && it.type == TransactionType.BUY })
         val euro = "\u00e2\u0082\u00ac"
         val gap = "\u00e2\u0080\u00af"
         val crypto =

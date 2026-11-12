@@ -408,7 +408,8 @@ class PortfolioValuatorTest {
                 market = listOf(DailyMarketData(apple.id, LocalDate.of(2026, 1, 2), bd("100"))),
                 fx = listOf(CurrencyRate(asOf, eurPerUsd)),
             )
-        val stock = valuator.valueHoldings(snapshot, LocalDate.of(2026, 1, 2)).single { it.asset.id == apple.id }
+        assertTrue(valuator.valueHoldings(snapshot, LocalDate.of(2026, 1, 2)).none { it.asset.id == apple.id })
+        val stock = valuator.valueHoldings(snapshot, asOf).single { it.asset.id == apple.id }
         assertMoney("184", stock.valueEur, "value")
     }
 
@@ -481,8 +482,9 @@ class PortfolioValuatorTest {
                     feesEur = BigDecimal.ZERO,
                 ),
             )
-        val leftover = PositionLedger().cashEur(txs, mapOf(cash.id to cash))
-        assertMoney("0", leftover, "cash")
+        org.junit.jupiter.api.Assertions.assertThrows(com.pirlruc.finsilo.domain.portfolio.CashShortfall::class.java) {
+            PositionLedger().cashEur(txs, mapOf(cash.id to cash))
+        }
     }
 
     @Test

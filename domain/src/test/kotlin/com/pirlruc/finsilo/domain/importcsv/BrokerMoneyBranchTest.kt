@@ -81,8 +81,8 @@ class BrokerMoneyBranchTest {
         val eurFee = BrokerMoney.book(parts(fees = "1.50", feesCurrency = "EUR"))
         assertEquals(0, BigDecimal("1.50").compareTo(eurFee?.feesEur))
 
-        val unknownFee = BrokerMoney.book(parts(fees = "3", feesCurrency = "JPY"))
-        assertEquals(0, BigDecimal.ZERO.compareTo(unknownFee?.feesEur))
+        assertNull(BrokerMoney.book(parts(fees = "3", feesCurrency = "JPY")))
+        assertTrue(BrokerMoney.unconvertibleFee(parts(fees = "3", feesCurrency = "JPY")))
         val zeroUnknownFee = BrokerMoney.book(parts(fees = "0", feesCurrency = "JPY"))
         assertEquals(0, BigDecimal.ZERO.compareTo(zeroUnknownFee?.feesEur))
         listOf("GBP", "CHF", "DKK", "SEK", "NOK").forEach { code ->
@@ -93,10 +93,8 @@ class BrokerMoneyBranchTest {
             assertTrue(BrokerMoney.toEurCash(BigDecimal.ONE, code, "0.90")!! > BigDecimal.ZERO)
             assertNull(BrokerMoney.toEurCash(BigDecimal.ONE, code, ""))
         }
-        val usdFeeWithoutRate = BrokerMoney.book(parts(fees = "1", feesCurrency = "USD"))
-        assertEquals(0, BigDecimal.ZERO.compareTo(usdFeeWithoutRate?.feesEur))
-        val gbxFeeWithoutRate = BrokerMoney.book(parts(fees = "100", feesCurrency = "GBX"))
-        assertEquals(0, BigDecimal.ZERO.compareTo(gbxFeeWithoutRate?.feesEur))
+        assertNull(BrokerMoney.book(parts(fees = "1", feesCurrency = "USD")))
+        assertNull(BrokerMoney.book(parts(fees = "100", feesCurrency = "GBX")))
         assertEquals(0, BigDecimal.ZERO.compareTo(BrokerMoney.book(parts(fees = ""))?.feesEur))
         assertNull(BrokerMoney.toEurCash(BigDecimal("100"), "GBX", ""))
         assertNull(

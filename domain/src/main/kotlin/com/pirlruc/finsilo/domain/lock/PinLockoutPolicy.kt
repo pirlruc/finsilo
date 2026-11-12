@@ -36,14 +36,7 @@ object PinLockoutPolicy {
      * elapsed-realtime remainder wins. A new boot count falls back to the wall
      * clock because elapsed realtime reset.
      */
-    fun remainingMs(
-        nowWallMs: Long,
-        untilWallMs: Long,
-        nowElapsedMs: Long,
-        untilElapsedMs: Long,
-        nowBoot: Int,
-        lockBoot: Int,
-    ): Long {
+    fun remainingMs(nowWallMs: Long, untilWallMs: Long, nowElapsedMs: Long, untilElapsedMs: Long, nowBoot: Int, lockBoot: Int): Long {
         val wall = remainingMs(nowWallMs, untilWallMs)
         if (lockBoot < 0 || nowBoot != lockBoot) return wall
         val elapsed = (untilElapsedMs - nowElapsedMs).coerceAtLeast(0L)

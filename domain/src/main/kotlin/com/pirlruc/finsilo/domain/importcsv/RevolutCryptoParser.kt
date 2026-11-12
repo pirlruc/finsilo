@@ -31,7 +31,7 @@ internal object RevolutCryptoParser {
                 quote = symbol,
                 booked = BrokerMoney.book(money(row, reward)),
                 missingInstrument = "Trade missing ticker",
-                missingBook = "Trade missing quantity/price",
+                missingBook = StatementRows.skipBook(money(row, reward), "Trade missing quantity/price"),
             ),
         )
     }

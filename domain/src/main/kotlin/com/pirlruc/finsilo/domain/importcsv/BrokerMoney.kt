@@ -3,9 +3,9 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.Currency
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.div
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.times
-import java.math.BigDecimal as Jbd
 import com.pirlruc.finsilo.domain.usecase.parseDecimal
 import java.math.BigDecimal
+import java.math.BigDecimal as Jbd
 
 /** Quantity, native unit price, booking currency, EUR fees, and optional EUR-per-USD. */
 internal data class BookedAmounts(
@@ -37,11 +37,22 @@ internal object BrokerMoney {
     fun book(parts: MoneyParts): BookedAmounts? {
         val quantity = absAmount(parts.quantity) ?: return null
         if (quantity.signum() <= 0) return null
+        return booked(quantity, parts)
+    }
+
+    private fun booked(quantity: BigDecimal, parts: MoneyParts): BookedAmounts? {
         val price = absAmount(parts.price)
         val total = absAmount(parts.total)
         val priceCcy = currencyCode(parts.priceCurrency.ifBlank { currencyPrefix(parts.price) }, parts.totalCurrency)
         val unit = unitPrice(quantity, price, total, priceCcy, parts) ?: return null
-        return BookedAmounts(quantity, unit.first, unit.second, feesEur(parts, unit.third), unit.third)
+        val fees = feesEur(parts, unit.third) ?: return null
+        return BookedAmounts(quantity, unit.first, unit.second, fees, unit.third)
+    }
+
+    /** True when the trade itself books, but a non-zero fee has no EUR rate. */
+    fun unconvertibleFee(parts: MoneyParts): Boolean {
+        if (book(parts) != null) return false
+        return book(parts.copy(fees = "0", feesCurrency = "EUR")) != null
     }
 
     private fun unitPrice(
@@ -87,7 +98,7 @@ internal object BrokerMoney {
         val currency = Currency.fromCode(code) ?: return null
         val native = price ?: return eurTotalUnit(quantity, total, parts)
         val rate = fxFromEurTotal(quantity, native, total, currencyCode(parts.totalCurrency, ""))
-            ?: eurPerUsdRate(parts.exchangeRate)
+            ?: plainFxRate(parts.exchangeRate)
             ?: return null
         return Triple(native, currency, rate)
     }
@@ -100,7 +111,7 @@ internal object BrokerMoney {
     ): Triple<BigDecimal, Currency, BigDecimal?>? {
         val native = price ?: return null
         val rate = fxFromEurTotal(quantity, div(native, Jbd("100")), total, currencyCode(parts.totalCurrency, ""))
-            ?: eurPerUsdRate(parts.exchangeRate)
+            ?: plainFxRate(parts.exchangeRate)
             ?: return null
         return Triple(native, Currency.GBX, rate)
     }
@@ -126,28 +137,57 @@ internal object BrokerMoney {
         return rate.takeIf { it.signum() > 0 }
     }
 
+    /**
+     * EUR per 1 USD. A quote in (1.05, 1.70] is treated as USD per EUR and inverted.
+     * That band is a USD heuristic and must not be applied to other currencies.
+     */
     fun eurPerUsdRate(raw: String): BigDecimal? {
-        val rate = absAmount(raw) ?: return null
-        if (rate.signum() <= 0) return null
+        val rate = positiveRate(raw) ?: return null
         val invert = rate > BigDecimal("1.05") && rate <= BigDecimal("1.70")
         return if (invert) div(BigDecimal.ONE, rate) else rate
     }
 
-    fun toEurCash(amount: BigDecimal, currency: String, exchangeRate: String): BigDecimal? = when (val code = currencyCode(currency, "")) {
-        "EUR", "" -> amount
-        "USD", "GBP", "CHF", "DKK", "SEK", "NOK" -> eurPerUsdRate(exchangeRate)?.let { times(amount, it) }
-        "GBX" -> eurPerUsdRate(exchangeRate)?.let { times(div(amount, Jbd("100")), it) }
-        else -> null.also { if (code.isNotEmpty() && amount.signum() != 0) return null }
+    /** Positive FX quote with no USD invert band. An explicit EUR total wins over this. */
+    fun plainFxRate(raw: String): BigDecimal? = positiveRate(raw)
+
+    private fun positiveRate(raw: String): BigDecimal? {
+        val rate = absAmount(raw) ?: return null
+        if (rate.signum() <= 0) return null
+        return rate
     }
 
-    private fun feesEur(parts: MoneyParts, eurPerUsd: BigDecimal?): BigDecimal {
+    fun toEurCash(amount: BigDecimal, currency: String, exchangeRate: String): BigDecimal? {
+        val code = currencyCode(currency, "")
+        val converted = cashInEur(amount, code, exchangeRate)
+        if (converted == null && code.isNotEmpty() && code != "EUR" && amount.signum() != 0) return null
+        return converted
+    }
+
+    private fun cashInEur(amount: BigDecimal, code: String, exchangeRate: String): BigDecimal? = when (code) {
+        "EUR", "" -> amount
+        "USD" -> eurPerUsdRate(exchangeRate)?.let { times(amount, it) }
+        "GBP", "CHF", "DKK", "SEK", "NOK" -> plainFxRate(exchangeRate)?.let { times(amount, it) }
+        "GBX" -> plainFxRate(exchangeRate)?.let { times(div(amount, Jbd("100")), it) }
+        else -> null
+    }
+
+    private fun feesEur(parts: MoneyParts, bookedRate: BigDecimal?): BigDecimal? {
         val fee = absAmount(parts.fees) ?: return BigDecimal.ZERO
-        return when (currencyCode(parts.feesCurrency, parts.totalCurrency)) {
-            "USD", "GBP", "CHF", "DKK", "SEK", "NOK" -> eurPerUsd?.let { times(fee, it) } ?: BigDecimal.ZERO
-            "GBX" -> eurPerUsd?.let { times(div(fee, Jbd("100")), it) } ?: BigDecimal.ZERO
+        if (fee.signum() == 0) return BigDecimal.ZERO
+        val code = currencyCode(parts.feesCurrency, parts.totalCurrency)
+        val rate = feeRate(code, bookedRate, parts.exchangeRate) ?: return null
+        return when (code) {
             "EUR", "" -> fee
-            else -> if (fee.signum() == 0) BigDecimal.ZERO else BigDecimal.ZERO
+            "GBX" -> times(div(fee, Jbd("100")), rate)
+            else -> times(fee, rate)
         }
+    }
+
+    private fun feeRate(code: String, bookedRate: BigDecimal?, exchangeRate: String): BigDecimal? = when (code) {
+        "EUR", "" -> BigDecimal.ONE
+        "USD" -> bookedRate ?: eurPerUsdRate(exchangeRate)
+        "GBP", "CHF", "DKK", "SEK", "NOK", "GBX" -> bookedRate ?: plainFxRate(exchangeRate)
+        else -> null
     }
 
     internal fun currencyCode(primary: String, fallback: String): String {

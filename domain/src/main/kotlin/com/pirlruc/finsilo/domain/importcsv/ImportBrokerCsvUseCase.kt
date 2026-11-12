@@ -124,7 +124,15 @@ private class ImportWalk(
 
     private fun requestOf(type: TransactionType, date: java.time.LocalDate, line: BrokerCsvLine): LedgerEntryRequest? {
         if (isCashRow(type, line)) {
-            return LedgerEntryRequest(type, date, line.quantity, BigDecimal.ONE, BigDecimal.ZERO, source = line.format.source)
+            return LedgerEntryRequest(
+                type,
+                date,
+                line.quantity,
+                BigDecimal.ONE,
+                BigDecimal.ZERO,
+                source = line.format.source,
+                externalId = line.brokerReference,
+            )
         }
         return holdingRequest(type, date, line)?.copy(source = line.format.source)
     }
@@ -147,6 +155,7 @@ private class ImportWalk(
             existingAssetId = existing?.id,
             newAsset = if (existing == null) draft(line) else null,
             eurPerUsd = line.eurPerUsd,
+            externalId = line.brokerReference,
         )
     }
 

@@ -20,6 +20,7 @@ import com.pirlruc.finsilo.domain.portfolio.PortfolioValuator
 import java.math.BigDecimal
 import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -140,8 +141,19 @@ class TwrYocAndParserTest {
                 fxRates = emptyList(),
                 targets = emptyList(),
             )
-        val report = GetTimeWeightedReturnUseCase()(snapshot, asOf)
-        assertTrue(report.subPeriods.any { it.split == TwrSplit.EXTERNAL_BUY })
+        assertThrows(com.pirlruc.finsilo.domain.portfolio.CashShortfall::class.java) {
+            GetTimeWeightedReturnUseCase()(snapshot, asOf)
+        }
+        val funded =
+            snapshot.copy(
+                transactions = listOf(
+                    cashTx("c0", LocalDate.of(2026, 1, 1), bd("2000")),
+                    buy("b", etf.id, LocalDate.of(2026, 1, 1), bd("10"), bd("100")),
+                    snapshot.transactions.last(),
+                ),
+            )
+        val report = GetTimeWeightedReturnUseCase()(funded, asOf)
+        assertTrue(report.subPeriods.none { it.split == TwrSplit.EXTERNAL_BUY })
         assertTrue(report.subPeriods.any { it.split == TwrSplit.WITHDRAWAL })
     }
 

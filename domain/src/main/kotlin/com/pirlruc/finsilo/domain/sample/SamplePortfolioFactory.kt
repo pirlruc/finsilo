@@ -100,7 +100,7 @@ object SamplePortfolioFactory {
         val fundingDate = start.plusDays(1)
         val fundingRate = eurPerUsdOn(fundingDate, fx)
         return listOf(
-            cashDeposit("tx-cash-1", fundingDate, bd("25000"), fundingRate),
+            cashDeposit("tx-cash-1", fundingDate, bd("40000"), fundingRate),
             buy("tx-aapl-1", APPLE_ID, start.plusDays(3), bd("15"), bd("185.40"), Currency.USD, fx),
             buy("tx-vwce-1", VWCE_ID, start.plusDays(4), bd("80"), bd("118.25"), Currency.EUR, fx),
             buy("tx-btc-1", BTC_ID, start.plusDays(10), bd("0.08"), bd("61200"), Currency.USD, fx),

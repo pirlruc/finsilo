@@ -15,7 +15,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 /** GET-only quote source used by [com.pirlruc.finsilo.domain.usecase.SyncMarketDataUseCase]. */
 interface MarketFeed {
