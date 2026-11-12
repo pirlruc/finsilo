@@ -133,6 +133,19 @@ val branchCoverage = readKotlinThreshold("branch_coverage")
 
 kover {
     reports {
+        filters {
+            excludes {
+                // KT-TEST-002: generated Room and Compose singleton wrappers.
+                classes(
+                    "*_Impl",
+                    "*_Impl\$*",
+                    "*ComposableSingletons*",
+                    "*.BuildConfig",
+                    "*.R",
+                    "*.R\$*",
+                )
+            }
+        }
         verify {
             rule("statement coverage") {
                 bound {

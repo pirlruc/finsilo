@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo
 
 import android.app.Application
+import android.content.SharedPreferences
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.room.Room
@@ -8,6 +9,7 @@ import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.local.FinsiloDatabase
 import com.pirlruc.finsilo.data.remote.CompositeMarketFeed
 import com.pirlruc.finsilo.data.security.AppLockStore
+import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.data.security.LockoutSample
 import com.pirlruc.finsilo.data.security.CredentialKeys
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
@@ -29,12 +31,15 @@ class FinsiloApplication : Application() {
     }
 }
 
-class AppContainer(val application: Application) {
-    private val credentials = SecurePreferences.open(application, CredentialKeys.FILE)
+class AppContainer internal constructor(
+    val application: Application,
+    credentials: SharedPreferences,
+    feedFactory: (DatabaseKeyStore) -> MarketFeed,
+) {
     val keys: DatabaseKeyStore = DatabaseKeyStore(credentials)
     val widgetNav = WidgetNavCache(application)
     val getDashboard: GetDashboardUseCase = GetDashboardUseCase()
-    val marketFeed = CompositeMarketFeed(keys = keys)
+    val marketFeed: MarketFeed = feedFactory(keys)
     val lockStore = AppLockStore(credentials) {
         LockoutSample(
             wallMs = System.currentTimeMillis(),
@@ -73,6 +78,13 @@ class AppContainer(val application: Application) {
         database = db
         portfolioRepository = RoomPortfolioRepository(db, widgetNav)
     }
+
+    /** Production wiring: Keystore prefs and the GET-only composite feed. */
+    constructor(application: Application) : this(
+        application,
+        SecurePreferences.open(application, CredentialKeys.FILE),
+        { store -> CompositeMarketFeed(keys = store) },
+    )
 
     @Synchronized
     fun closeLedger() {
