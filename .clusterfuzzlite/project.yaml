@@ -1,0 +1,8 @@
+language: jvm
+fuzzing_engines:
+  - libfuzzer
+fuzz_targets:
+  - com.pirlruc.finsilo.domain.importcsv.Trading212CsvFuzz
+  - com.pirlruc.finsilo.domain.importcsv.DegiroTransactionsFuzz
+  - com.pirlruc.finsilo.domain.importcsv.DegiroAccountFuzz
+  - com.pirlruc.finsilo.domain.importcsv.RevolutStocksFuzz

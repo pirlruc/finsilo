@@ -21,6 +21,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pirlruc.finsilo.domain.entitlement.Entitlements
+import com.pirlruc.finsilo.domain.entitlement.FlagEntitlements
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
@@ -48,6 +50,7 @@ internal fun DashboardContent(
     transactions: List<com.pirlruc.finsilo.domain.model.Transaction> = emptyList(),
     assets: List<com.pirlruc.finsilo.domain.model.Asset> = emptyList(),
     performance: PerformanceSummary? = null,
+    entitlements: Entitlements = FlagEntitlements(true),
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -66,7 +69,7 @@ internal fun DashboardContent(
             HoldingsColumn(report, thresholds, ratingPrefs, holdings, transactions, assets)
         }
         if (shows(section, HomeSection.INSIGHTS)) {
-            InsightsColumn(report, transactions, assets, performance)
+            InsightsColumn(report, transactions, assets, performance, entitlements)
         }
         if (shows(section, HomeSection.OVERVIEW) && importState != null && importNav != null) {
             BrokerImportCard(
@@ -194,9 +197,17 @@ private fun InsightsColumn(
     transactions: List<com.pirlruc.finsilo.domain.model.Transaction>,
     assets: List<com.pirlruc.finsilo.domain.model.Asset>,
     performance: PerformanceSummary?,
+    entitlements: Entitlements,
 ) {
     AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
     RebalanceCard(report.allocation.slices, report.allocation.totalValueEur)
+    PremiumInsightCards(
+        report.allocation.slices,
+        report.allocation.totalValueEur,
+        transactions,
+        report.asOf,
+        entitlements,
+    )
     if (report.yoc.isNotEmpty()) YocCard(report.yoc)
     if (report.signals.isNotEmpty()) SignalsCard(report.signals)
     MaisValiasPreview(transactions, assets, report.asOf.year)

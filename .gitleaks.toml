@@ -1,0 +1,12 @@
+title = "FinSilo"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SharedPreferences names. These are not API credentials."
+regexTarget = "secret"
+regexes = [
+  '''trading212_key''',
+  '''trading212_secret''',
+]

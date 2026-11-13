@@ -2,7 +2,6 @@ package com.pirlruc.finsilo.domain.performance
 
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /** Regular dividend spacing inferred from historical pay dates. */
 enum class DividendCadence(val days: Int, val paymentsPerYear: Int) {
@@ -27,25 +26,34 @@ object DividendCalendar {
 
     private fun cadenceOf(dates: List<LocalDate>): DividendCadence? {
         if (dates.size < 3) return null
-        val gaps = dates.zipWithNext { left, right -> ChronoUnit.DAYS.between(left, right) }
-        return DividendCadence.entries.firstOrNull { cadence -> gaps.all { gap -> gap in band(cadence) } }
+        val gaps = dates.zipWithNext { left, right -> monthGap(left, right) }
+        return DividendCadence.entries.firstOrNull { cadence -> gaps.all { gap -> gap == months(cadence) } }
     }
 
-    private fun band(cadence: DividendCadence): LongRange = when (cadence) {
-        DividendCadence.MONTHLY -> 25L..35L
-        DividendCadence.QUARTERLY -> 80L..100L
-        DividendCadence.SEMIANNUAL -> 170L..200L
-        DividendCadence.ANNUAL -> 350L..380L
+    private fun monthGap(left: LocalDate, right: LocalDate): Int = (right.year - left.year) * 12 + (right.monthValue - left.monthValue)
+
+    private fun months(cadence: DividendCadence): Int = when (cadence) {
+        DividendCadence.MONTHLY -> 1
+        DividendCadence.QUARTERLY -> 3
+        DividendCadence.SEMIANNUAL -> 6
+        DividendCadence.ANNUAL -> 12
     }
 
     private fun nextDate(last: LocalDate, cadence: DividendCadence, from: LocalDate): LocalDate? {
-        var cursor = last.plusDays(cadence.days.toLong())
+        var cursor = advance(last, cadence)
         var steps = 0
         while (!cursor.isAfter(from) && steps < MAX_STEPS) {
-            cursor = cursor.plusDays(cadence.days.toLong())
+            cursor = advance(cursor, cadence)
             steps += 1
         }
         return cursor.takeIf { steps < MAX_STEPS && !cursor.isAfter(from.plusYears(1)) }
+    }
+
+    private fun advance(date: LocalDate, cadence: DividendCadence): LocalDate = when (cadence) {
+        DividendCadence.MONTHLY -> date.plusMonths(1)
+        DividendCadence.QUARTERLY -> date.plusMonths(3)
+        DividendCadence.SEMIANNUAL -> date.plusMonths(6)
+        DividendCadence.ANNUAL -> date.plusYears(1)
     }
 
     private fun forward(next: LocalDate, cadence: DividendCadence, from: LocalDate, amount: BigDecimal): BigDecimal {
@@ -54,7 +62,7 @@ object DividendCalendar {
         var count = 0
         while (!cursor.isAfter(until) && count < cadence.paymentsPerYear) {
             count += 1
-            cursor = cursor.plusDays(cadence.days.toLong())
+            cursor = advance(cursor, cadence)
         }
         return amount.multiply(BigDecimal(count))
     }

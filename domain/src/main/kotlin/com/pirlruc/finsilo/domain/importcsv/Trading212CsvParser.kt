@@ -3,7 +3,9 @@ package com.pirlruc.finsilo.domain.importcsv
 import com.pirlruc.finsilo.domain.model.TransactionType
 
 internal object Trading212CsvParser {
-    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
+    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows { line, row ->
+        WithholdingTax.attach(parseRow(line, row), row, trading212GrossNet = true)
+    }
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine = StatementRows.dispatch(
         format = BrokerCsvFormat.TRADING_212,

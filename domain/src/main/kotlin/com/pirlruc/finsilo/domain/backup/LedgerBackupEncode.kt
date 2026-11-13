@@ -22,20 +22,24 @@ internal object LedgerBackupEncode {
         esc(asset.quoteSymbol.orEmpty()),
     ).joinToString("\t")
 
-    fun transaction(tx: Transaction): String = listOf(
-        "T",
-        tx.id,
-        tx.assetId,
-        tx.date.toString(),
-        tx.type.name,
-        tx.quantity.toPlainString(),
-        tx.unitPriceNative.toPlainString(),
-        tx.exchangeRateAtExecution.toPlainString(),
-        tx.unitPriceEur.toPlainString(),
-        tx.feesEur.toPlainString(),
-        tx.sequence.toString(),
-        tx.source?.name.orEmpty(),
-    ).joinToString("\t")
+    fun transaction(tx: Transaction): String {
+        val cols = mutableListOf(
+            "T",
+            tx.id,
+            tx.assetId,
+            tx.date.toString(),
+            tx.type.name,
+            tx.quantity.toPlainString(),
+            tx.unitPriceNative.toPlainString(),
+            tx.exchangeRateAtExecution.toPlainString(),
+            tx.unitPriceEur.toPlainString(),
+            tx.feesEur.toPlainString(),
+            tx.sequence.toString(),
+            tx.source?.name.orEmpty(),
+        )
+        tx.withholdingEur?.let { cols += it.toPlainString() }
+        return cols.joinToString("\t")
+    }
 
     fun market(row: DailyMarketData): String = quoteRow("M", row)
 

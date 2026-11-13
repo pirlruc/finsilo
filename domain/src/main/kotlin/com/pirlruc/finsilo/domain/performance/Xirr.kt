@@ -49,7 +49,7 @@ object Xirr {
 
     private fun bisect(flows: List<DatedCashflow>): BigDecimal? {
         var low = FLOOR
-        var high = 1.0
+        var high = CAP
         if (npv(flows, low) * npv(flows, high) > 0) return null
         repeat(BISECT_STEPS) {
             val mid = (low + high) / 2.0

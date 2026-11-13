@@ -20,18 +20,25 @@ data class IrsAnnualRow(
     val quadro: IrsQuadro,
     val countryCode: String,
     val grossIncomeEur: BigDecimal,
-    val foreignTaxWithheldEur: BigDecimal,
+    /** Null when the broker did not state a withholding amount. That is not zero. */
+    val foreignTaxWithheldEur: BigDecimal?,
     val acquisitionValueEur: BigDecimal,
     val realizationValueEur: BigDecimal,
     val year: Int,
 )
 
-/** Country of source from the listing suffix. Anything else is unknown. */
+/** Country of source from the listing suffix, else the ISIN prefix. Anything else is unknown. */
 object ListingCountry {
-    fun code(symbol: String): String {
+    fun code(symbol: String, isin: String? = null): String {
         val suffix = symbol.substringAfterLast('.', missingDelimiterValue = "").uppercase()
-        if (suffix.isEmpty()) return UNKNOWN
-        return SUFFIX[suffix] ?: UNKNOWN
+        if (suffix.isNotEmpty()) return SUFFIX[suffix] ?: UNKNOWN
+        return isinPrefix(isin)
+    }
+
+    private fun isinPrefix(isin: String?): String {
+        val prefix = isin?.take(2)?.uppercase().orEmpty()
+        if (prefix.length != 2 || prefix.any { !it.isLetter() }) return UNKNOWN
+        return prefix
     }
 
     const val UNKNOWN: String = "unknown"
@@ -67,7 +74,7 @@ class IrsAnnualReport(private val gains: GetRealizedGainsUseCase = GetRealizedGa
     fun rows(
         snapshot: PortfolioSnapshot,
         year: Int,
-        countryOf: (Asset) -> String = { ListingCountry.code(it.feedSymbol) },
+        countryOf: (Asset) -> String = { ListingCountry.code(it.feedSymbol, it.isin) },
     ): List<IrsAnnualRow> {
         val assets = snapshot.assets.associateBy { it.id }
         val income = snapshot.transactions.mapNotNull { dividendRow(it, assets[it.assetId], year, countryOf) }
@@ -81,7 +88,7 @@ class IrsAnnualReport(private val gains: GetRealizedGainsUseCase = GetRealizedGa
             quadro = IrsQuadro.ANEXO_J_8A,
             countryCode = countryOf(asset),
             grossIncomeEur = tx.notionalEur,
-            foreignTaxWithheldEur = BigDecimal.ZERO,
+            foreignTaxWithheldEur = tx.withholdingEur,
             acquisitionValueEur = BigDecimal.ZERO,
             realizationValueEur = BigDecimal.ZERO,
             year = year,
@@ -95,7 +102,7 @@ class IrsAnnualReport(private val gains: GetRealizedGainsUseCase = GetRealizedGa
             quadro = quadro,
             countryCode = country,
             grossIncomeEur = line.gainEur,
-            foreignTaxWithheldEur = BigDecimal.ZERO,
+            foreignTaxWithheldEur = null,
             acquisitionValueEur = line.costEur,
             realizationValueEur = line.proceedsEur,
             year = year,
@@ -112,7 +119,7 @@ object IrsAnnualCsv {
                 row.quadro.name,
                 row.countryCode,
                 row.grossIncomeEur.toPlainString(),
-                row.foreignTaxWithheldEur.toPlainString(),
+                row.foreignTaxWithheldEur?.toPlainString() ?: "unknown",
                 row.acquisitionValueEur.toPlainString(),
                 row.realizationValueEur.toPlainString(),
                 row.year.toString(),

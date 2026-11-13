@@ -6,7 +6,9 @@ internal object RevolutStocksParser {
     fun parse(table: CsvTable): List<BrokerCsvLine> = when {
         BrokerCsvDetect.isCommodity(table.headers) -> RevolutCommodityParser.parse(table)
         BrokerCsvDetect.isCrypto(table.headers) -> RevolutCryptoParser.parse(table)
-        else -> table.mapRows(::parseRow)
+        else -> table.mapRows { line, row ->
+            WithholdingTax.attach(parseRow(line, row), row, trading212GrossNet = false)
+        }
     }
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine = StatementRows.dispatch(

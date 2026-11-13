@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pirlruc.finsilo.AppContainer
+import com.pirlruc.finsilo.BuildConfig
+import com.pirlruc.finsilo.domain.entitlement.FlagEntitlements
+import com.pirlruc.finsilo.domain.entitlement.PremiumFeature
 import com.pirlruc.finsilo.domain.model.AssetType
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
@@ -87,6 +90,21 @@ fun TargetSettingsRoute(
             ),
         ),
         trading212 = { Trading212SettingsCard(container.keys) },
+        vaults = {
+            if (FlagEntitlements(BuildConfig.PREMIUM_UNLOCKED).allows(PremiumFeature.MULTI_PORTFOLIO)) {
+                VaultSwitcherCard(
+                    vaults = container.vaultRecords(),
+                    activeId = container.vaultSelection.id,
+                    onSwitch = { id ->
+                        if (container.switchVault(id)) lock.lockForVaultSwitch()
+                    },
+                    onCreate = { label ->
+                        val created = container.createVault(label) ?: return@VaultSwitcherCard
+                        if (container.switchVault(created.id)) lock.lockForVaultSwitch()
+                    },
+                )
+            }
+        },
     )
 }
 
@@ -99,6 +117,7 @@ internal fun TargetSettingsScreen(
     tools: PortfolioToolsUiState,
     actions: TargetSettingsActions,
     trading212: @Composable () -> Unit = {},
+    vaults: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -122,6 +141,7 @@ internal fun TargetSettingsScreen(
         ) {
             Text("Data", style = MaterialTheme.typography.titleLarge)
             trading212()
+            vaults()
             Text(
                 "Broker CSV import is on Overview. ${importState.status.orEmpty()}",
                 style = MaterialTheme.typography.bodySmall,

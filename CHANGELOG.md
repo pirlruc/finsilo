@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-13
+
+- Pro features sit behind an entitlement gate and ship unlocked. There is no billing SDK. XIRR, the IRS annual report, and the dividend calendar stay free.
+- More than one vault can live on the device. Each vault has its own SQLCipher database, Keystore wrap, and PIN. The original database stays `finsilo.db`.
+- Insights can show a rebalancing simulator and FIRE / DRIP projections. Those notes are not financial advice.
+- Broker CSV parsers have seeded Jazzer regression targets. The longer run is a monthly or manual workflow.
+- Settings shows Trading 212 HTTP 401, 403, and 429. Unknown withholding tax is not booked as EUR 0. XIRR search reaches the existing Newton cap. Dividend cadence uses calendar months. A ticker with no suffix takes its country from the ISIN prefix.
+
 ## [0.3.0] - 2026-11-12
 
 - Skip commodity buys that have no EUR amount, and skip a non-zero fee when its currency or FX rate is missing. A USD invert band is no longer applied to other currencies. Holdings before the first FX bar are omitted, and cash that would go negative is refused.

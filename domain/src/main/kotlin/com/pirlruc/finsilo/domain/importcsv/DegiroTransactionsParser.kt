@@ -7,7 +7,9 @@ import java.time.LocalDate
 internal object DegiroTransactionsParser {
     fun parse(table: CsvTable): List<BrokerCsvLine> {
         val corporate = corporateKeys(table)
-        return table.mapRows { line, row -> parseRow(line, row, corporate) }
+        return table.mapRows { line, row ->
+            WithholdingTax.attach(parseRow(line, row, corporate), row, trading212GrossNet = false)
+        }
     }
 
     private fun parseRow(sourceLine: Int, row: CsvRow, corporate: Set<String>): BrokerCsvLine {

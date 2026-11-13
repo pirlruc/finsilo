@@ -16,6 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * `ALTER`/`CREATE` SQL lives in KSP output (`build/`), not in scanned source.
  * v8 drops unread `nav_rebuild_state` columns via [DropUnreadNavRebuildColumns].
  * v9 adds optional `broker_source` on transactions for CSV capital splits.
+ * v10 adds optional `withholding_eur` on transactions. Null means the broker did not state a tax.
  * v1 had no exported schema; [MIGRATION_1_2] is an empty version bump.
  */
 @Database(
@@ -33,7 +34,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WatchlistQuoteEntity::class,
         RatingAlertEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -43,6 +44,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8, spec = FinsiloDatabase.DropUnreadNavRebuildColumns::class),
         AutoMigration(from = 8, to = 9),
+        AutoMigration(from = 9, to = 10),
     ],
 )
 @TypeConverters(FinsiloTypeConverters::class)
