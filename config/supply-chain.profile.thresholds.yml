@@ -4,5 +4,10 @@ dependency_update_open_pr_limit: 5
 dependency_update_blocked_semver_levels: none
 dependency_update_cooldown_days: 7
 license_deny_list: ["AGPL-3.0", "SSPL-1.0", "BUSL-1.1", "Commons-Clause", "CC-BY-NC"]
+# The Gradle CycloneDX bill declares Apache-2.0 on every licensed
+# component. net.zetetic:sqlcipher-android 4.19.0 ships as BSD-3-Clause
+# and the plugin omits that license, so it is listed here too.
+# GPL-3.0-only is not allowed. The project modules are not dependencies.
 license_allow_list:
   - Apache-2.0
+  - BSD-3-Clause
