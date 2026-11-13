@@ -59,6 +59,11 @@ data class Transaction(
     val sequence: Long = 0L,
     /** Broker that produced this row, when it came from a CSV import. */
     val source: BrokerSource? = null,
+    /**
+     * Foreign tax withheld, in EUR. Null means the broker did not state it.
+     * Null is not zero.
+     */
+    val withholdingEur: BigDecimal? = null,
 ) {
     val notionalEur: BigDecimal get() = MoneyMath.round(quantity.multiply(unitPriceEur))
 }

@@ -135,7 +135,15 @@ object Trading212History {
                 missingInstrument = "Trade missing ticker",
                 missingBook = StatementRows.skipBook(parts, "Trade missing quantity/price"),
             ),
-        ).copy(brokerReference = BrokerReference.canonical(text(item, "reference")))
+        ).copy(
+            brokerReference = BrokerReference.canonical(text(item, "reference")),
+            withholdingEur = WithholdingTax.grossMinusNet(
+                text(item, "grossAmountPerShare")?.let { BrokerMoney.parseAmount(it) },
+                text(item, "quantity")?.let { BrokerMoney.parseAmount(it) },
+                text(item, "amount")?.let { BrokerMoney.parseAmount(it) },
+                text(item, "currency").orEmpty().ifBlank { "EUR" },
+            ),
+        )
     }
 
     private fun cashLine(index: Int, item: JsonObject): BrokerCsvLine {

@@ -18,7 +18,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pirlruc.finsilo.BuildConfig
 import com.pirlruc.finsilo.data.ClearSelection
+import com.pirlruc.finsilo.domain.entitlement.Entitlements
+import com.pirlruc.finsilo.domain.entitlement.FlagEntitlements
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportUiState
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 
@@ -32,6 +35,7 @@ fun DashboardRoute(
     onOpenWatchlist: () -> Unit,
     onPickerBusy: (Boolean) -> Unit,
     section: HomeSection = HomeSection.ALL,
+    entitlements: Entitlements = FlagEntitlements(BuildConfig.PREMIUM_UNLOCKED),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val importState by importer.state.collectAsStateWithLifecycle()
@@ -59,6 +63,7 @@ fun DashboardRoute(
             onLoadSample = viewModel::loadSample,
         ),
         section = section,
+        entitlements = entitlements,
         clear = DashboardClearActions(
             onRequestClear = viewModel::requestClear,
             onConfirmClear = viewModel::confirmClear,
@@ -78,6 +83,7 @@ internal fun DashboardScreen(
     nav: DashboardNavActions,
     clear: DashboardClearActions,
     section: HomeSection = HomeSection.ALL,
+    entitlements: Entitlements = FlagEntitlements(BuildConfig.PREMIUM_UNLOCKED),
 ) {
     var showKeyDialog by remember { mutableStateOf(false) }
     Scaffold(
@@ -131,6 +137,7 @@ internal fun DashboardScreen(
                         transactions = state.transactions,
                         assets = state.assets,
                         performance = state.performance,
+                        entitlements = entitlements,
                     )
             }
         }

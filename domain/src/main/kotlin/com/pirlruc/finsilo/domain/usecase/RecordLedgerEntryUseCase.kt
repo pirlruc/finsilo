@@ -42,6 +42,8 @@ data class LedgerEntryRequest(
     val replaceId: String? = null,
     /** Stable broker reference. Stored as the transaction id so a later sync dedupes. */
     val externalId: String? = null,
+    /** EUR withholding when the broker stated it. Null stays unknown. */
+    val withholdingEur: BigDecimal? = null,
 )
 
 /** Validation result for a ledger write. Persistence is the caller's job. */
@@ -156,6 +158,7 @@ class RecordLedgerEntryUseCase(
             feesEur = request.feesEur,
             sequence = nextSequence(snapshot),
             source = request.source,
+            withholdingEur = request.withholdingEur,
         )
 
     private fun validateAmounts(request: LedgerEntryRequest): LedgerEntryResult.Rejected? {

@@ -35,6 +35,7 @@ data class TransactionEntity(
     @ColumnInfo(name = "fees_eur") val feesEur: BigDecimal,
     @ColumnInfo(name = "ledger_sequence", defaultValue = "0") val sequence: Long = 0,
     @ColumnInfo(name = "broker_source", defaultValue = "") val brokerSource: String = "",
+    @ColumnInfo(name = "withholding_eur") val withholdingEur: BigDecimal? = null,
 ) {
     fun toDomain(): Transaction = Transaction(
         id = transactionId,
@@ -48,6 +49,7 @@ data class TransactionEntity(
         feesEur = feesEur,
         sequence = sequence,
         source = brokerSource.takeIf { it.isNotBlank() }?.let { runCatching { BrokerSource.valueOf(it) }.getOrNull() },
+        withholdingEur = withholdingEur,
     )
 
     companion object {
@@ -63,6 +65,7 @@ data class TransactionEntity(
             feesEur = tx.feesEur,
             sequence = tx.sequence,
             brokerSource = tx.source?.name.orEmpty(),
+            withholdingEur = tx.withholdingEur,
         )
     }
 }

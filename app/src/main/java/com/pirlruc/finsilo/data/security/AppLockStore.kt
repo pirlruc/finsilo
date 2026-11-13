@@ -3,6 +3,8 @@ package com.pirlruc.finsilo.data.security
 import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PinLockoutPolicy
+import com.pirlruc.finsilo.domain.vault.VaultKeys
+import com.pirlruc.finsilo.domain.vault.VaultSelection
 
 /** PIN, recovery, biometric flag, and unlock-attempt lockout. */
 interface AppLockRepository {
@@ -40,13 +42,14 @@ interface AppLockRepository {
 /** Encrypted PIN, recovery hash, and biometric flag for the app lock. */
 class AppLockStore(
     private val prefs: SharedPreferences,
+    private val selection: VaultSelection = VaultSelection(),
     private val clock: () -> LockoutSample = { LockoutSample(System.currentTimeMillis(), System.currentTimeMillis(), -1) },
 ) : AppLockRepository {
-    override fun isSetup(): Boolean = prefs.contains(KEY_PIN_HASH)
+    override fun isSetup(): Boolean = prefs.contains(key(KEY_PIN_HASH))
 
-    override fun biometricEnabled(): Boolean = prefs.getBoolean(KEY_BIOMETRIC, false)
+    override fun biometricEnabled(): Boolean = prefs.getBoolean(key(KEY_BIOMETRIC), false)
 
-    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_BIOMETRIC, enabled).commitObserved()
+    override fun setBiometricEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(key(KEY_BIOMETRIC), enabled).commitObserved()
 
     override fun setup(pin: String, recoveryCode: String, biometric: Boolean): Boolean {
         if (!AppLockCrypto.pinOk(pin)) return false
@@ -75,13 +78,13 @@ class AppLockStore(
         return editor.commitObserved()
     }
 
-    override fun failedUnlockAttempts(): Int = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
+    override fun failedUnlockAttempts(): Int = prefs.getInt(key(KEY_FAILED_ATTEMPTS), 0)
 
-    override fun pinLockoutUntilMs(): Long = prefs.getLong(KEY_LOCKOUT_UNTIL, 0L)
+    override fun pinLockoutUntilMs(): Long = prefs.getLong(key(KEY_LOCKOUT_UNTIL), 0L)
 
-    override fun lockoutElapsedUntilMs(): Long = prefs.getLong(KEY_LOCKOUT_ELAPSED, 0L)
+    override fun lockoutElapsedUntilMs(): Long = prefs.getLong(key(KEY_LOCKOUT_ELAPSED), 0L)
 
-    override fun lockoutBootCount(): Int = prefs.getInt(KEY_LOCKOUT_BOOT, -1)
+    override fun lockoutBootCount(): Int = prefs.getInt(key(KEY_LOCKOUT_BOOT), -1)
 
     override fun lockoutRemaining(nowMs: Long): Long {
         val sample = clock()
@@ -100,38 +103,38 @@ class AppLockStore(
         val wait = PinLockoutPolicy.lockoutMs(attempts)
         val sample = clock()
         prefs.edit()
-            .putInt(KEY_FAILED_ATTEMPTS, attempts)
-            .putLong(KEY_LOCKOUT_UNTIL, nowMs + wait)
-            .putLong(KEY_LOCKOUT_ELAPSED, sample.elapsedMs + wait)
-            .putInt(KEY_LOCKOUT_BOOT, sample.bootCount)
+            .putInt(key(KEY_FAILED_ATTEMPTS), attempts)
+            .putLong(key(KEY_LOCKOUT_UNTIL), nowMs + wait)
+            .putLong(key(KEY_LOCKOUT_ELAPSED), sample.elapsedMs + wait)
+            .putInt(key(KEY_LOCKOUT_BOOT), sample.bootCount)
             .commitObserved()
     }
 
     override fun clearUnlockFailures() {
         prefs.edit()
-            .remove(KEY_FAILED_ATTEMPTS)
-            .remove(KEY_LOCKOUT_UNTIL)
-            .remove(KEY_LOCKOUT_ELAPSED)
-            .remove(KEY_LOCKOUT_BOOT)
+            .remove(key(KEY_FAILED_ATTEMPTS))
+            .remove(key(KEY_LOCKOUT_UNTIL))
+            .remove(key(KEY_LOCKOUT_ELAPSED))
+            .remove(key(KEY_LOCKOUT_BOOT))
             .commitObserved()
     }
 
     internal fun applySetup(editor: SharedPreferences.Editor, pin: String, recoveryCode: String, biometric: Boolean) {
         applyHashedSecret(editor, KEY_PIN_SALT, KEY_PIN_HASH, pin)
         applyHashedSecret(editor, KEY_RECOVERY_SALT, KEY_RECOVERY_HASH, AppLockCrypto.normalizeRecovery(recoveryCode))
-        editor.putBoolean(KEY_BIOMETRIC, biometric)
-        editor.remove(KEY_FAILED_ATTEMPTS)
-        editor.remove(KEY_LOCKOUT_UNTIL)
-        editor.remove(KEY_LOCKOUT_ELAPSED)
-        editor.remove(KEY_LOCKOUT_BOOT)
+        editor.putBoolean(key(KEY_BIOMETRIC), biometric)
+        editor.remove(key(KEY_FAILED_ATTEMPTS))
+        editor.remove(key(KEY_LOCKOUT_UNTIL))
+        editor.remove(key(KEY_LOCKOUT_ELAPSED))
+        editor.remove(key(KEY_LOCKOUT_BOOT))
     }
 
     internal fun applyPinReset(editor: SharedPreferences.Editor, newPin: String) {
         applyHashedSecret(editor, KEY_PIN_SALT, KEY_PIN_HASH, newPin)
-        editor.remove(KEY_FAILED_ATTEMPTS)
-        editor.remove(KEY_LOCKOUT_UNTIL)
-        editor.remove(KEY_LOCKOUT_ELAPSED)
-        editor.remove(KEY_LOCKOUT_BOOT)
+        editor.remove(key(KEY_FAILED_ATTEMPTS))
+        editor.remove(key(KEY_LOCKOUT_UNTIL))
+        editor.remove(key(KEY_LOCKOUT_ELAPSED))
+        editor.remove(key(KEY_LOCKOUT_BOOT))
     }
 
     internal fun applyRecoveryHash(editor: SharedPreferences.Editor, newCode: String) {
@@ -140,15 +143,17 @@ class AppLockStore(
 
     private fun applyHashedSecret(editor: SharedPreferences.Editor, saltKey: String, hashKey: String, secret: String) {
         val salt = AppLockCrypto.generateSalt()
-        editor.putString(saltKey, AppLockCrypto.toHex(salt))
-        editor.putString(hashKey, AppLockCrypto.toHex(AppLockCrypto.hashSecret(secret, salt)))
+        editor.putString(key(saltKey), AppLockCrypto.toHex(salt))
+        editor.putString(key(hashKey), AppLockCrypto.toHex(AppLockCrypto.hashSecret(secret, salt)))
     }
 
     private fun verifyStored(secret: String, saltKey: String, hashKey: String): Boolean {
-        val salt = AppLockCrypto.fromHex(prefs.getString(saltKey, null).orEmpty()) ?: return false
-        val expected = AppLockCrypto.fromHex(prefs.getString(hashKey, null).orEmpty()) ?: return false
+        val salt = AppLockCrypto.fromHex(prefs.getString(key(saltKey), null).orEmpty()) ?: return false
+        val expected = AppLockCrypto.fromHex(prefs.getString(key(hashKey), null).orEmpty()) ?: return false
         return AppLockCrypto.verify(secret, salt, expected)
     }
+
+    private fun key(name: String): String = VaultKeys.of(selection.id, name)
 
     companion object {
         private const val KEY_PIN_SALT = "pin_salt"

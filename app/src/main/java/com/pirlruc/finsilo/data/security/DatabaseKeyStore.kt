@@ -3,6 +3,8 @@ package com.pirlruc.finsilo.data.security
 import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PassphraseWrap
+import com.pirlruc.finsilo.domain.vault.VaultKeys
+import com.pirlruc.finsilo.domain.vault.VaultSelection
 import java.security.SecureRandom
 
 /**
@@ -45,7 +47,7 @@ interface LedgerKeySession {
     fun rollbackLastWrap(): Boolean
 }
 
-class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession {
+class DatabaseKeyStore(private val prefs: SharedPreferences, private val selection: VaultSelection = VaultSelection()) : LedgerKeySession {
     @Volatile
     private var session: ByteArray? = null
 
@@ -62,6 +64,14 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     fun trading212Key(): String? = prefs.getString(KEY_T212_KEY, null)?.takeIf { it.isNotBlank() }
 
     fun trading212Secret(): String? = prefs.getString(KEY_T212_SECRET, null)?.takeIf { it.isNotBlank() }
+
+    fun trading212Status(): String? = prefs.getString(KEY_T212_STATUS, null)?.takeIf { it.isNotBlank() }
+
+    fun setTrading212Status(message: String?): Boolean {
+        val editor = prefs.edit()
+        if (message.isNullOrBlank()) editor.remove(KEY_T212_STATUS) else editor.putString(KEY_T212_STATUS, message)
+        return editor.commitObserved()
+    }
 
     fun setTrading212Credentials(key: String, secret: String): Boolean {
         val editor = prefs.edit()
@@ -93,9 +103,9 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     override fun discardOrphanWraps(): Boolean {
         if (session != null) return true
         return prefs.edit()
-            .remove(KEY_WRAP_PIN)
-            .remove(KEY_WRAP_RECOVERY)
-            .remove(KEY_WRAP_BIOMETRIC)
+            .remove(wrap(KEY_WRAP_PIN))
+            .remove(wrap(KEY_WRAP_RECOVERY))
+            .remove(wrap(KEY_WRAP_BIOMETRIC))
             .commitObserved()
     }
 
@@ -117,14 +127,14 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         return acceptWrapped(key.copyOf())
     }
 
-    override fun biometricWrapBlob(): ByteArray? = storedBlob(KEY_WRAP_BIOMETRIC)
+    override fun biometricWrapBlob(): ByteArray? = storedBlob(wrap(KEY_WRAP_BIOMETRIC))
 
     override fun persistBiometricWrap(blob: ByteArray?): Boolean {
         val editor = prefs.edit()
         if (blob == null) {
-            editor.remove(KEY_WRAP_BIOMETRIC)
+            editor.remove(wrap(KEY_WRAP_BIOMETRIC))
         } else {
-            editor.putString(KEY_WRAP_BIOMETRIC, AppLockCrypto.toHex(blob))
+            editor.putString(wrap(KEY_WRAP_BIOMETRIC), AppLockCrypto.toHex(blob))
         }
         return editor.commitObserved()
     }
@@ -148,12 +158,12 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
 
     fun rewrapPinWithLock(lock: AppLockStore, newPin: String): Boolean = rewrap(KEY_WRAP_PIN, newPin) { lock.applyPinReset(this, newPin) }
 
-    fun hasLegacyPassphrase(): Boolean = prefs.contains(KEY_PASSPHRASE)
+    fun hasLegacyPassphrase(): Boolean = prefs.contains(wrap(KEY_PASSPHRASE))
 
-    fun hasWrappedPassphrase(): Boolean = prefs.contains(KEY_WRAP_PIN) && prefs.contains(KEY_WRAP_RECOVERY)
+    fun hasWrappedPassphrase(): Boolean = prefs.contains(wrap(KEY_WRAP_PIN)) && prefs.contains(wrap(KEY_WRAP_RECOVERY))
 
     private fun unlockLegacy(): Boolean {
-        val hex = prefs.getString(KEY_PASSPHRASE, null) ?: return false
+        val hex = prefs.getString(wrap(KEY_PASSPHRASE), null) ?: return false
         val key = AppLockCrypto.fromHex(hex) ?: return false
         session = key
         return true
@@ -169,7 +179,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         if (key == null) return false
         session = key
         if (hasLegacyPassphrase()) {
-            prefs.edit().remove(KEY_PASSPHRASE).commitObserved()
+            prefs.edit().remove(wrap(KEY_PASSPHRASE)).commitObserved()
         }
         return true
     }
@@ -185,7 +195,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     }
 
     private fun unlockWithSecret(secret: String, wrapKey: String): Boolean {
-        val hex = prefs.getString(wrapKey, null) ?: return unlockWithoutWrap()
+        val hex = prefs.getString(wrap(wrapKey), null) ?: return unlockWithoutWrap()
         val wrapped = AppLockCrypto.fromHex(hex) ?: return false
         if (session != null) return pinMatchesWrap(secret, wrapped)
         return acceptWrapped(PassphraseWrap.unwrap(secret, wrapped))
@@ -206,15 +216,15 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         rememberWrapState()
         val editor = prefs.edit()
         applyWraps(editor, pin, recovery, key)
-        editor.remove(KEY_PASSPHRASE)
+        editor.remove(wrap(KEY_PASSPHRASE))
         editor.extra()
         return editor.commitObserved()
     }
 
     private fun applyWraps(editor: SharedPreferences.Editor, pin: String, recovery: String, key: ByteArray) {
         val recoverySecret = AppLockCrypto.normalizeRecovery(recovery)
-        editor.putString(KEY_WRAP_PIN, AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
-        editor.putString(KEY_WRAP_RECOVERY, AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
+        editor.putString(wrap(KEY_WRAP_PIN), AppLockCrypto.toHex(PassphraseWrap.wrap(pin, key)))
+        editor.putString(wrap(KEY_WRAP_RECOVERY), AppLockCrypto.toHex(PassphraseWrap.wrap(recoverySecret, key)))
     }
 
     private fun rewrap(prefsKey: String, secret: String, extra: SharedPreferences.Editor.() -> Unit = {}): Boolean {
@@ -227,7 +237,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     }
 
     private fun applyRewrap(editor: SharedPreferences.Editor, prefsKey: String, secret: String, key: ByteArray) {
-        editor.putString(prefsKey, AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key)))
+        editor.putString(wrap(prefsKey), AppLockCrypto.toHex(PassphraseWrap.wrap(secret, key)))
     }
 
     private fun pinMatchesWrap(secret: String, wrapped: ByteArray): Boolean {
@@ -237,22 +247,25 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
     }
 
     private fun rememberWrapState() {
-        val hex = prefs.getString(KEY_PASSPHRASE, null)
-        val pinWrap = prefs.getString(KEY_WRAP_PIN, null)
-        val recoveryWrap = prefs.getString(KEY_WRAP_RECOVERY, null)
-        val biometricWrap = prefs.getString(KEY_WRAP_BIOMETRIC, null)
+        val hex = prefs.getString(wrap(KEY_PASSPHRASE), null)
+        val pinWrap = prefs.getString(wrap(KEY_WRAP_PIN), null)
+        val recoveryWrap = prefs.getString(wrap(KEY_WRAP_RECOVERY), null)
+        val biometricWrap = prefs.getString(wrap(KEY_WRAP_BIOMETRIC), null)
         lastWrapUndo = {
-            restore(KEY_PASSPHRASE, hex)
-            restore(KEY_WRAP_PIN, pinWrap)
-            restore(KEY_WRAP_RECOVERY, recoveryWrap)
-            restore(KEY_WRAP_BIOMETRIC, biometricWrap)
+            restore(wrap(KEY_PASSPHRASE), hex)
+            restore(wrap(KEY_WRAP_PIN), pinWrap)
+            restore(wrap(KEY_WRAP_RECOVERY), recoveryWrap)
+            restore(wrap(KEY_WRAP_BIOMETRIC), biometricWrap)
         }
     }
 
     private fun rememberKey(prefsKey: String) {
-        val previous = prefs.getString(prefsKey, null)
-        lastWrapUndo = { restore(prefsKey, previous) }
+        val scoped = wrap(prefsKey)
+        val previous = prefs.getString(scoped, null)
+        lastWrapUndo = { restore(scoped, previous) }
     }
+
+    private fun wrap(name: String): String = VaultKeys.of(selection.id, name)
 
     private fun SharedPreferences.Editor.restore(key: String, value: String?) {
         if (value == null) remove(key) else putString(key, value)
@@ -272,6 +285,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences) : LedgerKeySession 
         private const val KEY_T212_SYNC = "trading212_sync"
         private const val KEY_T212_KEY = "trading212_key"
         private const val KEY_T212_SECRET = "trading212_secret"
+        private const val KEY_T212_STATUS = "trading212_status"
         private const val PASSPHRASE_BYTES: Int = 32
     }
 }

@@ -8,7 +8,9 @@ internal object DegiroAccountParser {
         Regex("(?i)(?:koop|buy|verkoop|sell|compra|venda|achat|vente|kauf|verkauf|acquisto|vendita)\\s+([0-9]+(?:[.,][0-9]+)?)")
     private val describedCash = Regex("""(?i):\s*([0-9][0-9.\s]*?(?:,[0-9]+)?)\s*([A-Z]{3})\s*$""")
 
-    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows(::parseRow)
+    fun parse(table: CsvTable): List<BrokerCsvLine> = table.mapRows { line, row ->
+        WithholdingTax.attach(parseRow(line, row), row, trading212GrossNet = false)
+    }
 
     private fun parseRow(sourceLine: Int, row: CsvRow): BrokerCsvLine {
         val date =

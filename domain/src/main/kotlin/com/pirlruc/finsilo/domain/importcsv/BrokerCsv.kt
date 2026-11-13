@@ -43,6 +43,8 @@ data class BrokerCsvLine(
     val format: BrokerCsvFormat,
     /** Broker fill or cash reference. A second sync with the same reference is a duplicate. */
     val brokerReference: String? = null,
+    /** Withholding tax in EUR when the file stated it. Null means unknown, not zero. */
+    val withholdingEur: BigDecimal? = null,
 )
 
 /** Parse outcome for a single CSV document. */

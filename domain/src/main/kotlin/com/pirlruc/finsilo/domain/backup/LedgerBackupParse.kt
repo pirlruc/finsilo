@@ -117,6 +117,7 @@ internal object LedgerBackupParse {
             feesEur = BigDecimal(cols[9]),
             sequence = cols[10].toLong(),
             source = cols.getOrNull(11)?.takeIf { it.isNotBlank() }?.let { runCatching { BrokerSource.valueOf(it) }.getOrNull() },
+            withholdingEur = cols.getOrNull(12)?.takeIf { it.isNotBlank() }?.let { BigDecimal(it) },
         )
     }
 

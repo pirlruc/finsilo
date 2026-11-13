@@ -156,6 +156,7 @@ private class ImportWalk(
             newAsset = if (existing == null) draft(line) else null,
             eurPerUsd = line.eurPerUsd,
             externalId = line.brokerReference,
+            withholdingEur = line.withholdingEur,
         )
     }
 

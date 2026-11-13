@@ -61,11 +61,11 @@ class Trading212HistoryClient(
 
     private suspend fun statusFailure(code: Int): String? = when (code) {
         HTTP_OK -> null
-        HTTP_UNAUTHORIZED -> "Trading 212 rejected the API key or secret."
-        HTTP_FORBIDDEN -> "Trading 212 API key is missing a read-only scope."
+        HTTP_UNAUTHORIZED -> "Trading 212 rejected the API key or secret (HTTP 401)."
+        HTTP_FORBIDDEN -> "Trading 212 API key is missing a read-only scope (HTTP 403)."
         HTTP_TOO_MANY -> {
             backoff()
-            "Trading 212 rate limit reached. Sync stopped."
+            "Trading 212 rate limit reached (HTTP 429). Sync stopped."
         }
         else -> "Trading 212 sync failed (HTTP $code)."
     }

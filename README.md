@@ -73,7 +73,7 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 
 ## Build from source
 
-JDK 17+, Android SDK (compile 37 / target 37). `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. The 0.3.0 tag is cut after this release merges.
+JDK 17+, Android SDK (compile 37 / target 37). `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. The app version is 0.4.0 (versionCode 4). Do not move the 0.2.0 or 0.3.0 tags.
 
 ```bash
 ./gradlew :app:assembleDebug

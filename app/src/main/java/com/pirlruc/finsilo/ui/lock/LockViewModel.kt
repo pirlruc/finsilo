@@ -179,6 +179,18 @@ class LockViewModel(
         runLockAction { tryUnlockWithPin() }
     }
 
+    /** Close the unlocked UI after the container has switched vaults. The new vault uses its own PIN. */
+    fun lockForVaultSwitch() {
+        _state.update {
+            overlayLock(it).copy(
+                pin = "",
+                error = null,
+                recovering = false,
+                setupComplete = store.isSetup(),
+            )
+        }
+    }
+
     fun unlockWithBiometric() {
         if (keys != null && !keys.isSessionOpen()) {
             _state.update { it.copy(error = "Unlock with biometrics failed. Enter PIN.", pinFallback = true) }

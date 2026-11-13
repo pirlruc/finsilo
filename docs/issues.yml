@@ -2764,31 +2764,82 @@ milestones:
               - ./gradlew :domain:test :domain:koverVerify
               - The USD invert band is not applied to GBP, CHF, or other non-USD currencies
 
+      - id: FS-043
+        status: done
+        title: Wave 4 ledger and sync corrections
+        overview:
+          problem: >-
+            Trading 212 HTTP 401, 403, and 429 were dropped after sync.
+            Withholding tax was booked as EUR 0 when the broker did not state
+            it. XIRR bisection stopped at 100 percent. Dividend cadence used
+            fixed day bands. A ticker with no suffix ignored the ISIN country.
+          goal: >-
+            Show those Trading 212 statuses in Settings, record withholding
+            only when it is known, search IRR up to the Newton cap, infer
+            dividend cadence from calendar months, and read the listing country
+            from the ISIN prefix when the ticker has no suffix.
+        decision: >-
+          In the context of wave 4 accuracy, facing silent zeros and a short
+          IRR search, we decided to mark unknown tax as unknown and to search
+          IRR up to the existing Newton cap, to achieve a ledger that does not
+          invent a tax or miss a high rate, accepting that unknown withholding
+          stays blank until a broker column or a Trading 212 gross-minus-net
+          pair is present.
+        acceptance_criteria:
+          - Settings shows Trading 212 401, 403, and 429 after sync
+          - Unknown withholding is not stored as EUR 0
+          - An IRR above 100 percent is found when Newton fails and the root is below the cap
+        tasks:
+          - id: FS-043-T1
+            status: done
+            title: Surface Trading 212 auth and rate-limit errors
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/sync/DailyMarketSyncWorker.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/settings/Trading212SettingsCard.kt
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - The API key and secret are not stored in rememberSaveable
+          - id: FS-043-T2
+            status: done
+            title: Withholding, XIRR bound, dividend months, and ISIN country
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/IrsAnnualReport.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/Xirr.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/DividendCalendar.kt
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - Unknown withholding is the word unknown in the annual CSV
+
       - id: FS-PRO-001
         status: open
-        title: Pro tier for ongoing cost
+        title: Pro features behind an entitlement gate
         overview:
           problem: >-
             Broker sync upkeep, yearly tax-rule updates, and a future cloud
             relay have an ongoing cost. Features that already ship have to stay
-            free.
+            free, and the app must not ship a billing SDK before the gate exists.
           goal: >-
-            A subscription pays for that ongoing cost. Suggested price, in this
-            overview only, is about 3.99 EUR/month or 34.99 EUR/year, plus a
-            tax-season pass around 12.99 EUR per tax year. Out of scope:
-            charging for the manual ledger, SQLCipher, PIN, CSV import, or the
-            core Overview, Holdings, and Activity screens.
+            Pro features sit behind an entitlement gate and ship unlocked for
+            free. Suggested price, in this overview only, is about 3.99 EUR/month
+            or 34.99 EUR/year, plus a tax-season pass around 12.99 EUR per tax
+            year. Out of scope: charging for the manual ledger, SQLCipher, PIN,
+            CSV import, XIRR, the IRS report, the dividend calendar, or the core
+            Overview, Holdings, and Activity screens.
         decision: >-
           In the context of a local-first portfolio app, facing ongoing broker
-          and tax-rule cost, we decided a subscription pays for that ongoing
-          cost and features that already ship free stay free, to achieve a
-          paid tier that does not lock the ledger the user already has,
-          accepting that sync, tax packs, and projections wait on the
-          subscription.
+          and tax-rule cost, we decided Pro features sit behind an entitlement
+          gate and ship unlocked for free, to achieve a seam for a later
+          subscription without locking the ledger the user already has,
+          accepting that billing, extra brokers, and zero-knowledge sync stay
+          deferred.
         acceptance_criteria:
-          - XIRR, a benchmark comparison, the IRS annual report, and the dividend calendar ship in the app
+          - XIRR, a benchmark comparison, the IRS annual report, and the dividend calendar stay free and ungated
+          - Multi-portfolio, the rebalance simulator, and FIRE/DRIP sit behind the entitlement gate and ship unlocked
           - The manual ledger, SQLCipher, PIN, CSV import, and the core screens stay free
-          - IBKR, Kraken, Coinbase, family vaults, cloud sync, billing, and fuzzing stay open
+          - IBKR, Kraken, Coinbase, and zero-knowledge sync stay open
+          - The entitlement gate is the only switch; the app has no billing SDK
         tasks:
           - id: FS-PRO-001-T1
             status: done
@@ -2827,13 +2878,15 @@ milestones:
             verification:
               - Read-only clients exist for IBKR Flex, Kraken, and Coinbase
           - id: FS-PRO-001-T5
-            status: open
+            status: done
             title: Multi-portfolio and family vaults
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/vault/VaultRegistry.kt
             verification:
-              - More than one ledger can be unlocked on the device
+              - ./gradlew :domain:test :app:testDebugUnitTest
+              - The original finsilo.db stays in place and a second vault has its own file and PIN
           - id: FS-PRO-001-T6
             status: open
             title: Zero-knowledge sync to Drive, WebDAV, or Nextcloud
@@ -2843,47 +2896,63 @@ milestones:
             verification:
               - A backup can upload without the server reading the ledger
           - id: FS-PRO-001-T7
-            status: open
+            status: done
             title: Rebalancing simulator
             instructions:
               files:
-                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/RebalanceSimulator.kt
             verification:
+              - ./gradlew :domain:test
               - The simulator lists exact EUR trades to target weights
           - id: FS-PRO-001-T8
-            status: open
+            status: done
             title: FIRE and DRIP projections
             instructions:
               files:
-                - domain/src/main/kotlin/com/pirlruc/finsilo/domain
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/FirePlanner.kt
             verification:
-              - FIRE and DRIP projections are shown from the ledger
+              - ./gradlew :domain:test
+              - FIRE and DRIP projections are shown from the ledger and say they are not financial advice
           - id: FS-PRO-001-T9
             status: open
-            title: One-time tax-season pass entitlement
+            title: One-time tax-season pass entitlement (deferred)
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo
             verification:
-              - A tax-year pass unlocks the annual report without the monthly plan
+              - The entitlement gate is the only switch
+              - A tax-year pass is not billed in this release
           - id: FS-PRO-001-T10
             status: open
-            title: Play Billing in a play flavor and a foss flavor with no billing SDK
+            title: Play Billing in a play flavor and a foss flavor with no billing SDK (deferred)
             instructions:
               files:
                 - app/build.gradle.kts
                 - NOTICE
             verification:
-              - The foss flavor has no billing SDK
-              - NOTICE records the GPL linking exception for the billing library when the play flavor exists
+              - The entitlement gate is the only switch
+              - The app has no billing SDK
           - id: FS-PRO-001-T11
-            status: open
+            status: done
             title: Jazzer fuzz targets for the CSV parsers
             instructions:
               files:
-                - domain/src/test
+                - domain/src/test/kotlin/com/pirlruc/finsilo/domain/importcsv/BrokerCsvFuzzTest.kt
+                - .clusterfuzzlite/project.yaml
             verification:
-              - Jazzer targets cover the broker CSV parsers
+              - ./gradlew :domain:test --tests com.pirlruc.finsilo.domain.importcsv.BrokerCsvFuzzTest
+              - The Jazzer workflow runs only on workflow_dispatch or the monthly cron
+          - id: FS-PRO-001-T12
+            status: done
+            title: Entitlement gate, unlocked by default
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/entitlement/Entitlements.kt
+                - app/build.gradle.kts
+            verification:
+              - ./gradlew :domain:test :app:testDebugUnitTest
+              - premiumUnlocked defaults to true and a false value hides the new screens
+              - The APK has no billing SDK and no billing secret
 
 
 

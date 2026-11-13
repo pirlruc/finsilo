@@ -20,8 +20,11 @@ android {
         applicationId = "com.pirlruc.finsilo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
+        val premiumRaw = project.providers.gradleProperty("premiumUnlocked").orNull
+        val premiumUnlocked = !premiumRaw.equals("false", ignoreCase = true)
+        buildConfigField("boolean", "PREMIUM_UNLOCKED", premiumUnlocked.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -57,6 +60,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

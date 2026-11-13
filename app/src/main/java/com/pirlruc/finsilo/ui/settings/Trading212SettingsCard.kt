@@ -14,7 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,10 +25,10 @@ import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 /** Settings toggle for read-only Trading 212 sync. The secret is not shown again. */
 @Composable
 internal fun Trading212SettingsCard(keys: DatabaseKeyStore) {
-    var enabled by rememberSaveable { mutableStateOf(keys.trading212SyncEnabled()) }
-    var apiKey by rememberSaveable { mutableStateOf("") }
-    var secret by rememberSaveable { mutableStateOf("") }
-    var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var enabled by remember { mutableStateOf(keys.trading212SyncEnabled()) }
+    var apiKey by remember { mutableStateOf("") }
+    var secret by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
     val stored = keys.trading212Key() != null && keys.trading212Secret() != null
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -56,6 +56,7 @@ internal fun Trading212SettingsCard(keys: DatabaseKeyStore) {
                 Text("API secret")
             }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             Button(onClick = { message = save(keys, enabled, apiKey, secret) }) { Text("Save Trading 212") }
+            keys.trading212Status()?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
