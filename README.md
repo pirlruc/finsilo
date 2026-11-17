@@ -73,12 +73,36 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 
 ## Build from source
 
-JDK 17+, Android SDK (compile 37 / target 37). `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. The app version is 0.4.0 (versionCode 4). Do not move the 0.2.0 or 0.3.0 tags.
+JDK 17 or newer, and an Android SDK with `compileSdk` 37. `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. Direct libraries are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml). The app version is 0.4.0 (versionCode 4).
 
 ```bash
+echo "sdk.dir=/path/to/Android/Sdk" > local.properties
 ./gradlew :app:assembleDebug
 ./gradlew :domain:test :domain:koverVerify :app:testDebugUnitTest
-bash scripts/ci-local.sh
 ```
 
-Contributor process, analog pins, and the authored backlog live in [`docs/ai-agent-handoff.md`](docs/ai-agent-handoff.md), [`docs/issues.yml`](docs/issues.yml), and [`docs/limitations.md`](docs/limitations.md).
+A signed release APK comes only from [GitHub Releases](https://github.com/pirlruc/finsilo/releases).
+
+## Check a release
+
+Download `app-release.apk` and `app-release.apk.sha256` from the same release. `apksigner` is in the Android SDK build-tools.
+
+```bash
+sha256sum -c app-release.apk.sha256
+apksigner verify --print-certs app-release.apk
+```
+
+`sha256sum` checks that the APK matches the published checksum. `apksigner` checks the signature and prints the signer certificate. The SHA-256 fingerprint of that certificate is `27:1A:61:08:4C:C2:55:6C:74:AE:DA:C2:A1:3D:A3:B7:D9:90:96:75:9B:C1:B5:DF:71:0A:D6:36:94:41:53:E7`.
+
+Only the latest release is supported, until the next release replaces it.
+
+## For contributors
+
+Open a [GitHub issue](https://github.com/pirlruc/finsilo/issues) for a bug or an idea. Propose a code change as a pull request. Each commit by a person needs a `Signed-off-by` trailer, as in the [Developer Certificate of Origin](https://developercertificate.org/). Code, comments, and docs are in English.
+
+A major behaviour change adds or updates the automated tests for that behaviour. ktlint (`android_studio`) and detekt must pass.
+
+- [Architecture](docs/architecture.md)
+- [Maintainers](docs/MAINTAINERS.md)
+- [Security](SECURITY.md)
+- [Decision log](https://github.com/pirlruc/finsilo/issues?q=label%3Aepic)

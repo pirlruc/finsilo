@@ -11,7 +11,22 @@ on:
 permissions: {}
 
 jobs:
+  tag:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Accept only a semver tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "refusing tag"
+            exit 1
+          fi
+
   apk:
+    needs: tag
     permissions:
       contents: read
     uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@fb6651b3cd3246975df605e7000c4992d6b6a184

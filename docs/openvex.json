@@ -1,0 +1,8 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/pirlruc/finsilo/blob/main/docs/openvex.json",
+  "author": "https://github.com/pirlruc",
+  "timestamp": "2026-11-17T22:00:00Z",
+  "version": 1,
+  "statements": []
+}
