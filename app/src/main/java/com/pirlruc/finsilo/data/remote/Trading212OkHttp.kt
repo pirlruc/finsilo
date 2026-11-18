@@ -1,12 +1,15 @@
 package com.pirlruc.finsilo.data.remote
 
 import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
+
+internal const val TRADING212_MAX_BODY_BYTES = 2 * 1024 * 1024
 
 internal fun trading212HttpClient(): OkHttpClient = OkHttpClient.Builder()
     .followRedirects(false)
@@ -25,7 +28,11 @@ class OkHttpTrading212Transport(private val client: OkHttpClient = trading212Htt
             .build()
         return withContext(Dispatchers.IO) {
             client.newCall(request).execute().use { response ->
-                Trading212HttpResult(response.code, response.body.string())
+                val bytes = response.body.byteStream().readNBytes(TRADING212_MAX_BODY_BYTES + 1)
+                if (bytes.size > TRADING212_MAX_BODY_BYTES) {
+                    throw IOException("Trading 212 response exceeds $TRADING212_MAX_BODY_BYTES bytes")
+                }
+                Trading212HttpResult(response.code, bytes.toString(StandardCharsets.UTF_8))
             }
         }
     }
