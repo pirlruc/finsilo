@@ -77,7 +77,15 @@ object ReadOnlyBrokers {
     fun krakenLedgers(body: String): List<BrokerCsvLine> = jsonEntries(body, "result").mapIndexed { index, entry ->
         val raw = entry.second["amount"]?.toBigDecimalOrNull() ?: BigDecimal.ZERO
         val side = if (raw.signum() < 0) TransactionType.SELL else TransactionType.BUY
-        line(BrokerCsvFormat.KRAKEN, index + 1, epochDate(entry.second["time"]), side, entry.second["asset"].orEmpty(), raw.abs(), entry.first)
+        line(
+            BrokerCsvFormat.KRAKEN,
+            index + 1,
+            epochDate(entry.second["time"]),
+            side,
+            entry.second["asset"].orEmpty(),
+            raw.abs(),
+            entry.first,
+        )
     }
 
     fun coinbaseFills(body: String): List<BrokerCsvLine> {
@@ -100,10 +108,16 @@ object ReadOnlyBrokers {
 
     private fun ibkrTrade(tag: String, index: Int): BrokerCsvLine {
         val side = if (attr(tag, "buySell").equals("SELL", ignoreCase = true)) TransactionType.SELL else TransactionType.BUY
-        val date = attr(tag, "tradeDate").let { raw ->
-            if (raw.length == 8) runCatching { LocalDate.of(raw.take(4).toInt(), raw.substring(4, 6).toInt(), raw.takeLast(2).toInt()) }.getOrNull() else null
-        }
-        return line(BrokerCsvFormat.IBKR_FLEX, index, date, side, attr(tag, "symbol"), decimal(attr(tag, "quantity")), attr(tag, "tradeID"))
+        val date = attr(tag, "tradeDate").let { raw -> compactDate(raw) }
+        return line(
+            BrokerCsvFormat.IBKR_FLEX,
+            index,
+            date,
+            side,
+            attr(tag, "symbol"),
+            decimal(attr(tag, "quantity")),
+            attr(tag, "tradeID"),
+        )
     }
 
     private fun line(
@@ -145,15 +159,20 @@ object ReadOnlyBrokers {
     private fun tradeTags(xml: String): List<String> {
         val tags = mutableListOf<String>()
         var from = 0
-        while (true) {
-            val start = xml.indexOf("<Trade", from)
-            if (start < 0) break
-            val end = xml.indexOf('>', start)
-            if (end < 0) break
-            tags += xml.substring(start, end)
-            from = end + 1
+        while (from >= 0) {
+            val next = nextTrade(xml, from) ?: return tags
+            tags += next.first
+            from = next.second
         }
         return tags
+    }
+
+    private fun nextTrade(xml: String, from: Int): Pair<String, Int>? {
+        val start = xml.indexOf("<Trade", from)
+        if (start < 0) return null
+        val end = xml.indexOf('>', start)
+        if (end < 0) return null
+        return xml.substring(start, end) to (end + 1)
     }
 
     private fun attr(tag: String, name: String): String {
@@ -170,6 +189,13 @@ object ReadOnlyBrokers {
         return method == expected && parsed.scheme == "https" && parsed.host == host && parsed.rawPath in paths && parsed.userInfo == null
     }
 
+    private fun compactDate(raw: String): LocalDate? {
+        if (raw.length != DATE_WIDTH) return null
+        return runCatching {
+            LocalDate.of(raw.take(YEAR).toInt(), raw.substring(YEAR, YEAR + MONTH).toInt(), raw.takeLast(DAY).toInt())
+        }.getOrNull()
+    }
+
     private fun decimal(raw: String?): BigDecimal = raw?.toBigDecimalOrNull()?.abs() ?: BigDecimal.ZERO
 
     private fun epochDate(raw: String?): LocalDate? {
@@ -177,8 +203,7 @@ object ReadOnlyBrokers {
         return runCatching { java.time.Instant.ofEpochSecond(seconds).atZone(java.time.ZoneOffset.UTC).toLocalDate() }.getOrNull()
     }
 
-    private fun base64Url(bytes: ByteArray): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    private fun base64Url(bytes: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
     private fun derToP1363(der: ByteArray): ByteArray {
         val out = ByteArray(P1363)
@@ -197,6 +222,10 @@ object ReadOnlyBrokers {
         return out
     }
 
+    private const val DATE_WIDTH: Int = 8
+    private const val YEAR: Int = 4
+    private const val MONTH: Int = 2
+    private const val DAY: Int = 2
     private const val INT: Byte = 0x02
     private const val COORD: Int = 32
     private const val P1363: Int = 64

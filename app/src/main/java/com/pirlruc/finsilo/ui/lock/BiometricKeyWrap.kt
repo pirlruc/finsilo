@@ -71,8 +71,7 @@ internal object BiometricKeyWrap {
         }
     }
 
-    private fun alias(vaultId: String): String =
-        if (vaultId == VaultRegistry.DEFAULT_ID) KEY_NAME else "$KEY_NAME.$vaultId"
+    private fun alias(vaultId: String): String = if (vaultId == VaultRegistry.DEFAULT_ID) KEY_NAME else "$KEY_NAME.$vaultId"
 }
 
 internal const val BIOMETRIC_KEY_RESET: String = "Biometrics changed. Enter PIN."

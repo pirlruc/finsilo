@@ -17,12 +17,20 @@ data class ReadOnlyPull(val lines: List<BrokerCsvLine>?, val error: String?)
 /** IBKR Flex: request a statement, then download it. Both calls are GET. */
 class IbkrFlexClient(private val broker: BrokerCall) {
     suspend fun pull(token: String, queryId: String): ReadOnlyPull {
+        val reference = request(token, queryId)
+        return if (reference.error != null) ReadOnlyPull(null, reference.error) else download(token, reference.value.orEmpty())
+    }
+
+    private suspend fun request(token: String, queryId: String): Step {
         val send = flexUrl("SendRequest", token, queryId)
-        if (!ReadOnlyBrokers.ibkrAllowed("GET", send)) return ReadOnlyPull(null, REFUSED)
+        if (!ReadOnlyBrokers.ibkrAllowed("GET", send)) return Step(null, REFUSED)
         val requested = broker.call("GET", send, emptyMap(), "")
-        if (requested.code != HTTP_OK) return ReadOnlyPull(null, "IBKR Flex request failed (HTTP ${requested.code}).")
+        if (requested.code != HTTP_OK) return Step(null, "IBKR Flex request failed (HTTP ${requested.code}).")
         val reference = REFERENCE.find(requested.body)?.groupValues?.get(1)
-            ?: return ReadOnlyPull(null, "IBKR Flex did not return a statement reference.")
+        return if (reference == null) Step(null, "IBKR Flex did not return a statement reference.") else Step(reference, null)
+    }
+
+    private suspend fun download(token: String, reference: String): ReadOnlyPull {
         val statement = flexUrl("GetStatement", token, reference)
         if (!ReadOnlyBrokers.ibkrAllowed("GET", statement)) return ReadOnlyPull(null, REFUSED)
         val downloaded = broker.call("GET", statement, emptyMap(), "")
@@ -35,6 +43,8 @@ class IbkrFlexClient(private val broker: BrokerCall) {
         val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8)
         return "https://gdcdyn.interactivebrokers.com/Universal/servlet/FlexStatementService.$action?t=$encodedToken&q=$encodedQuery&v=3"
     }
+
+    private data class Step(val value: String?, val error: String?)
 
     private companion object {
         const val HTTP_OK: Int = 200

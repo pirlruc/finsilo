@@ -26,10 +26,9 @@ class OkHttpBrokerCall : BrokerCall {
         }
     }
 
-    private fun allowed(method: String, url: String): Boolean =
-        ReadOnlyBrokers.ibkrAllowed(method, url) ||
-            ReadOnlyBrokers.krakenAllowed(method, url) ||
-            ReadOnlyBrokers.coinbaseAllowed(method, url)
+    private fun allowed(method: String, url: String): Boolean = ReadOnlyBrokers.ibkrAllowed(method, url) ||
+        ReadOnlyBrokers.krakenAllowed(method, url) ||
+        ReadOnlyBrokers.coinbaseAllowed(method, url)
 
     private companion object {
         val FORM = "application/x-www-form-urlencoded".toMediaType()

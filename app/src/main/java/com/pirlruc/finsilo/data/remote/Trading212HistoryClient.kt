@@ -44,13 +44,7 @@ class Trading212HistoryClient(
         return if (failure == null) PageChain(bodies, null) else PageChain(emptyList(), failure)
     }
 
-    private suspend fun onePage(
-        path: String,
-        key: String,
-        secret: String,
-        bodies: MutableList<String>,
-        state: PullCounters,
-    ): String? {
+    private suspend fun onePage(path: String, key: String, secret: String, bodies: MutableList<String>, state: PullCounters): String? {
         if (state.sent >= maxRequests) return RATE_LIMIT
         state.sent += 1
         val response = read("https://$HOST$path", key, secret) ?: return HOST_FAILURE

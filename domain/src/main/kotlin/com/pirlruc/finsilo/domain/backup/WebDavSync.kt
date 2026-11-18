@@ -23,18 +23,27 @@ data class WebDavExchange(val code: Int, val bytes: ByteArray, val etag: String?
 class WebDavClient(private val call: suspend (String, String, Map<String, String>, ByteArray) -> WebDavExchange) {
     suspend fun upload(url: String, user: String, password: String, bytes: ByteArray, storedEtag: String?): WebDavResult {
         if (!WebDavSync.allowed("PROPFIND", url) || !WebDavSync.allowed("PUT", url)) return WebDavResult(null, REFUSED)
-        val auth = mapOf("Authorization" to basic(user, password))
-        val probe = call("PROPFIND", url, auth + mapOf("Depth" to "0"), PROPFIND)
-        if (probe.code != HTTP_OK && probe.code != HTTP_MULTI) return WebDavResult(null, "WebDAV lookup failed (HTTP ${probe.code}).")
-        val remote = probe.etag ?: etagIn(probe.bytes)
-        if (WebDavSync.conflict(storedEtag, remote)) return WebDavResult(null, "WebDAV has a newer backup. Download it before uploading.")
-        val putHeaders = if (remote.isNullOrBlank()) auth else auth + mapOf("If-Match" to remote)
-        val put = call("PUT", url, putHeaders, bytes)
-        if (put.code != HTTP_CREATED && put.code != HTTP_NO_CONTENT && put.code != HTTP_OK) {
-            return WebDavResult(null, "WebDAV upload failed (HTTP ${put.code}).")
-        }
-        return WebDavResult(put.etag ?: remote, null)
+        val remote = lookup(url, user, password)
+        if (remote.error != null) return WebDavResult(null, remote.error)
+        if (WebDavSync.conflict(storedEtag, remote.etag)) return WebDavResult(null, NEWER)
+        return put(url, user, password, bytes, remote.etag)
     }
+
+    private suspend fun lookup(url: String, user: String, password: String): Found {
+        val probe = call("PROPFIND", url, auth(user, password) + mapOf("Depth" to "0"), PROPFIND)
+        if (probe.code != HTTP_OK && probe.code != HTTP_MULTI) return Found(null, "WebDAV lookup failed (HTTP ${probe.code}).")
+        return Found(probe.etag ?: etagIn(probe.bytes), null)
+    }
+
+    private suspend fun put(url: String, user: String, password: String, bytes: ByteArray, remote: String?): WebDavResult {
+        val headers = auth(user, password)
+        val putHeaders = if (remote.isNullOrBlank()) headers else headers + mapOf("If-Match" to remote)
+        val put = call("PUT", url, putHeaders, bytes)
+        val accepted = put.code == HTTP_CREATED || put.code == HTTP_NO_CONTENT || put.code == HTTP_OK
+        return if (accepted) WebDavResult(put.etag ?: remote, null) else WebDavResult(null, "WebDAV upload failed (HTTP ${put.code}).")
+    }
+
+    private fun auth(user: String, password: String): Map<String, String> = mapOf("Authorization" to basic(user, password))
 
     private fun basic(user: String, password: String): String {
         val raw = "$user:$password".toByteArray(Charsets.UTF_8)
@@ -49,9 +58,12 @@ class WebDavClient(private val call: suspend (String, String, Map<String, String
         const val HTTP_NO_CONTENT: Int = 204
         const val HTTP_MULTI: Int = 207
         const val REFUSED: String = "WebDAV URL is not an https FSILO-LEDGER path."
+        const val NEWER: String = "WebDAV has a newer backup. Download it before uploading."
         val PROPFIND: ByteArray = """<?xml version="1.0"?><propfind xmlns="DAV:"><prop><getetag/></prop></propfind>""".toByteArray()
         val ETAG: Regex = Regex("<(?:\\w+:)?getetag>([^<]+)</(?:\\w+:)?getetag>", RegexOption.IGNORE_CASE)
     }
 }
+
+private data class Found(val etag: String?, val error: String?)
 
 data class WebDavResult(val etag: String?, val error: String?)

@@ -22,7 +22,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.domain.entitlement.Entitlements
-import com.pirlruc.finsilo.domain.performance.FireAssumptions
 import com.pirlruc.finsilo.domain.entitlement.FlagEntitlements
 import com.pirlruc.finsilo.domain.model.DashboardReport
 import com.pirlruc.finsilo.domain.model.HistoryRange
@@ -30,6 +29,7 @@ import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.TwrReport
 import com.pirlruc.finsilo.domain.model.TwrSplit
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
