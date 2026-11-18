@@ -29,6 +29,7 @@ import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.TwrReport
 import com.pirlruc.finsilo.domain.model.TwrSplit
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatPercent
 import com.pirlruc.finsilo.ui.formatSignedEur
@@ -51,6 +52,8 @@ internal fun DashboardContent(
     assets: List<com.pirlruc.finsilo.domain.model.Asset> = emptyList(),
     performance: PerformanceSummary? = null,
     entitlements: Entitlements = FlagEntitlements(true),
+    fire: FireAssumptions = FireAssumptions.defaults(),
+    onFire: (FireAssumptions) -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -69,7 +72,7 @@ internal fun DashboardContent(
             HoldingsColumn(report, thresholds, ratingPrefs, holdings, transactions, assets)
         }
         if (shows(section, HomeSection.INSIGHTS)) {
-            InsightsColumn(report, transactions, assets, performance, entitlements)
+            InsightsColumn(report, transactions, assets, performance, entitlements, fire, onFire)
         }
         if (shows(section, HomeSection.OVERVIEW) && importState != null && importNav != null) {
             BrokerImportCard(
@@ -198,6 +201,8 @@ private fun InsightsColumn(
     assets: List<com.pirlruc.finsilo.domain.model.Asset>,
     performance: PerformanceSummary?,
     entitlements: Entitlements,
+    fire: FireAssumptions,
+    onFire: (FireAssumptions) -> Unit,
 ) {
     AllocationCard(report.allocation.slices, report.allocation.totalValueEur)
     RebalanceCard(report.allocation.slices, report.allocation.totalValueEur)
@@ -207,6 +212,9 @@ private fun InsightsColumn(
         transactions,
         report.asOf,
         entitlements,
+        report.allocation.holdings,
+        fire,
+        onFire,
     )
     if (report.yoc.isNotEmpty()) YocCard(report.yoc)
     if (report.signals.isNotEmpty()) SignalsCard(report.signals)

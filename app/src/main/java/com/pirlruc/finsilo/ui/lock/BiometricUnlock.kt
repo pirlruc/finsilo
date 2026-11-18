@@ -29,6 +29,7 @@ internal enum class BiometricCryptoMode {
 internal fun rememberBiometricPrompt(
     mode: () -> BiometricCryptoMode,
     wrapBlob: () -> ByteArray?,
+    vaultId: () -> String,
     onResult: (BiometricPrompt.AuthenticationResult) -> Unit,
     onError: (String) -> Unit,
     onClosed: () -> Unit,
@@ -48,7 +49,7 @@ internal fun rememberBiometricPrompt(
             onError("Unlock is unavailable.")
             return@launchPrompt
         }
-        val crypto = runCatching { cryptoFor(mode(), wrapBlob()) }.getOrElse { error ->
+        val crypto = runCatching { cryptoFor(mode(), wrapBlob(), vaultId()) }.getOrElse { error ->
             onError(error.message ?: "Biometric unlock failed")
             return@launchPrompt
         }
@@ -69,9 +70,9 @@ internal fun rememberBiometricPrompt(
     }
 }
 
-private fun cryptoFor(mode: BiometricCryptoMode, blob: ByteArray?): BiometricPrompt.CryptoObject = when (mode) {
-    BiometricCryptoMode.SEAL -> BiometricKeyWrap.encryptObject()
-    BiometricCryptoMode.UNWRAP -> BiometricKeyWrap.decryptObject(blob ?: error("Biometric wrap is missing."))
+private fun cryptoFor(mode: BiometricCryptoMode, blob: ByteArray?, vaultId: String): BiometricPrompt.CryptoObject = when (mode) {
+    BiometricCryptoMode.SEAL -> BiometricKeyWrap.encryptObject(vaultId)
+    BiometricCryptoMode.UNWRAP -> BiometricKeyWrap.decryptObject(blob ?: error("Biometric wrap is missing."), vaultId)
     BiometricCryptoMode.CONFIRM -> BiometricSessionCipher.cryptoObject()
 }
 

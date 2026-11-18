@@ -124,6 +124,9 @@ enum class BrokerSource {
     DEGIRO,
     REVOLUT,
     MANUAL,
+    IBKR,
+    KRAKEN,
+    COINBASE,
     ;
 
     val label: String
@@ -133,6 +136,9 @@ enum class BrokerSource {
                 DEGIRO -> "DEGIRO"
                 REVOLUT -> "Revolut"
                 MANUAL -> "Manual"
+                IBKR -> "Interactive Brokers"
+                KRAKEN -> "Kraken"
+                COINBASE -> "Coinbase"
             }
 }
 

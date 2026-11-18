@@ -24,33 +24,32 @@ class Trading212HistoryClient(
     private val maxRequests: Int = REQUESTS_PER_MINUTE,
 ) {
     suspend fun pull(key: String, secret: String): Trading212Pull {
-        sent = 0
-        cursor = null
-        val orders = fetch(ORDERS, key, secret)
-        val dividends = if (orders.error == null) fetch(DIVIDENDS, key, secret) else orders
-        val cash = if (dividends.error == null) fetch(CASH, key, secret) else dividends
-        val summary = if (cash.error == null) fetch(SUMMARY, key, secret) else cash
+        val state = PullCounters()
+        val orders = fetch(ORDERS, key, secret, state)
+        val dividends = if (orders.error == null) fetch(DIVIDENDS, key, secret, state) else orders
+        val cash = if (dividends.error == null) fetch(CASH, key, secret, state) else dividends
+        val summary = if (cash.error == null) fetch(SUMMARY, key, secret, state) else cash
         if (summary.error != null) return Trading212Pull(null, summary.error)
         return Trading212Pull(Trading212History.lines(orders.bodies, dividends.bodies, cash.bodies), null)
     }
 
-    private suspend fun fetch(start: String, key: String, secret: String): PageChain {
+    private suspend fun fetch(start: String, key: String, secret: String, state: PullCounters): PageChain {
         val bodies = mutableListOf<String>()
         var path: String? = start
         var failure: String? = null
         while (path != null && failure == null) {
-            failure = onePage(path, key, secret, bodies)
-            path = if (failure == null) cursor else null
+            failure = onePage(path, key, secret, bodies, state)
+            path = if (failure == null) state.cursor else null
         }
         return if (failure == null) PageChain(bodies, null) else PageChain(emptyList(), failure)
     }
 
-    private suspend fun onePage(path: String, key: String, secret: String, bodies: MutableList<String>): String? {
-        if (sent >= maxRequests) return RATE_LIMIT
-        sent += 1
+    private suspend fun onePage(path: String, key: String, secret: String, bodies: MutableList<String>, state: PullCounters): String? {
+        if (state.sent >= maxRequests) return RATE_LIMIT
+        state.sent += 1
         val response = read("https://$HOST$path", key, secret) ?: return HOST_FAILURE
         statusFailure(response.code)?.let { return it }
-        return append(bodies, response.body)
+        return append(bodies, response.body, state)
     }
 
     private suspend fun read(url: String, key: String, secret: String): Trading212HttpResult? = try {
@@ -70,15 +69,14 @@ class Trading212HistoryClient(
         else -> "Trading 212 sync failed (HTTP $code)."
     }
 
-    private fun append(bodies: MutableList<String>, body: String): String? {
+    private fun append(bodies: MutableList<String>, body: String, state: PullCounters): String? {
         bodies += body
         val raw = Trading212History.nextPath(body)
-        cursor = raw?.let(Trading212History::cursorPath)
-        return if (raw != null && cursor == null) BAD_CURSOR else null
+        state.cursor = raw?.let(Trading212History::cursorPath)
+        return if (raw != null && state.cursor == null) BAD_CURSOR else null
     }
 
-    private var sent: Int = 0
-    private var cursor: String? = null
+    private class PullCounters(var sent: Int = 0, var cursor: String? = null)
 
     private class PageChain(val bodies: List<String>, val error: String?)
 

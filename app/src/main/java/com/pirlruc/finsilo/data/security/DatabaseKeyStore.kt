@@ -3,8 +3,10 @@ package com.pirlruc.finsilo.data.security
 import android.content.SharedPreferences
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
 import com.pirlruc.finsilo.domain.lock.PassphraseWrap
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 import com.pirlruc.finsilo.domain.vault.VaultKeys
 import com.pirlruc.finsilo.domain.vault.VaultSelection
+import java.math.BigDecimal
 import java.security.SecureRandom
 
 /**
@@ -53,32 +55,95 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
 
     private var lastWrapUndo: (SharedPreferences.Editor.() -> Unit)? = null
 
-    fun alphaVantageKey(): String? = prefs.getString(KEY_ALPHA_VANTAGE, null)?.takeIf { it.isNotBlank() }
+    fun alphaVantageKey(): String? = text(KEY_ALPHA_VANTAGE)
 
-    fun setAlphaVantageKey(key: String): Boolean = prefs.edit().putString(KEY_ALPHA_VANTAGE, key.trim()).commitObserved()
+    fun setAlphaVantageKey(key: String): Boolean = prefs.edit().putString(wrap(KEY_ALPHA_VANTAGE), key.trim()).commitObserved()
 
-    fun trading212SyncEnabled(): Boolean = prefs.getBoolean(KEY_T212_SYNC, false)
+    fun trading212SyncEnabled(): Boolean = prefs.getBoolean(wrap(KEY_T212_SYNC), false)
 
-    fun setTrading212SyncEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(KEY_T212_SYNC, enabled).commitObserved()
+    fun setTrading212SyncEnabled(enabled: Boolean): Boolean = prefs.edit().putBoolean(wrap(KEY_T212_SYNC), enabled).commitObserved()
 
-    fun trading212Key(): String? = prefs.getString(KEY_T212_KEY, null)?.takeIf { it.isNotBlank() }
+    fun trading212Key(): String? = text(KEY_T212_KEY)
 
-    fun trading212Secret(): String? = prefs.getString(KEY_T212_SECRET, null)?.takeIf { it.isNotBlank() }
+    fun trading212Secret(): String? = text(KEY_T212_SECRET)
 
-    fun trading212Status(): String? = prefs.getString(KEY_T212_STATUS, null)?.takeIf { it.isNotBlank() }
+    fun trading212Status(): String? = text(KEY_T212_STATUS)
 
     fun setTrading212Status(message: String?): Boolean {
         val editor = prefs.edit()
-        if (message.isNullOrBlank()) editor.remove(KEY_T212_STATUS) else editor.putString(KEY_T212_STATUS, message)
+        if (message.isNullOrBlank()) editor.remove(wrap(KEY_T212_STATUS)) else editor.putString(wrap(KEY_T212_STATUS), message)
         return editor.commitObserved()
     }
 
     fun setTrading212Credentials(key: String, secret: String): Boolean {
         val editor = prefs.edit()
-        if (key.isNotBlank()) editor.putString(KEY_T212_KEY, key.trim())
-        if (secret.isNotBlank()) editor.putString(KEY_T212_SECRET, secret.trim())
+        if (key.isNotBlank()) editor.putString(wrap(KEY_T212_KEY), key.trim())
+        if (secret.isNotBlank()) editor.putString(wrap(KEY_T212_SECRET), secret.trim())
         return editor.commitObserved()
     }
+
+    fun fireAssumptions(): FireAssumptions {
+        val defaults = FireAssumptions.defaults()
+        return FireAssumptions(
+            annualExpensesEur = decimal(KEY_FIRE_EXPENSES, defaults.annualExpensesEur),
+            withdrawalRate = decimal(KEY_FIRE_WITHDRAWAL, defaults.withdrawalRate),
+            annualSavingsEur = decimal(KEY_FIRE_SAVINGS, defaults.annualSavingsEur),
+            annualReturn = decimal(KEY_FIRE_RETURN, defaults.annualReturn),
+        )
+    }
+
+    fun ibkrToken(): String? = text(KEY_IBKR_TOKEN)
+
+    fun ibkrQueryId(): String? = text(KEY_IBKR_QUERY)
+
+    fun setIbkr(token: String, queryId: String): Boolean = pair(KEY_IBKR_TOKEN, token, KEY_IBKR_QUERY, queryId)
+
+    fun krakenKey(): String? = text(KEY_KRAKEN_KEY)
+
+    fun krakenSecret(): String? = text(KEY_KRAKEN_SECRET)
+
+    fun setKraken(key: String, secret: String): Boolean = pair(KEY_KRAKEN_KEY, key, KEY_KRAKEN_SECRET, secret)
+
+    fun coinbaseKeyName(): String? = text(KEY_COINBASE_NAME)
+
+    fun coinbaseKey(): String? = text(KEY_COINBASE_KEY)
+
+    fun setCoinbase(name: String, key: String): Boolean = pair(KEY_COINBASE_NAME, name, KEY_COINBASE_KEY, key)
+
+    fun webDavUrl(): String? = text(KEY_WEBDAV_URL)
+
+    fun webDavUser(): String? = text(KEY_WEBDAV_USER)
+
+    fun webDavPassword(): String? = text(KEY_WEBDAV_PASSWORD)
+
+    fun webDavEtag(): String? = text(KEY_WEBDAV_ETAG)
+
+    fun setWebDav(url: String, user: String, password: String): Boolean = prefs.edit()
+        .putIfPresent(KEY_WEBDAV_URL, url)
+        .putIfPresent(KEY_WEBDAV_USER, user)
+        .putIfPresent(KEY_WEBDAV_PASSWORD, password)
+        .commitObserved()
+
+    fun brokerSyncStatus(): String? = text(KEY_BROKER_STATUS)
+
+    fun setBrokerSyncStatus(message: String?): Boolean {
+        val editor = prefs.edit()
+        if (message.isNullOrBlank()) editor.remove(wrap(KEY_BROKER_STATUS)) else editor.putString(wrap(KEY_BROKER_STATUS), message)
+        return editor.commitObserved()
+    }
+
+    fun setWebDavEtag(etag: String?): Boolean {
+        val editor = prefs.edit()
+        if (etag.isNullOrBlank()) editor.remove(wrap(KEY_WEBDAV_ETAG)) else editor.putString(wrap(KEY_WEBDAV_ETAG), etag)
+        return editor.commitObserved()
+    }
+
+    fun setFireAssumptions(value: FireAssumptions): Boolean = prefs.edit()
+        .putString(wrap(KEY_FIRE_EXPENSES), value.annualExpensesEur.toPlainString())
+        .putString(wrap(KEY_FIRE_WITHDRAWAL), value.withdrawalRate.toPlainString())
+        .putString(wrap(KEY_FIRE_SAVINGS), value.annualSavingsEur.toPlainString())
+        .putString(wrap(KEY_FIRE_RETURN), value.annualReturn.toPlainString())
+        .commitObserved()
 
     /** Copy of the unwrapped SQLCipher key; throws when this process has not unlocked. */
     fun sessionPassphrase(): ByteArray = session?.copyOf() ?: error("SQLCipher passphrase is not unwrapped in this process.")
@@ -267,6 +332,21 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
 
     private fun wrap(name: String): String = VaultKeys.of(selection.id, name)
 
+    private fun text(name: String): String? = prefs.getString(wrap(name), null)?.takeIf { it.isNotBlank() }
+
+    private fun decimal(name: String, fallback: BigDecimal): BigDecimal =
+        text(name)?.let { runCatching { BigDecimal(it) }.getOrNull() } ?: fallback
+
+    private fun pair(firstName: String, first: String, secondName: String, second: String): Boolean = prefs.edit()
+        .putIfPresent(firstName, first)
+        .putIfPresent(secondName, second)
+        .commitObserved()
+
+    private fun SharedPreferences.Editor.putIfPresent(name: String, value: String): SharedPreferences.Editor {
+        if (value.isNotBlank()) putString(wrap(name), value.trim())
+        return this
+    }
+
     private fun SharedPreferences.Editor.restore(key: String, value: String?) {
         if (value == null) remove(key) else putString(key, value)
     }
@@ -286,6 +366,21 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
         private const val KEY_T212_KEY = "trading212_key"
         private const val KEY_T212_SECRET = "trading212_secret"
         private const val KEY_T212_STATUS = "trading212_status"
+        private const val KEY_FIRE_EXPENSES = "fire_expenses"
+        private const val KEY_FIRE_WITHDRAWAL = "fire_withdrawal"
+        private const val KEY_FIRE_SAVINGS = "fire_savings"
+        private const val KEY_FIRE_RETURN = "fire_return"
+        private const val KEY_IBKR_TOKEN = "ibkr_token"
+        private const val KEY_IBKR_QUERY = "ibkr_query"
+        private const val KEY_KRAKEN_KEY = "kraken_key"
+        private const val KEY_KRAKEN_SECRET = "kraken_secret"
+        private const val KEY_COINBASE_NAME = "coinbase_key_name"
+        private const val KEY_COINBASE_KEY = "coinbase_key"
+        private const val KEY_WEBDAV_URL = "webdav_url"
+        private const val KEY_WEBDAV_USER = "webdav_user"
+        private const val KEY_WEBDAV_PASSWORD = "webdav_password"
+        private const val KEY_WEBDAV_ETAG = "webdav_etag"
+        private const val KEY_BROKER_STATUS = "broker_sync_status"
         private const val PASSPHRASE_BYTES: Int = 32
     }
 }

@@ -9,6 +9,7 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 import com.pirlruc.finsilo.domain.sample.SamplePortfolioFactory
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import com.pirlruc.finsilo.domain.usecase.PortfolioAlert
@@ -108,6 +109,14 @@ class DashboardViewModel(
         }
     }
 
+    fun saveFire(value: FireAssumptions) {
+        if (!container.keys.setFireAssumptions(value)) {
+            _state.update { it.copy(statusMessage = "Could not store the FIRE assumptions") }
+            return
+        }
+        _state.update { it.copy(fire = value) }
+    }
+
     fun saveAlphaVantageKey(key: String) {
         val (hasKey, message) = DashboardMutations.storeAlphaKey(container, key)
         _state.update { it.copy(hasAlphaVantageKey = hasKey, statusMessage = message) }
@@ -167,7 +176,7 @@ class DashboardViewModel(
         statusMessage = _state.value.statusMessage,
         hasKey = container.keys.alphaVantageKey() != null,
         today = today(),
-    )
+    ).copy(fire = container.keys.fireAssumptions())
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = dashboardViewModelFactory(container)

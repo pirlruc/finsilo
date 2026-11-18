@@ -4,6 +4,7 @@ import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 
 internal data class ImportNavActions(
     val onImportCsvs: (List<String>) -> Unit,
@@ -26,6 +27,7 @@ internal data class DashboardNavActions(
     val onSync: () -> Unit,
     val onSaveKey: (String) -> Unit,
     val onLoadSample: () -> Unit,
+    val onSaveFire: (FireAssumptions) -> Unit = {},
 )
 
 internal data class HoldingActions(

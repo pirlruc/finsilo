@@ -36,7 +36,13 @@ class Wave4Test {
     @Test
     fun entitlementFlagGatesOnlyTheNewFeatures() {
         assertEquals(
-            setOf(PremiumFeature.MULTI_PORTFOLIO, PremiumFeature.REBALANCE, PremiumFeature.FIRE_DRIP),
+            setOf(
+                PremiumFeature.MULTI_PORTFOLIO,
+                PremiumFeature.REBALANCE,
+                PremiumFeature.FIRE_DRIP,
+                PremiumFeature.BROKER_SYNC,
+                PremiumFeature.CLOUD_SYNC,
+            ),
             PremiumFeature.entries.toSet(),
         )
         val locked = FlagEntitlements(false)

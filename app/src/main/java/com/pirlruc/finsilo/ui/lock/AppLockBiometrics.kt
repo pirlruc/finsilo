@@ -13,6 +13,7 @@ internal fun biometricLauncher(viewModel: LockViewModel): () -> Unit {
     val raw = rememberBiometricPrompt(
         mode = { promptMode(viewModel.state.value, viewModel) },
         wrapBlob = { viewModel.biometricWrapBlob() },
+        vaultId = viewModel::vaultId,
         onResult = { result -> applyBiometricResult(viewModel, result) },
         onError = { message -> onBiometricError(viewModel, message) },
         onClosed = { viewModel.setBiometricPromptActive(false) },

@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui.dashboard
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -61,6 +62,7 @@ fun DashboardRoute(
             onSync = viewModel::syncMarketData,
             onSaveKey = viewModel::saveAlphaVantageKey,
             onLoadSample = viewModel::loadSample,
+            onSaveFire = viewModel::saveFire,
         ),
         section = section,
         entitlements = entitlements,
@@ -106,41 +108,7 @@ internal fun DashboardScreen(
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when {
-                state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                state.error != null -> ErrorState(state.error)
-                state.empty ->
-                    EmptyState(
-                        nav.onLoadSample,
-                        nav.onAddTransaction,
-                        importState,
-                        nav.import.onImportCsvs,
-                        nav.import.onPickerBusy,
-                        nav.import.onQuoteSymbol,
-                        nav.import.onConfirmReview,
-                        nav.import.onCancelReview,
-                        nav.import.onPickerError,
-                    )
-                state.report != null ->
-                    DashboardContent(
-                        report = state.report,
-                        range = state.range,
-                        statusMessage = state.statusMessage,
-                        thresholds = state.thresholds,
-                        ratingPrefs = state.ratingPrefs,
-                        onRangeSelected = nav.onRangeSelected,
-                        holdings = HoldingActions(nav.onSaveThreshold, nav.onSaveRating, nav.onSaveInstrument),
-                        importState = importState,
-                        importNav = nav.import,
-                        section = section,
-                        transactions = state.transactions,
-                        assets = state.assets,
-                        performance = state.performance,
-                        entitlements = entitlements,
-                    )
-            }
-        }
+        DashboardBody(padding, state, importState, nav, section, entitlements)
     }
     if (showKeyDialog) {
         AlphaVantageKeyDialog(
@@ -161,5 +129,53 @@ internal fun DashboardScreen(
             onConfirm = clear.onConfirmClear,
             onCancel = clear.onCancelClear,
         )
+    }
+}
+
+@Composable
+private fun DashboardBody(
+    padding: PaddingValues,
+    state: DashboardUiState,
+    importState: BrokerImportUiState,
+    nav: DashboardNavActions,
+    section: HomeSection,
+    entitlements: Entitlements,
+) {
+    Box(Modifier.fillMaxSize().padding(padding)) {
+        when {
+            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+            state.error != null -> ErrorState(state.error)
+            state.empty ->
+                EmptyState(
+                    nav.onLoadSample,
+                    nav.onAddTransaction,
+                    importState,
+                    nav.import.onImportCsvs,
+                    nav.import.onPickerBusy,
+                    nav.import.onQuoteSymbol,
+                    nav.import.onConfirmReview,
+                    nav.import.onCancelReview,
+                    nav.import.onPickerError,
+                )
+            state.report != null ->
+                DashboardContent(
+                    report = state.report,
+                    range = state.range,
+                    statusMessage = state.statusMessage,
+                    thresholds = state.thresholds,
+                    ratingPrefs = state.ratingPrefs,
+                    onRangeSelected = nav.onRangeSelected,
+                    holdings = HoldingActions(nav.onSaveThreshold, nav.onSaveRating, nav.onSaveInstrument),
+                    importState = importState,
+                    importNav = nav.import,
+                    section = section,
+                    transactions = state.transactions,
+                    assets = state.assets,
+                    performance = state.performance,
+                    entitlements = entitlements,
+                    fire = state.fire,
+                    onFire = nav.onSaveFire,
+                )
+        }
     }
 }
