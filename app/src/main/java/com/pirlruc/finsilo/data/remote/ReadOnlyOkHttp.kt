@@ -47,7 +47,7 @@ class OkHttpWebDavCall(private val client: okhttp3.OkHttpClient = trading212Http
                 else -> builder.method(method, body.toRequestBody(BYTES))
             }
             client.newCall(builder.build()).execute().use { response ->
-                val bytes = response.body.byteStream().readNBytes(TRADING212_MAX_BODY_BYTES + 1)
+                val bytes = readAtMost(response.body.byteStream(), TRADING212_MAX_BODY_BYTES + 1)
                 if (bytes.size > TRADING212_MAX_BODY_BYTES) throw IOException("WebDAV response is too large")
                 WebDavExchange(response.code, bytes, response.header("ETag"))
             }
@@ -60,7 +60,7 @@ class OkHttpWebDavCall(private val client: okhttp3.OkHttpClient = trading212Http
 }
 
 private fun readCapped(stream: java.io.InputStream): String {
-    val bytes = stream.readNBytes(TRADING212_MAX_BODY_BYTES + 1)
+    val bytes = readAtMost(stream, TRADING212_MAX_BODY_BYTES + 1)
     if (bytes.size > TRADING212_MAX_BODY_BYTES) throw IOException("Broker response is too large")
     return bytes.toString(StandardCharsets.UTF_8)
 }
