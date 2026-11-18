@@ -90,20 +90,27 @@ object ReadOnlyBrokers {
 
     fun coinbaseFills(body: String): List<BrokerCsvLine> {
         val fills = runCatching { json.parseToJsonElement(body).jsonObject["fills"]?.jsonArray }.getOrNull() ?: return emptyList()
-        return fills.mapIndexed { index, element ->
-            val row = element.jsonObject
-            val side = if (row["side"]?.jsonPrimitive?.content == "SELL") TransactionType.SELL else TransactionType.BUY
-            val product = row["product_id"]?.jsonPrimitive?.content.orEmpty()
-            line(
-                BrokerCsvFormat.COINBASE,
-                index + 1,
-                row["trade_time"]?.jsonPrimitive?.content?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
-                side,
-                product,
-                decimal(row["size"]?.jsonPrimitive?.content),
-                row["entry_id"]?.jsonPrimitive?.content,
-            )
-        }
+        return fills.mapIndexed { index, element -> coinbaseFill(element, index + 1) }
+    }
+
+    private fun coinbaseFill(element: kotlinx.serialization.json.JsonElement, index: Int): BrokerCsvLine {
+        val row = element as? kotlinx.serialization.json.JsonObject
+        val side = if (text(row, "side") == "SELL") TransactionType.SELL else TransactionType.BUY
+        val traded = text(row, "trade_time")?.take(DATE_PREFIX)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        return line(
+            BrokerCsvFormat.COINBASE,
+            index,
+            traded,
+            side,
+            text(row, "product_id").orEmpty(),
+            decimal(text(row, "size")),
+            text(row, "entry_id"),
+        )
+    }
+
+    private fun text(row: kotlinx.serialization.json.JsonObject?, key: String): String? {
+        val value = row?.get(key) as? kotlinx.serialization.json.JsonPrimitive ?: return null
+        return value.content
     }
 
     private fun ibkrTrade(tag: String, index: Int): BrokerCsvLine {
@@ -159,7 +166,7 @@ object ReadOnlyBrokers {
     private fun tradeTags(xml: String): List<String> {
         val tags = mutableListOf<String>()
         var from = 0
-        while (from >= 0) {
+        while (true) {
             val next = nextTrade(xml, from) ?: return tags
             tags += next.first
             from = next.second
@@ -222,6 +229,7 @@ object ReadOnlyBrokers {
         return out
     }
 
+    private const val DATE_PREFIX: Int = 10
     private const val DATE_WIDTH: Int = 8
     private const val YEAR: Int = 4
     private const val MONTH: Int = 2

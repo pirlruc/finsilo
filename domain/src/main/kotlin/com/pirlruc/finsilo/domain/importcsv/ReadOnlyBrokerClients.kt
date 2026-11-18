@@ -23,7 +23,6 @@ class IbkrFlexClient(private val broker: BrokerCall) {
 
     private suspend fun request(token: String, queryId: String): Step {
         val send = flexUrl("SendRequest", token, queryId)
-        if (!ReadOnlyBrokers.ibkrAllowed("GET", send)) return Step(null, REFUSED)
         val requested = broker.call("GET", send, emptyMap(), "")
         if (requested.code != HTTP_OK) return Step(null, "IBKR Flex request failed (HTTP ${requested.code}).")
         val reference = REFERENCE.find(requested.body)?.groupValues?.get(1)
@@ -32,7 +31,6 @@ class IbkrFlexClient(private val broker: BrokerCall) {
 
     private suspend fun download(token: String, reference: String): ReadOnlyPull {
         val statement = flexUrl("GetStatement", token, reference)
-        if (!ReadOnlyBrokers.ibkrAllowed("GET", statement)) return ReadOnlyPull(null, REFUSED)
         val downloaded = broker.call("GET", statement, emptyMap(), "")
         if (downloaded.code != HTTP_OK) return ReadOnlyPull(null, "IBKR Flex download failed (HTTP ${downloaded.code}).")
         return ReadOnlyPull(ReadOnlyBrokers.ibkrTrades(downloaded.body), null)
@@ -48,7 +46,6 @@ class IbkrFlexClient(private val broker: BrokerCall) {
 
     private companion object {
         const val HTTP_OK: Int = 200
-        const val REFUSED: String = "IBKR Flex request is not on the allow-list."
         val REFERENCE: Regex = Regex("<ReferenceCode>([^<]+)</ReferenceCode>")
     }
 }
@@ -67,7 +64,6 @@ class KrakenReadClient(private val broker: BrokerCall) {
 
     private suspend fun post(path: String, apiKey: String, secret: ByteArray, nonce: String): ReadOnlyPull {
         val url = "https://api.kraken.com$path"
-        if (!ReadOnlyBrokers.krakenAllowed("POST", url)) return ReadOnlyPull(null, "Kraken request is not on the allow-list.")
         val body = "nonce=$nonce"
         val headers = mapOf(
             "API-Key" to apiKey,
@@ -88,7 +84,6 @@ class KrakenReadClient(private val broker: BrokerCall) {
 class CoinbaseFillsClient(private val broker: BrokerCall) {
     suspend fun pull(keyName: String, privateKey: PrivateKey, nowSeconds: Long, nonce: String): ReadOnlyPull {
         val url = "https://api.coinbase.com/api/v3/brokerage/orders/historical/fills"
-        if (!ReadOnlyBrokers.coinbaseAllowed("GET", url)) return ReadOnlyPull(null, "Coinbase request is not on the allow-list.")
         val token = ReadOnlyBrokers.coinbaseJwt(keyName, privateKey, nowSeconds, nonce)
         val response = broker.call("GET", url, mapOf("Authorization" to "Bearer $token"), "")
         if (response.code != HTTP_OK) return ReadOnlyPull(null, "Coinbase sync failed (HTTP ${response.code}).")

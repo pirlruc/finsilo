@@ -90,7 +90,7 @@ object BrokerCsv {
         return BrokerCsvParseResult(ok.first().format, lines)
     }
 
-    private fun parseLines(format: BrokerCsvFormat, table: CsvTable): List<BrokerCsvLine> = when (format) {
+    internal fun parseLines(format: BrokerCsvFormat, table: CsvTable): List<BrokerCsvLine> = when (format) {
         BrokerCsvFormat.TRADING_212 -> Trading212CsvParser.parse(table)
         BrokerCsvFormat.DEGIRO_TRANSACTIONS -> DegiroTransactionsParser.parse(table)
         BrokerCsvFormat.DEGIRO_ACCOUNT -> DegiroAccountParser.parse(table)
