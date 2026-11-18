@@ -61,6 +61,7 @@ fun DashboardRoute(
             onSync = viewModel::syncMarketData,
             onSaveKey = viewModel::saveAlphaVantageKey,
             onLoadSample = viewModel::loadSample,
+            onSaveFire = viewModel::saveFire,
         ),
         section = section,
         entitlements = entitlements,
@@ -138,6 +139,8 @@ internal fun DashboardScreen(
                         assets = state.assets,
                         performance = state.performance,
                         entitlements = entitlements,
+                        fire = state.fire,
+                        onFire = nav.onSaveFire,
                     )
             }
         }

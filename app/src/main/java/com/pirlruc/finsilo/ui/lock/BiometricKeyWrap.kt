@@ -4,6 +4,7 @@ import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.UserNotAuthenticatedException
 import androidx.biometric.BiometricPrompt
 import com.pirlruc.finsilo.data.security.KeystoreAesGcmKey
+import com.pirlruc.finsilo.domain.vault.VaultRegistry
 import java.security.GeneralSecurityException
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
@@ -19,24 +20,25 @@ internal object BiometricKeyWrap {
     private const val IV_BYTES: Int = 12
     private const val TAG_BITS: Int = 128
 
-    fun encryptObject(): BiometricPrompt.CryptoObject {
+    fun encryptObject(vaultId: String = VaultRegistry.DEFAULT_ID): BiometricPrompt.CryptoObject {
         // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        initOrReplace { cipher.init(Cipher.ENCRYPT_MODE, it) }
+        initOrReplace(vaultId) { cipher.init(Cipher.ENCRYPT_MODE, it) }
         return BiometricPrompt.CryptoObject(cipher)
     }
 
-    fun decryptObject(blob: ByteArray): BiometricPrompt.CryptoObject {
+    fun decryptObject(blob: ByteArray, vaultId: String = VaultRegistry.DEFAULT_ID): BiometricPrompt.CryptoObject {
         require(blob.size > IV_BYTES) { "Biometric wrap is truncated." }
+        val alias = alias(vaultId)
         // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val cipher = Cipher.getInstance(TRANSFORMATION)
         // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         val spec = GCMParameterSpec(TAG_BITS, blob.copyOfRange(0, IV_BYTES))
         try {
-            cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(KEY_NAME), spec)
+            cipher.init(Cipher.DECRYPT_MODE, KeystoreAesGcmKey.getOrCreate(alias), spec)
         } catch (error: GeneralSecurityException) {
             if (!isStaleBiometricKey(error)) throw error
-            KeystoreAesGcmKey.delete(KEY_NAME)
+            KeystoreAesGcmKey.delete(alias)
             throw IllegalStateException(BIOMETRIC_KEY_RESET)
         }
         return BiometricPrompt.CryptoObject(cipher)
@@ -54,19 +56,23 @@ internal object BiometricKeyWrap {
         return runCatching { cipher.doFinal(blob.copyOfRange(IV_BYTES, blob.size)) }.getOrNull()
     }
 
-    fun deleteKey() {
-        KeystoreAesGcmKey.delete(KEY_NAME)
+    fun deleteKey(vaultId: String = VaultRegistry.DEFAULT_ID) {
+        KeystoreAesGcmKey.delete(alias(vaultId))
     }
 
-    private fun initOrReplace(init: (SecretKey) -> Unit) {
+    private fun initOrReplace(vaultId: String, init: (SecretKey) -> Unit) {
+        val alias = alias(vaultId)
         try {
-            init(KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+            init(KeystoreAesGcmKey.getOrCreate(alias))
         } catch (error: GeneralSecurityException) {
             if (!isStaleBiometricKey(error)) throw error
-            KeystoreAesGcmKey.delete(KEY_NAME)
-            init(KeystoreAesGcmKey.getOrCreate(KEY_NAME))
+            KeystoreAesGcmKey.delete(alias)
+            init(KeystoreAesGcmKey.getOrCreate(alias))
         }
     }
+
+    private fun alias(vaultId: String): String =
+        if (vaultId == VaultRegistry.DEFAULT_ID) KEY_NAME else "$KEY_NAME.$vaultId"
 }
 
 internal const val BIOMETRIC_KEY_RESET: String = "Biometrics changed. Enter PIN."

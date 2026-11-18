@@ -13,6 +13,9 @@
         <domain includeSubdomains="false">stooq.com</domain>
         <domain includeSubdomains="false">stooq.pl</domain>
         <domain includeSubdomains="false">live.trading212.com</domain>
+        <domain includeSubdomains="false">gdcdyn.interactivebrokers.com</domain>
+        <domain includeSubdomains="false">api.kraken.com</domain>
+        <domain includeSubdomains="false">api.coinbase.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

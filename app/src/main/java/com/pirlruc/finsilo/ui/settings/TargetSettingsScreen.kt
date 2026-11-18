@@ -89,7 +89,10 @@ fun TargetSettingsRoute(
                 onPickerBusy = onPickerBusy,
             ),
         ),
-        trading212 = { Trading212SettingsCard(container.keys) },
+        trading212 = {
+            Trading212SettingsCard(container.keys)
+            BrokerSyncSettingsCard(container.keys)
+        },
         vaults = {
             if (FlagEntitlements(BuildConfig.PREMIUM_UNLOCKED).allows(PremiumFeature.MULTI_PORTFOLIO)) {
                 VaultSwitcherCard(

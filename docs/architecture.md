@@ -22,6 +22,7 @@ The released app has no server of its own. The network security config allows HT
 - `api.coingecko.com` for crypto prices
 - `stooq.com` and `stooq.pl` for listings and gold
 - `live.trading212.com` for optional read-only history
+- `gdcdyn.interactivebrokers.com`, `api.kraken.com`, and `api.coinbase.com` for optional read-only statements
 
 Cleartext is off. Certificate checks use the system trust store. Trading 212 calls are GET, and the client refuses a URL that is not on its allow-list. The response body is capped.
 
@@ -34,7 +35,7 @@ The other inputs are files the user picks: broker CSV, an encrypted `.fsi` backu
 - Quotes and broker history are optional. The app works with no account at a broker.
 - The IRS preview and the FIRE notes are not tax advice and not a promised return.
 
-What a user must not expect: a cloud copy of the ledger, a way to place an order, or a patch for an older tag. Only the latest GitHub Release is supported.
+What a user must not expect: a Google Drive copy of the ledger, a way to place an order, or a patch for an older tag. Only the latest GitHub Release is supported. An optional WebDAV or Nextcloud upload sends the encrypted backup only.
 
 ## Attack surface
 

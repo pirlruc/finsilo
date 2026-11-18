@@ -2764,6 +2764,48 @@ milestones:
               - ./gradlew :domain:test :domain:koverVerify
               - The USD invert band is not applied to GBP, CHF, or other non-USD currencies
 
+      - id: FS-044
+        status: done
+        title: Wave 5 vault, broker, and backup corrections
+        overview:
+          problem: >-
+            Broker credentials and the biometric key were shared across vaults.
+            FIRE inputs were fixed. Rebalance trades were named by asset type.
+            IBKR, Kraken, Coinbase, and WebDAV were not in the product.
+          goal: >-
+            Scope secrets and the biometric alias per vault, persist FIRE
+            inputs, rebalance by instrument, and add the read-only brokers
+            plus WebDAV.
+        acceptance_criteria:
+          - The default vault keeps the existing preference key names
+          - A second vault does not read the default vault's broker secrets
+          - FIRE inputs round-trip through the keystore
+          - IBKR, Kraken, and Coinbase parsers map fixture rows to ledger lines
+          - WebDAV refuses a password in the URL and a mismatched ETag
+        tasks:
+          - id: FS-044-T1
+            status: done
+            title: Vault-scoped credentials, FIRE inputs, and instrument rebalance
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data/security/DatabaseKeyStore.kt
+                - app/src/main/java/com/pirlruc/finsilo/ui/lock/BiometricKeyWrap.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/performance/RebalanceBook.kt
+            verification:
+              - ./gradlew :domain:test
+          - id: FS-044-T2
+            status: done
+            title: Read-only brokers, WebDAV, and ClusterFuzzLite
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/importcsv/ReadOnlyBrokers.kt
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/backup/WebDavSync.kt
+                - .clusterfuzzlite/Dockerfile
+                - .clusterfuzzlite/build.sh
+            verification:
+              - ./gradlew :domain:test --tests com.pirlruc.finsilo.domain.importcsv.ReadOnlyBrokerTest
+              - .clusterfuzzlite/build.sh is executable
+
       - id: FS-043
         status: done
         title: Wave 4 ledger and sync corrections
@@ -2870,7 +2912,7 @@ milestones:
               - ./gradlew :domain:test
               - Irregular history yields no projection
           - id: FS-PRO-001-T4
-            status: open
+            status: done
             title: IBKR Flex, Kraken, and Coinbase read-only sync
             instructions:
               files:
@@ -2888,8 +2930,8 @@ milestones:
               - ./gradlew :domain:test :app:testDebugUnitTest
               - The original finsilo.db stays in place and a second vault has its own file and PIN
           - id: FS-PRO-001-T6
-            status: open
-            title: Zero-knowledge sync to Drive, WebDAV, or Nextcloud
+            status: done
+            title: Zero-knowledge sync to WebDAV or Nextcloud
             instructions:
               files:
                 - app/src/main/java/com/pirlruc/finsilo/data
@@ -2913,6 +2955,15 @@ milestones:
             verification:
               - ./gradlew :domain:test
               - FIRE and DRIP projections are shown from the ledger and say they are not financial advice
+          - id: FS-PRO-001-T13
+            status: open
+            title: Google Drive sync (deferred)
+            instructions:
+              files:
+                - app/src/main/java/com/pirlruc/finsilo/data
+            verification:
+              - Google Drive stays out of this release
+              - The WebDAV upload does not gain a Drive client
           - id: FS-PRO-001-T9
             status: open
             title: One-time tax-season pass entitlement (deferred)

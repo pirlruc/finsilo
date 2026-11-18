@@ -11,6 +11,7 @@ import com.pirlruc.finsilo.data.security.AppLockStore
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
 import com.pirlruc.finsilo.data.security.LedgerKeySession
 import com.pirlruc.finsilo.domain.lock.AppLockCrypto
+import com.pirlruc.finsilo.domain.vault.VaultRegistry
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
@@ -63,6 +64,7 @@ class LockViewModel(
     private val openLedger: () -> Unit = {},
     private val evictLedger: () -> Unit = {},
     private val sessionGraceMs: Long = SESSION_GRACE_MS,
+    private val currentVault: () -> String = { VaultRegistry.DEFAULT_ID },
 ) : ViewModel() {
     private val _state = MutableStateFlow(LockUiState(setupComplete = store.isSetup(), biometric = store.biometricEnabled()))
     val state: StateFlow<LockUiState> = _state.asStateFlow()
@@ -234,6 +236,8 @@ class LockViewModel(
     fun sessionKeyCopy(): ByteArray? = keys?.sessionKeyOrNull()
 
     fun biometricWrapBlob(): ByteArray? = keys?.biometricWrapBlob()
+
+    fun vaultId(): String = currentVault()
 
     fun finishBiometricSeal(blob: ByteArray) {
         val stored = keys?.persistBiometricWrap(blob) ?: true
@@ -553,7 +557,7 @@ class LockViewModel(
     private fun persistBiometricAfterPin(enabled: Boolean) {
         if (!enabled) {
             keys?.persistBiometricWrap(null)
-            BiometricKeyWrap.deleteKey()
+            BiometricKeyWrap.deleteKey(vaultId())
             store.setBiometricEnabled(false)
             _state.update {
                 it.copy(
@@ -613,6 +617,7 @@ class LockViewModel(
                     keys = container.keys,
                     openLedger = container::openLedger,
                     evictLedger = container::closeLedger,
+                    currentVault = { container.vaultSelection.id },
                 )
             }
         }

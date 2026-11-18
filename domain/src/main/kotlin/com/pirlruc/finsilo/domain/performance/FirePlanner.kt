@@ -5,6 +5,23 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import kotlin.math.ln
 
+/** Editable FIRE inputs. The dashboard persists one set per vault. */
+data class FireAssumptions(
+    val annualExpensesEur: BigDecimal,
+    val withdrawalRate: BigDecimal,
+    val annualSavingsEur: BigDecimal,
+    val annualReturn: BigDecimal,
+) {
+    companion object {
+        fun defaults(): FireAssumptions = FireAssumptions(
+            annualExpensesEur = BigDecimal("24000"),
+            withdrawalRate = BigDecimal("0.04"),
+            annualSavingsEur = BigDecimal("6000"),
+            annualReturn = BigDecimal("0.05"),
+        )
+    }
+}
+
 /** FIRE number and years, plus the note that this is not advice. */
 data class FirePlan(val fireNumberEur: BigDecimal, val years: BigDecimal?, val note: String)
 

@@ -6,6 +6,7 @@ import com.pirlruc.finsilo.domain.model.HistoryRange
 import com.pirlruc.finsilo.domain.model.PriceAlertThreshold
 import com.pirlruc.finsilo.domain.model.RatingAlertPref
 import com.pirlruc.finsilo.domain.model.Transaction
+import com.pirlruc.finsilo.domain.performance.FireAssumptions
 
 data class DashboardUiState(
     val loading: Boolean = true,
@@ -25,6 +26,7 @@ data class DashboardUiState(
     val transactions: List<Transaction> = emptyList(),
     val assets: List<Asset> = emptyList(),
     val performance: PerformanceSummary? = null,
+    val fire: FireAssumptions = FireAssumptions.defaults(),
 )
 
 /** Which home tab is showing the dashboard report. */

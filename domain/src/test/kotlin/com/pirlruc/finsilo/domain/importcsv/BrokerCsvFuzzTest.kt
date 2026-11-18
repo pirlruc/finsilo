@@ -23,6 +23,12 @@ class BrokerCsvFuzzTest {
     @Test
     fun revolutStocksParserStaysInsideTheSeed() = exercise(RevolutStocksFuzz::fuzzerTestOneInput, 2123L)
 
+    @Test
+    fun revolutCryptoParserStaysInsideTheSeed() = exercise(RevolutCryptoFuzz::fuzzerTestOneInput, 2124L)
+
+    @Test
+    fun revolutCommodityParserStaysInsideTheSeed() = exercise(RevolutCommodityFuzz::fuzzerTestOneInput, 2125L)
+
     private fun exercise(target: (ByteArray) -> Unit, seed: Long) {
         val iterations = System.getenv("FINSILO_FUZZ_ITERATIONS")?.toIntOrNull()?.coerceIn(1, 500) ?: REGRESSION
         val random = Random(seed)
@@ -71,6 +77,27 @@ object RevolutStocksFuzz {
         val header = "Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency\n"
         BrokerCsv.parse(header + String(data, UTF_8))
         BrokerCsv.parse(String(data, UTF_8))
+    }
+}
+
+object RevolutCryptoFuzz {
+    @JvmStatic
+    fun fuzzerTestOneInput(data: ByteArray) {
+        val header = "Symbol,Type,Quantity,Price,Value,Fees,Date\n"
+        val records = CsvReader.records(header + String(data, UTF_8))
+        if (records.isNotEmpty()) RevolutCryptoParser.parse(CsvTable(records.first(), records.drop(1)))
+        ReadOnlyBrokers.coinbaseFills(String(data, UTF_8))
+    }
+}
+
+object RevolutCommodityFuzz {
+    @JvmStatic
+    fun fuzzerTestOneInput(data: ByteArray) {
+        val header = "Started Date,Symbol,Type,Amount\n"
+        val records = CsvReader.records(header + String(data, UTF_8))
+        if (records.isNotEmpty()) RevolutCommodityParser.parse(CsvTable(records.first(), records.drop(1)))
+        ReadOnlyBrokers.ibkrTrades(String(data, UTF_8))
+        ReadOnlyBrokers.krakenLedgers(String(data, UTF_8))
     }
 }
 

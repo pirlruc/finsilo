@@ -13,6 +13,9 @@ enum class BrokerCsvFormat {
     DEGIRO_TRANSACTIONS,
     DEGIRO_ACCOUNT,
     REVOLUT_STOCKS,
+    IBKR_FLEX,
+    KRAKEN,
+    COINBASE,
     ;
 
     val source: BrokerSource
@@ -21,6 +24,9 @@ enum class BrokerCsvFormat {
                 TRADING_212 -> BrokerSource.TRADING_212
                 DEGIRO_TRANSACTIONS, DEGIRO_ACCOUNT -> BrokerSource.DEGIRO
                 REVOLUT_STOCKS -> BrokerSource.REVOLUT
+                IBKR_FLEX -> BrokerSource.IBKR
+                KRAKEN -> BrokerSource.KRAKEN
+                COINBASE -> BrokerSource.COINBASE
             }
 }
 
@@ -89,6 +95,7 @@ object BrokerCsv {
         BrokerCsvFormat.DEGIRO_TRANSACTIONS -> DegiroTransactionsParser.parse(table)
         BrokerCsvFormat.DEGIRO_ACCOUNT -> DegiroAccountParser.parse(table)
         BrokerCsvFormat.REVOLUT_STOCKS -> RevolutStocksParser.parse(table)
+        BrokerCsvFormat.IBKR_FLEX, BrokerCsvFormat.KRAKEN, BrokerCsvFormat.COINBASE -> emptyList()
     }
 
     private fun headerIndex(records: List<List<String>>): Int? {
