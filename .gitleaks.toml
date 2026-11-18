@@ -10,3 +10,9 @@ regexes = [
   '''trading212_key''',
   '''trading212_secret''',
 ]
+
+[[allowlists]]
+description = "The sync test builds a generated PKCS8 marker at runtime. It is not a stored key."
+paths = [
+  '''app/src/test/java/com/pirlruc/finsilo/data/sync/ReadOnlyLedgerSyncTest\.kt''',
+]
