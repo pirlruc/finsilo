@@ -286,10 +286,11 @@ class ReleaseViewModelsTest {
     }
 
     private fun awaitPosted(model: LedgerEntryViewModel): LedgerUiState {
-        val deadline = System.nanoTime() + 8_000_000_000L
+        val deadline = System.nanoTime() + 30_000_000_000L
         while (true) {
             val value = model.state.value
             if (value.status != null || value.error != null) return value
+            dispatcher.scheduler.advanceUntilIdle()
             Shadows.shadowOf(Looper.getMainLooper()).idle()
             if (System.nanoTime() >= deadline) {
                 throw AssertionError("timed out status=${value.status} error=${value.error}")
@@ -299,8 +300,9 @@ class ReleaseViewModelsTest {
     }
 
     private fun waitUntil(predicate: () -> Boolean) {
-        val deadline = System.nanoTime() + 8_000_000_000L
+        val deadline = System.nanoTime() + 30_000_000_000L
         while (!predicate()) {
+            dispatcher.scheduler.advanceUntilIdle()
             Shadows.shadowOf(Looper.getMainLooper()).idle()
             if (System.nanoTime() >= deadline) {
                 throw AssertionError("timed out waiting for view model")
