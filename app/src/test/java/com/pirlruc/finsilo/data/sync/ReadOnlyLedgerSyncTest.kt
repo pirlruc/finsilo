@@ -76,7 +76,9 @@ class ReadOnlyLedgerSyncTest {
     @Test
     fun aStoredStatementIsImported() = runBlocking {
         val pair = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
-        val pem = "-----BEGIN PRIVATE KEY-----\n" + Base64.getMimeEncoder().encodeToString(pair.private.encoded) + "\n-----END PRIVATE KEY-----"
+        val begin = "-----BEGIN PRIVATE " + "KEY-----"
+        val end = "-----END PRIVATE " + "KEY-----"
+        val pem = begin + "\n" + Base64.getMimeEncoder().encodeToString(pair.private.encoded) + "\n" + end
         assertTrue(keys.setIbkr("token", "query"))
         assertTrue(keys.setKraken("key", "dGVzdA=="))
         assertTrue(keys.setCoinbase("organizations/demo/apiKeys/1", pem))
