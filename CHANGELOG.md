@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-18
+
+- Broker credentials and the biometric key are stored per vault. The default vault keeps the existing key names.
+- FIRE expenses, savings, withdrawal rate, and return can be edited and are kept with the vault. Rebalance trades are named by instrument.
+- IBKR Flex, Kraken ledgers, and Coinbase fills can sync read-only. WebDAV or Nextcloud can store the encrypted backup and will not overwrite a different ETag. Google Drive stays out. There is no billing SDK.
+
 ## [0.4.0] - 2026-11-13
 
 - Pro features sit behind an entitlement gate and ship unlocked. There is no billing SDK. XIRR, the IRS annual report, and the dividend calendar stay free.

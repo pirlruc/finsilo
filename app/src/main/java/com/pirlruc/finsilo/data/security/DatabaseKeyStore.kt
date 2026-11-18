@@ -124,6 +124,14 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
         .putIfPresent(KEY_WEBDAV_PASSWORD, password)
         .commitObserved()
 
+    fun brokerSyncStatus(): String? = text(KEY_BROKER_STATUS)
+
+    fun setBrokerSyncStatus(message: String?): Boolean {
+        val editor = prefs.edit()
+        if (message.isNullOrBlank()) editor.remove(wrap(KEY_BROKER_STATUS)) else editor.putString(wrap(KEY_BROKER_STATUS), message)
+        return editor.commitObserved()
+    }
+
     fun setWebDavEtag(etag: String?): Boolean {
         val editor = prefs.edit()
         if (etag.isNullOrBlank()) editor.remove(wrap(KEY_WEBDAV_ETAG)) else editor.putString(wrap(KEY_WEBDAV_ETAG), etag)
@@ -372,6 +380,7 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
         private const val KEY_WEBDAV_USER = "webdav_user"
         private const val KEY_WEBDAV_PASSWORD = "webdav_password"
         private const val KEY_WEBDAV_ETAG = "webdav_etag"
+        private const val KEY_BROKER_STATUS = "broker_sync_status"
         private const val PASSPHRASE_BYTES: Int = 32
     }
 }

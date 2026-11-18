@@ -30,6 +30,8 @@ class DailyMarketSyncWorker(context: Context, params: WorkerParameters) : Corout
         val snapshot = container.repository.load()
         val trading212 = runCatching { Trading212LedgerSync().run(container.keys, container.repository) }.getOrNull()
         container.keys.setTrading212Status(trading212)
+        val brokers = runCatching { ReadOnlyLedgerSync().run(container.keys, container.repository) }.getOrNull()
+        container.keys.setBrokerSyncStatus(brokers)
         if (snapshot.isEmpty) {
             schedule(applicationContext)
             return Result.success()

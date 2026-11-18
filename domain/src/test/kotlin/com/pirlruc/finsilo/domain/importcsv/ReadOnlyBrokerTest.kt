@@ -1,5 +1,7 @@
 package com.pirlruc.finsilo.domain.importcsv
 
+import com.pirlruc.finsilo.domain.backup.WebDavClient
+import com.pirlruc.finsilo.domain.backup.WebDavExchange
 import com.pirlruc.finsilo.domain.backup.WebDavSync
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.security.KeyPairGenerator
@@ -50,6 +52,36 @@ class ReadOnlyBrokerTest {
         val body = """{"fills":[{"entry_id":"e","product_id":"BTC-EUR","side":"BUY","size":"0.2","trade_time":"2024-01-15T00:00:00Z"}]}"""
         assertEquals("BTC-EUR", ReadOnlyBrokers.coinbaseFills(body).single().symbol)
         assertTrue(ReadOnlyBrokers.coinbaseAllowed("GET", "https://api.coinbase.com/api/v3/brokerage/orders/historical/fills"))
+    }
+
+    @Test
+    fun ibkrClientDownloadsTheStatementItRequested() = kotlinx.coroutines.runBlocking {
+        val calls = mutableListOf<String>()
+        val client = IbkrFlexClient { _, url, _, _ ->
+            calls += url
+            if (url.contains("SendRequest")) {
+                BrokerExchange(200, "<ReferenceCode>ref-1</ReferenceCode>")
+            } else {
+                BrokerExchange(200, """<Trade symbol="AAPL" buySell="BUY" quantity="1" tradeDate="20240115" tradeID="t1"/>""")
+            }
+        }
+        val pull = client.pull("token", "query")
+        assertEquals("AAPL", pull.lines?.single()?.symbol)
+        assertEquals(2, calls.size)
+        assertTrue(calls[0].contains("SendRequest"))
+        assertTrue(calls[1].contains("q=ref-1"))
+    }
+
+    @Test
+    fun webDavUploadStopsWhenTheEtagDiffers() = kotlinx.coroutines.runBlocking {
+        var puts = 0
+        val client = WebDavClient { method, _, _, _ ->
+            if (method == "PUT") puts += 1
+            WebDavExchange(207, "<getetag>remote</getetag>".toByteArray(), "remote")
+        }
+        val result = client.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "local")
+        assertEquals("WebDAV has a newer backup. Download it before uploading.", result.error)
+        assertEquals(0, puts)
     }
 
     @Test

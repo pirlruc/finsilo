@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.pirlruc.finsilo.AppContainer
 import com.pirlruc.finsilo.data.RoomPortfolioRepository
 import com.pirlruc.finsilo.data.security.AppLockRepository
+import com.pirlruc.finsilo.data.sync.WebDavBackupUpload
 import com.pirlruc.finsilo.domain.backup.LedgerBackupCodec
 import com.pirlruc.finsilo.domain.backup.LedgerBackupResult
 import com.pirlruc.finsilo.domain.usecase.GetRealizedGainsUseCase
@@ -38,6 +39,7 @@ class PortfolioToolsViewModel(
     private val lock: AppLockRepository,
     private val gains: GetRealizedGainsUseCase = GetRealizedGainsUseCase(),
     private val cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val uploadBackup: (suspend (ByteArray) -> String?)? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PortfolioToolsUiState())
     val state: StateFlow<PortfolioToolsUiState> = _state.asStateFlow()
@@ -71,7 +73,8 @@ class PortfolioToolsViewModel(
                     LedgerBackupCodec.encrypt(snapshot, recovery, extras)
                 }
             }.onSuccess { bytes ->
-                _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName) }
+                val remote = uploadBackup?.invoke(bytes)
+                _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName, status = remote) }
             }.onFailure { error ->
                 _state.update { it.copy(busy = false, error = error.message ?: "Export failed") }
             }
@@ -163,7 +166,11 @@ class PortfolioToolsViewModel(
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                PortfolioToolsViewModel(container.repository, container.lockStore)
+                PortfolioToolsViewModel(
+                    container.repository,
+                    container.lockStore,
+                    uploadBackup = { bytes -> WebDavBackupUpload(container.keys).upload(bytes) },
+                )
             }
         }
     }

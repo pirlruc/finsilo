@@ -55,6 +55,7 @@ internal fun BrokerSyncSettingsCard(keys: DatabaseKeyStore) {
                     keys.setWebDav(webDavUrl, webDavUser, webDavPassword)
                 message = if (ok) "Stored on this device" else "Could not store the settings"
             }) { Text("Save") }
+            keys.brokerSyncStatus()?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
