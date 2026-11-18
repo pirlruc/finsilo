@@ -27,10 +27,18 @@ def parse_list(path: Path, key: str) -> list[str]:
             if not stripped.startswith(f"{key}:"):
                 continue
             rest = stripped.split(":", 1)[1].strip()
-            if rest in {"[]", ""}:
+            if rest == "[]":
                 return []
-            in_list = True
-            continue
+            if rest == "":
+                in_list = True
+                continue
+            if rest.startswith("["):
+                body = rest.strip("[]")
+                parsed = [part.strip().strip("'\"") for part in body.split(",") if part.strip()]
+                if not parsed:
+                    raise SystemExit(f"{path}:{key} is not empty but parsed no entries")
+                return parsed
+            raise SystemExit(f"{path}:{key} is not a list")
         if stripped.startswith("- "):
             values.append(stripped[2:].strip().strip("'\""))
             continue
@@ -40,8 +48,33 @@ def parse_list(path: Path, key: str) -> list[str]:
 
 
 def load_policy() -> tuple[list[str], list[str]]:
-    path = ANALOG if ANALOG.is_file() else CONSUMER
-    return parse_list(path, "license_deny_list"), parse_list(path, "license_allow_list")
+    """Deny list from the analog. Allow list is the union with the consumer copy."""
+    deny_path = ANALOG if ANALOG.is_file() else CONSUMER
+    deny = parse_list(deny_path, "license_deny_list")
+    allow: list[str] = []
+    for path in (ANALOG, CONSUMER):
+        if not path.is_file():
+            continue
+        for item in parse_list(path, "license_allow_list"):
+            if item not in allow:
+                allow.append(item)
+    if not deny:
+        raise SystemExit(f"{deny_path}: license_deny_list parsed no entries")
+    return deny, allow
+
+
+def stamp_sqlcipher(payload: dict) -> bool:
+    """Record BSD-3-Clause when the CycloneDX plugin omits SQLCipher's license."""
+    changed = False
+    for component in payload.get("components") or []:
+        identity = " ".join(
+            str(component.get(field) or "") for field in ("group", "name", "bom-ref")
+        )
+        if "sqlcipher" not in identity.lower() or component_licenses(component):
+            continue
+        component["licenses"] = [{"license": {"id": "BSD-3-Clause"}}]
+        changed = True
+    return changed
 
 
 def component_licenses(component: dict) -> list[str]:
@@ -64,6 +97,8 @@ def main() -> int:
         print(f"Missing CycloneDX BOM at {BOM} (fail closed)", file=sys.stderr)
         return 1
     payload = json.loads(BOM.read_text(encoding="utf-8"))
+    if stamp_sqlcipher(payload):
+        BOM.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     components = payload.get("components") or []
     if not components:
         print("CycloneDX BOM has no components (fail closed)", file=sys.stderr)

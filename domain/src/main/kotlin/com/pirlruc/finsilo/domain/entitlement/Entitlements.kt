@@ -8,6 +8,8 @@ enum class PremiumFeature {
     MULTI_PORTFOLIO,
     REBALANCE,
     FIRE_DRIP,
+    BROKER_SYNC,
+    CLOUD_SYNC,
 }
 
 /** Whether a Pro feature may be shown. The app supplies the flag; this module does not bill. */
