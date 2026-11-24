@@ -21,6 +21,7 @@ import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
 import com.pirlruc.finsilo.domain.vault.VaultRecord
 import com.pirlruc.finsilo.domain.vault.VaultRegistry
 import com.pirlruc.finsilo.domain.vault.VaultSelection
+import com.pirlruc.finsilo.ui.theme.AppearanceStore
 import java.io.File
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -41,6 +42,7 @@ class AppContainer internal constructor(
     private val credentials: SharedPreferences,
     feedFactory: (DatabaseKeyStore) -> MarketFeed,
 ) {
+    val appearance = AppearanceStore(application)
     val vaultSelection = VaultSelection()
     val keys: DatabaseKeyStore = DatabaseKeyStore(credentials, vaultSelection)
     val widgetNav = WidgetNavCache(application)

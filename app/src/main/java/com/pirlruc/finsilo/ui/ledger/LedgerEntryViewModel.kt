@@ -21,11 +21,14 @@ import com.pirlruc.finsilo.domain.usecase.QuoteProbeResult
 import com.pirlruc.finsilo.domain.usecase.RecordLedgerEntryUseCase
 import com.pirlruc.finsilo.domain.usecase.RecordManualQuoteUseCase
 import java.time.LocalDate
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LedgerEntryViewModel(
     private val repository: RoomPortfolioRepository,
@@ -33,6 +36,7 @@ class LedgerEntryViewModel(
     private val record: RecordLedgerEntryUseCase = RecordLedgerEntryUseCase(),
     private val ledger: PositionLedger = PositionLedger(),
     private val manualQuote: RecordManualQuoteUseCase = RecordManualQuoteUseCase(),
+    private val worker: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LedgerUiState())
     val state: StateFlow<LedgerUiState> = _state.asStateFlow()
@@ -153,24 +157,27 @@ class LedgerEntryViewModel(
     }
 
     fun save(onSaved: () -> Unit) {
+        _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
-            val probe = probeNewBuy()
-            if (probe is QuoteProbeResult.Missing) {
-                _state.update { it.copy(saving = false, error = probe.reason) }
-                return@launch
-            }
-            val bars = (probe as? QuoteProbeResult.Found)?.bars.orEmpty()
-            when (val outcome = LedgerSaveActions.saveEntry(repository, record, snapshot, _state.value)) {
-                is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
-                is LedgerSaveOutcome.Posted -> {
-                    if (bars.isNotEmpty()) {
-                        val from = runCatching { LocalDate.parse(_state.value.date) }.getOrNull()
-                        runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars, from), emptyList()) }
-                    }
-                    resetFormFields(outcome.status)
-                    onSaved()
+            withContext(worker) {
+                val probe = probeNewBuy()
+                if (probe is QuoteProbeResult.Missing) {
+                    _state.update { it.copy(saving = false, error = probe.reason) }
+                    return@withContext
                 }
-                is LedgerSaveOutcome.ManualSaved -> Unit
+                val bars = (probe as? QuoteProbeResult.Found)?.bars.orEmpty()
+                when (val outcome = LedgerSaveActions.saveEntry(repository, record, snapshot, _state.value)) {
+                    is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
+                    is LedgerSaveOutcome.Posted -> {
+                        if (bars.isNotEmpty()) {
+                            val from = runCatching { LocalDate.parse(_state.value.date) }.getOrNull()
+                            runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars, from), emptyList()) }
+                        }
+                        resetFormFields(outcome.status)
+                        onSaved()
+                    }
+                    is LedgerSaveOutcome.ManualSaved -> Unit
+                }
             }
         }
     }

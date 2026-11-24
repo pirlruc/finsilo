@@ -31,6 +31,14 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.register("jazzerClasspath") {
+    val runtime = sourceSets.main.get().runtimeClasspath
+    val tests = sourceSets.test.get().output
+    doLast {
+        (runtime.files + tests.files).filter { it.exists() }.forEach { println(it.absolutePath) }
+    }
+}
+
 ktlint {
     filter {
         exclude("**/generated/**")

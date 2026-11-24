@@ -20,6 +20,7 @@ import com.pirlruc.finsilo.domain.model.RatingAlertScope
 import com.pirlruc.finsilo.domain.model.WatchlistItem
 import com.pirlruc.finsilo.ui.alerts.RatingLevelColumn
 import com.pirlruc.finsilo.ui.theme.label
+import com.pirlruc.finsilo.ui.valuation.ValuationSlot
 
 @Composable
 internal fun WatchlistItems(state: WatchlistUiState, onRemove: (String) -> Unit, onSaveRating: (RatingAlertPref) -> Unit) {
@@ -38,6 +39,7 @@ internal fun WatchlistItems(state: WatchlistUiState, onRemove: (String) -> Unit,
                         "${quote.closingPriceNative.stripTrailingZeros().toPlainString()} as of ${quote.date}",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    ValuationSlot(item.asFeedAsset(), quote.closingPriceNative)
                 }
             }
             Column {

@@ -14,6 +14,8 @@ internal data class PortfolioToolsActions(
     val onConfirmRestore: () -> Unit,
     val onCancelRestore: () -> Unit,
     val onPickerBusy: (Boolean) -> Unit,
+    val onKeepLocalBackup: () -> Unit = {},
+    val onDownloadRemoteBackup: () -> Unit = {},
 )
 
 internal data class LockSettingsActions(

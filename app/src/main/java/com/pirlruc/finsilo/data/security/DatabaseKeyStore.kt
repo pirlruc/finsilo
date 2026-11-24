@@ -132,6 +132,17 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
         return editor.commitObserved()
     }
 
+    fun openBbBaseUrl(): String? = text(KEY_OPENBB_URL)
+
+    fun openBbToken(): String? = text(KEY_OPENBB_TOKEN)
+
+    fun setOpenBb(url: String, token: String): Boolean {
+        val editor = prefs.edit()
+        if (url.isBlank()) editor.remove(wrap(KEY_OPENBB_URL)) else editor.putString(wrap(KEY_OPENBB_URL), url.trim())
+        if (token.isBlank()) editor.remove(wrap(KEY_OPENBB_TOKEN)) else editor.putString(wrap(KEY_OPENBB_TOKEN), token.trim())
+        return editor.commitObserved()
+    }
+
     fun setWebDavEtag(etag: String?): Boolean {
         val editor = prefs.edit()
         if (etag.isNullOrBlank()) editor.remove(wrap(KEY_WEBDAV_ETAG)) else editor.putString(wrap(KEY_WEBDAV_ETAG), etag)
@@ -380,6 +391,8 @@ class DatabaseKeyStore(private val prefs: SharedPreferences, private val selecti
         private const val KEY_WEBDAV_USER = "webdav_user"
         private const val KEY_WEBDAV_PASSWORD = "webdav_password"
         private const val KEY_WEBDAV_ETAG = "webdav_etag"
+        private const val KEY_OPENBB_URL = "openbb_base_url"
+        private const val KEY_OPENBB_TOKEN = "openbb_token"
         private const val KEY_BROKER_STATUS = "broker_sync_status"
         private const val PASSPHRASE_BYTES: Int = 32
     }

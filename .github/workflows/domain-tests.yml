@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: domain-tests-${{ github.ref }}
+  group: domain-tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,9 +16,9 @@ jobs:
   domain:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-gradle-ci.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-gradle-ci.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
       gradle_tasks: :domain:test :domain:koverVerify
     secrets:

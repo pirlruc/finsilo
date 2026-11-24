@@ -8,3 +8,5 @@ fuzz_targets:
   - com.pirlruc.finsilo.domain.importcsv.RevolutStocksFuzz
   - com.pirlruc.finsilo.domain.importcsv.RevolutCryptoFuzz
   - com.pirlruc.finsilo.domain.importcsv.RevolutCommodityFuzz
+  - com.pirlruc.finsilo.domain.importcsv.IbkrTradesFuzz
+  - com.pirlruc.finsilo.domain.importcsv.OpenBbFundamentalsFuzz

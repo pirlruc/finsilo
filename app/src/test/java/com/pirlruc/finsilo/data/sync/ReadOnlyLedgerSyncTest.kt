@@ -116,7 +116,8 @@ class ReadOnlyLedgerSyncTest {
                 if (method == "PROPFIND") WebDavExchange(207, byteArrayOf(), "old") else WebDavExchange(201, byteArrayOf(), "new")
             },
         )
-        assertNull(upload.upload(byteArrayOf(1)))
+        assertTrue(upload.upload(byteArrayOf(1))!!.contains("newer"))
+        assertNull(upload.upload(byteArrayOf(1), overwrite = true))
         assertEquals("new", keys.webDavEtag())
     }
 

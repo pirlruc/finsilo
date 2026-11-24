@@ -32,8 +32,10 @@ import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.concurrent.Executors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -60,6 +62,7 @@ class ReleaseViewModelsTest {
     private lateinit var database: FinsiloDatabase
     private lateinit var repository: RoomPortfolioRepository
     private lateinit var feed: ScriptedFeed
+    private val worker = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     @Before
     fun setUp() {
@@ -72,6 +75,10 @@ class ReleaseViewModelsTest {
 
     @After
     fun tearDown() {
+        dispatcher.scheduler.advanceUntilIdle()
+        Shadows.shadowOf(Looper.getMainLooper()).idle()
+        database.close()
+        worker.close()
         Dispatchers.resetMain()
     }
 
@@ -117,7 +124,7 @@ class ReleaseViewModelsTest {
 
     @Test
     fun ledgerPostsABuyDepositInterestAndManualClose() = runBlocking {
-        val model = LedgerEntryViewModel(repository, feed, todayAware())
+        val model = LedgerEntryViewModel(repository, feed, todayAware(), worker = worker)
         model.setType(TransactionType.DEPOSIT_CASH)
         model.setDate(day.toString())
         model.setQuantity("25")
@@ -167,7 +174,10 @@ class ReleaseViewModelsTest {
         model.setManualClose("4")
         model.saveManualClose()
         val tx = repository.load().transactions.firstOrNull()
-        if (tx != null) model.edit(tx)
+        if (tx != null) {
+            model.edit(tx)
+            waitUntil { model.state.value.replaceId == tx.id }
+        }
         model.setSymbol("")
         model.setName("")
         model.setIsin("XS000")

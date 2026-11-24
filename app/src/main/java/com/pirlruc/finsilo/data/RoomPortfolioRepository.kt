@@ -43,6 +43,8 @@ class RoomPortfolioRepository(private val database: FinsiloDatabase, private val
     private val dao get() = database.portfolioDao()
     private val backfillSequence = BackfillLedgerSequenceUseCase()
 
+    fun fundamentalCache(): FundamentalCache = FundamentalCache(dao)
+
     override suspend fun load(): PortfolioSnapshot {
         val snapshot = rawLoad()
         return withBackfilledSequences(snapshot)

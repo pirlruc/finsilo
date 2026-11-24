@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: "0 4 * * 1"
 
+concurrency:
+  group: emulator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -12,9 +16,9 @@ jobs:
   emulator:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-emulator.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-emulator.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
       script: ./gradlew :app:testDebugUnitTest
     secrets:

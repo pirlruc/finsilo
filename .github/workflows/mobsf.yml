@@ -1,0 +1,23 @@
+name: mobsf
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: mobsf-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  mobsf:
+    permissions:
+      contents: read
+    uses: pirlruc/androiddevops/.github/workflows/android-mobsf.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+    with:
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+      source_paths: app/src/main domain/src/main
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}

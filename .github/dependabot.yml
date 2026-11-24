@@ -1,7 +1,7 @@
 # Org-default Dependabot (SC-DEP-001/002/003/005).
 # Seeded once into .github/dependabot.yml by sync-templates.sh — never overwritten.
 # Cadence and open-PR limit: docs/guardrails/supply-chain/profile.thresholds.yml
-# Process: https://github.com/pirlruc/methodologies/blob/1.7.0/github-issue-adr/docs/process/dependency-updates.md
+# Process: https://github.com/pirlruc/methodologies/blob/1.12.2/github-issue-adr/docs/process/dependency-updates.md
 #
 # DEPENDABOT_GITHUB_TOKEN is a Dependabot secret (Settings → Secrets and
 # variables → Dependabot). It is not an Actions secret. Actions jobs cannot

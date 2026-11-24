@@ -204,31 +204,83 @@ class ReadOnlyBrokerTest {
 
     @Test
     fun webDavUploadWritesWhenTheCopyStillMatches() = kotlinx.coroutines.runBlocking {
-        val seen = mutableListOf<Int>()
-        val client = WebDavClient { method, _, headers, _ ->
+        val createdHeaders = mutableListOf<Map<String, String>>()
+        val create = WebDavClient { method, _, headers, _ ->
             if (method == "PROPFIND") {
-                WebDavExchange(200, "<D:getetag>same</D:getetag>".toByteArray(), null)
+                WebDavExchange(404, byteArrayOf(), null)
             } else {
-                seen += headers.size
-                WebDavExchange(if (seen.size == 1) 201 else 204, byteArrayOf(), if (seen.size == 1) "\"same\"" else null)
+                createdHeaders += headers
+                WebDavExchange(201, byteArrayOf(), "\"new\"")
             }
         }
-        val first = client.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
-        assertEquals("\"same\"", first.etag)
-        val second = client.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "same")
-        assertEquals("same", second.etag)
-        val refused = client.upload("http://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
+        val first = create.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
+        assertEquals("\"new\"", first.etag)
+        assertEquals("*", createdHeaders.single()["If-None-Match"])
+        val remotePresent = WebDavClient { method, _, _, _ ->
+            if (method == "PROPFIND") WebDavExchange(200, "<D:getetag>remote</D:getetag>".toByteArray(), null) else WebDavExchange(201, byteArrayOf(), "nope")
+        }
+        val blocked = remotePresent.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
+        assertTrue(blocked.error!!.contains("newer"))
+        val matched = WebDavClient { method, _, headers, _ ->
+            if (method == "PROPFIND") {
+                WebDavExchange(207, byteArrayOf(), "same")
+            } else {
+                assertEquals("same", headers["If-Match"])
+                WebDavExchange(204, byteArrayOf(), null)
+            }
+        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "same")
+        assertEquals("same", matched.etag)
+        val refused = create.upload("http://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
         assertEquals("WebDAV URL is not an https FSILO-LEDGER path.", refused.error)
-        val lookup = WebDavClient { _, _, _, _ -> WebDavExchange(404, byteArrayOf(), null) }
-        assertTrue(lookup.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null).error!!.contains("404"))
+        val missing = WebDavClient { _, _, _, _ -> WebDavExchange(403, byteArrayOf(), null) }
+        assertTrue(missing.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null).error!!.contains("403"))
         val rejected = WebDavClient { method, _, _, _ ->
             if (method == "PROPFIND") WebDavExchange(207, byteArrayOf(), null) else WebDavExchange(409, byteArrayOf(), null)
         }
         assertTrue(rejected.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "").error!!.contains("409"))
-        val ok = WebDavClient { method, _, _, _ ->
-            if (method == "PROPFIND") WebDavExchange(207, byteArrayOf(), "tag") else WebDavExchange(200, byteArrayOf(), null)
-        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "tag")
-        assertEquals("tag", ok.etag)
+        val raced = WebDavClient { method, _, headers, _ ->
+            if (method == "PROPFIND") {
+                WebDavExchange(404, byteArrayOf(), null)
+            } else {
+                assertEquals("*", headers["If-None-Match"])
+                WebDavExchange(412, byteArrayOf(), null)
+            }
+        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null)
+        assertTrue(raced.error!!.contains("newer"))
+        val kept = WebDavClient { method, _, headers, _ ->
+            if (method == "PROPFIND") {
+                WebDavExchange(200, byteArrayOf(), "remote")
+            } else {
+                assertEquals("remote", headers["If-Match"])
+                WebDavExchange(204, byteArrayOf(), "remote")
+            }
+        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null, overwrite = true)
+        assertEquals("remote", kept.etag)
+        val downloaded = WebDavClient { method, _, _, _ ->
+            if (method == "GET") WebDavExchange(200, byteArrayOf(9), "remote") else WebDavExchange(500, byteArrayOf(), null)
+        }.download("https://cloud.example/FSILO-LEDGER", "me", "app")
+        assertEquals(9, downloaded.bytes.single().toInt())
+        val failedDownload = WebDavClient { _, _, _, _ -> WebDavExchange(500, byteArrayOf(), null) }
+        assertTrue(failedDownload.download("https://cloud.example/FSILO-LEDGER", "me", "app").error!!.contains("500"))
+        val overwriteMissing = WebDavClient { method, _, headers, _ ->
+            if (method == "PROPFIND") {
+                WebDavExchange(404, byteArrayOf(), null)
+            } else {
+                assertEquals("*", headers["If-None-Match"])
+                WebDavExchange(200, byteArrayOf(), null)
+            }
+        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), null, overwrite = true)
+        assertEquals(null, overwriteMissing.error)
+        val storedOnly = WebDavClient { method, _, headers, _ ->
+            if (method == "PROPFIND") {
+                WebDavExchange(200, byteArrayOf(), null)
+            } else {
+                assertEquals("stored", headers["If-Match"])
+                WebDavExchange(204, byteArrayOf(), null)
+            }
+        }.upload("https://cloud.example/FSILO-LEDGER", "me", "app", byteArrayOf(1), "stored")
+        assertEquals(null, storedOnly.error)
+        assertTrue(create.download("http://cloud.example/FSILO-LEDGER", "me", "app").error!!.contains("https"))
     }
 
     private fun p1363ToDer(raw: ByteArray): ByteArray {

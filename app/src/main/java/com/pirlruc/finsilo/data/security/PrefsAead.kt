@@ -56,19 +56,50 @@ internal class AesGcmPrefsAead(private val key: SecretKey) : PrefsAead {
     }
 }
 
+/** Keystore alias per build type. Debug never reads the release alias. */
+internal object PrefsKeyAlias {
+    const val LEGACY: String = "com.pirlruc.finsilo.prefs_aes256_gcm"
+    const val DEBUG: String = "com.pirlruc.finsilo.prefs_aes256_gcm.debug"
+    const val RELEASE: String = "com.pirlruc.finsilo.prefs_aes256_gcm.release"
+
+    fun current(debug: Boolean): String = if (debug) DEBUG else RELEASE
+
+    fun readable(debug: Boolean): List<String> = listOf(current(debug), LEGACY)
+}
+
+/** Reads the legacy alias when the build-type key cannot open a value, then seals with the current key. */
+internal class MigratingPrefsAead(private val current: PrefsAead, private val legacy: PrefsAead?) : PrefsAead {
+    override fun seal(associatedData: ByteArray, plaintext: ByteArray): ByteArray = current.seal(associatedData, plaintext)
+
+    override fun open(associatedData: ByteArray, blob: ByteArray): ByteArray? =
+        current.open(associatedData, blob) ?: legacy?.open(associatedData, blob)
+
+    fun reseal(associatedData: ByteArray, blob: ByteArray, plaintext: ByteArray): ByteArray? {
+        if (current.open(associatedData, blob) != null) return null
+        if (legacy?.open(associatedData, blob) == null) return null
+        return current.seal(associatedData, plaintext)
+    }
+}
+
 /** Android Keystore AES-256-GCM key for [SecurePreferences], not the Tink master-key alias. */
 internal object AndroidPrefsKeystore {
-    const val ALIAS = "com.pirlruc.finsilo.prefs_aes256_gcm"
+    const val ALIAS = PrefsKeyAlias.LEGACY
 
-    fun getOrCreateKey(): SecretKey = KeystoreAesGcmKey.getOrCreate(
-        ALIAS,
+    fun aead(debug: Boolean): PrefsAead {
+        val current = AesGcmPrefsAead(key(PrefsKeyAlias.current(debug)))
+        val legacyKey = KeystoreAesGcmKey.find(PrefsKeyAlias.LEGACY) ?: return current
+        return MigratingPrefsAead(current, AesGcmPrefsAead(legacyKey))
+    }
+
+    private fun key(alias: String): SecretKey = KeystoreAesGcmKey.getOrCreate(
+        alias,
         userAuthenticationRequired = false,
         invalidatedByBiometricEnrollment = false,
     )
 }
 
-internal class AndroidKeystoreAesGcmAead : PrefsAead {
-    private val inner = AesGcmPrefsAead(AndroidPrefsKeystore.getOrCreateKey())
+internal class AndroidKeystoreAesGcmAead(debug: Boolean = com.pirlruc.finsilo.BuildConfig.DEBUG) : PrefsAead {
+    private val inner = AndroidPrefsKeystore.aead(debug)
 
     override fun seal(associatedData: ByteArray, plaintext: ByteArray): ByteArray = inner.seal(associatedData, plaintext)
 

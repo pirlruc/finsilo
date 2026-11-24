@@ -1,0 +1,26 @@
+name: codeql
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  codeql:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: pirlruc/androiddevops/.github/workflows/android-codeql.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+    with:
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+      java_version: "21"
+      build_command: ./gradlew --no-daemon --rerun-tasks :domain:compileKotlin :app:compileDebugKotlin
+    secrets:
+      checkout_token: ${{ secrets.GITHUB_TOKEN }}

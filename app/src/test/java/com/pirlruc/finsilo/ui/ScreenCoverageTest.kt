@@ -5,10 +5,15 @@ import androidx.compose.runtime.Composer
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.input.ImeAction
 import com.pirlruc.finsilo.data.ClearSelection
+import com.pirlruc.finsilo.domain.fundamentals.FundamentalView
 import com.pirlruc.finsilo.domain.importcsv.ImportSymbolDraft
 import com.pirlruc.finsilo.domain.model.AllocationReport
 import com.pirlruc.finsilo.domain.model.AllocationSlice
@@ -98,6 +103,7 @@ import com.pirlruc.finsilo.ui.settings.TargetSettingsUiState
 import com.pirlruc.finsilo.ui.settings.TaxExportCard
 import com.pirlruc.finsilo.ui.settings.ToolMessages
 import com.pirlruc.finsilo.ui.theme.FinsiloTheme
+import com.pirlruc.finsilo.ui.valuation.ValuationCard
 import com.pirlruc.finsilo.ui.watchlist.WatchlistActions
 import com.pirlruc.finsilo.ui.watchlist.WatchlistEditor
 import com.pirlruc.finsilo.ui.watchlist.WatchlistItems
@@ -124,6 +130,50 @@ class ScreenCoverageTest {
     private val day = LocalDate.of(2026, 1, 15)
     private val asset = Asset("a1", "SYN", "Synthetic", AssetType.ETF, Currency.EUR)
     private val phase = mutableIntStateOf(0)
+
+    @Test
+    fun valuationCardRendersEachNote() {
+        val metrics = com.pirlruc.finsilo.domain.fundamentals.ValuationMetrics(
+            pe = java.math.BigDecimal("12"),
+            peg = java.math.BigDecimal("1.5"),
+            fcfYield = java.math.BigDecimal("0.04"),
+            roe = java.math.BigDecimal("0.18"),
+            roic = null,
+            debtToEquity = java.math.BigDecimal("0.4"),
+            evToEbit = java.math.BigDecimal("9"),
+            interestCoverage = java.math.BigDecimal("6"),
+        )
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>()
+        val container = com.pirlruc.finsilo.AppContainer(context, context.getSharedPreferences("wave6-ui", 0)) {
+            object : com.pirlruc.finsilo.domain.market.MarketFeed {
+                override suspend fun eurPerUsd() = java.math.BigDecimal.ONE
+                override suspend fun eurPerUsdHistory(from: java.time.LocalDate, to: java.time.LocalDate) = emptyList<com.pirlruc.finsilo.domain.model.CurrencyRate>()
+                override suspend fun dailyHistory(asset: com.pirlruc.finsilo.domain.model.Asset, asOf: java.time.LocalDate) = emptyList<com.pirlruc.finsilo.domain.model.PriceBar>()
+                override suspend fun analystRating(asset: com.pirlruc.finsilo.domain.model.Asset) = com.pirlruc.finsilo.domain.model.AnalystRating.NONE
+            }
+        }
+        compose.setContent {
+            FinsiloTheme {
+                ValuationCard(FundamentalView.ratios(metrics, "Alpha Vantage", day))
+                ValuationCard(FundamentalView.ratios(com.pirlruc.finsilo.domain.fundamentals.ValuationMetrics(), "", day).copy(asOf = null))
+                ValuationCard(FundamentalView.notApplicable())
+                ValuationCard(FundamentalView.missing())
+                ValuationCard(FundamentalView.budget())
+                com.pirlruc.finsilo.ui.settings.WebDavConflictDialog(false, PortfolioToolsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}))
+                com.pirlruc.finsilo.ui.settings.WebDavConflictDialog(true, PortfolioToolsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}))
+                com.pirlruc.finsilo.ui.settings.ExtrasSettingsCard(container)
+            }
+        }
+        compose.onAllNodesWithText("Valuation")[0].assertExists()
+        compose.onNodeWithText("P/E 12").assertExists()
+        compose.onNodeWithText("PEG —").assertExists()
+        compose.onNodeWithText("Download remote").performClick()
+        compose.onNodeWithText("Keep local").performClick()
+        compose.onNodeWithText("Save OpenBB").performClick()
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("http://openbb.example")
+        compose.onNodeWithText("Save OpenBB").performClick()
+        compose.onNodeWithText("Material You").assertExists()
+    }
 
     @Test
     fun dashboardLedgerAndLockScreensRenderEachState() {

@@ -4,7 +4,7 @@
 # Epic body, so nothing is copied into docs/issues.yml or into issue text by hand.
 #
 # Field definitions: https://github.com/pirlruc/guardrails#deviation-rule
-# Approval flow:     https://github.com/pirlruc/methodologies/blob/1.7.0/github-issue-adr/docs/process/guardrail-compliance.md
+# Approval flow:     https://github.com/pirlruc/methodologies/blob/1.12.2/github-issue-adr/docs/process/guardrail-compliance.md
 #
 # Being stricter than the org default is always allowed and needs no entry here.
 
@@ -33,6 +33,14 @@ deviations:
     owner: Nuno Monteiro
     approved_by: Nuno Monteiro
     review: 2027-02-12
+  - id: APP-ENT-001
+    why: >-
+      Nothing is sold, the app is offline, billing is deferred, and premium
+      is a client BuildConfig flag.
+    epic: FS-PRO-001
+    owner: pirlruc
+    approved_by: pirlruc
+    review: 2027-05-24
 
 # Parameterized guardrail — the org default is a number and the repo uses a different one.
 # Lowering a gate requires `epic` and `approved_by`.

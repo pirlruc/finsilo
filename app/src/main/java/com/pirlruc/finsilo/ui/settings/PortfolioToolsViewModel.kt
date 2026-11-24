@@ -32,6 +32,7 @@ data class PortfolioToolsUiState(
     val confirmRestore: Boolean = false,
     val pendingExport: ByteArray? = null,
     val pendingExportName: String? = null,
+    val webDavConflict: Boolean = false,
 )
 
 class PortfolioToolsViewModel(
@@ -40,10 +41,36 @@ class PortfolioToolsViewModel(
     private val gains: GetRealizedGainsUseCase = GetRealizedGainsUseCase(),
     private val cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val uploadBackup: (suspend (ByteArray) -> String?)? = null,
+    private val overwriteBackup: (suspend (ByteArray) -> String?)? = null,
+    private val downloadBackup: (suspend () -> ByteArray?)? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PortfolioToolsUiState())
     val state: StateFlow<PortfolioToolsUiState> = _state.asStateFlow()
     private var pendingRestore: LedgerBackupResult.Restored? = null
+    private var pendingConflict: ByteArray? = null
+
+    fun keepLocalBackup() {
+        val bytes = pendingConflict ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, webDavConflict = false, error = null) }
+            val remote = overwriteBackup?.invoke(bytes)
+            pendingConflict = null
+            _state.update { it.copy(busy = false, status = remote ?: "Local backup kept on WebDAV.", error = remote) }
+        }
+    }
+
+    fun downloadRemoteBackup() {
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true, webDavConflict = false, error = null) }
+            val bytes = downloadBackup?.invoke()
+            pendingConflict = null
+            if (bytes == null) {
+                _state.update { it.copy(busy = false, error = "WebDAV download failed.") }
+            } else {
+                restoreBackup(bytes)
+            }
+        }
+    }
 
     fun setYear(value: String) = _state.update { it.copy(year = value.filter { ch -> ch.isDigit() }.take(4), error = null) }
 
@@ -74,7 +101,12 @@ class PortfolioToolsViewModel(
                 }
             }.onSuccess { bytes ->
                 val remote = uploadBackup?.invoke(bytes)
-                _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName, status = remote) }
+                if (remote != null && remote.contains("newer backup")) {
+                    pendingConflict = bytes
+                    _state.update { it.copy(busy = false, webDavConflict = true, pendingExport = null, status = null) }
+                } else {
+                    _state.update { it.copy(busy = false, pendingExport = bytes, pendingExportName = fileName, status = remote) }
+                }
             }.onFailure { error ->
                 _state.update { it.copy(busy = false, error = error.message ?: "Export failed") }
             }
@@ -170,6 +202,8 @@ class PortfolioToolsViewModel(
                     container.repository,
                     container.lockStore,
                     uploadBackup = { bytes -> WebDavBackupUpload(container.keys).upload(bytes) },
+                    overwriteBackup = { bytes -> WebDavBackupUpload(container.keys).upload(bytes, overwrite = true) },
+                    downloadBackup = { WebDavBackupUpload(container.keys).download() },
                 )
             }
         }

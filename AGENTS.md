@@ -368,7 +368,7 @@ issue text by hand.
 
 Field definitions: [guardrails deviation rule](https://github.com/pirlruc/guardrails#deviation-rule).
 Process and approval flow:
-[guardrail-compliance.md](https://github.com/pirlruc/methodologies/blob/1.11.0/github-issue-adr/docs/process/guardrail-compliance.md).
+[guardrail-compliance.md](https://github.com/pirlruc/methodologies/blob/1.12.2/github-issue-adr/docs/process/guardrail-compliance.md).
 
 ## Related
 
@@ -379,7 +379,7 @@ Process and approval flow:
 
 # github-issue-adr methodology
 
-[github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.11.0/github-issue-adr) is the methodology for every
+[github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.12.2/github-issue-adr) is the methodology for every
 repo carrying this scaffold. Do not introduce a second decision-record format alongside it.
 
 ## Core model

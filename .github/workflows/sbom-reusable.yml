@@ -1,0 +1,30 @@
+name: sbom-reusable
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - name: Assemble and scan the runtime graph
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:assembleDebug
+          bash scripts/run-syft-sbom.sh
+          bash scripts/run-osv-scanner.sh
+          bash scripts/run-grype.sh
+          python3 scripts/check-licenses.py

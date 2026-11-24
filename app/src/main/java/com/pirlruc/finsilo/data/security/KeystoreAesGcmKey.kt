@@ -63,6 +63,11 @@ internal object KeystoreAesGcmKey {
         }
     }
 
+    fun find(alias: String): SecretKey? {
+        val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        return store.getKey(alias, null) as? SecretKey
+    }
+
     fun delete(alias: String) {
         val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         if (store.containsAlias(alias)) store.deleteEntry(alias)

@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pirlruc.finsilo.R
 
@@ -45,7 +46,7 @@ internal fun DashboardTopBar(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(
                     painter = painterResource(R.drawable.ic_silo),
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.chrome_logo),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
@@ -54,14 +55,14 @@ internal fun DashboardTopBar(
         },
         actions = {
             IconButton(onClick = onOpenWatchlist) {
-                Icon(Icons.Outlined.Star, contentDescription = "Watchlist")
+                Icon(Icons.Outlined.Star, contentDescription = stringResource(R.string.chrome_watchlist))
             }
             IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.chrome_settings))
             }
             if (!empty) {
                 IconButton(onClick = onSync, enabled = !syncing) {
-                    Icon(Icons.Outlined.Sync, contentDescription = "Sync quotes")
+                    Icon(Icons.Outlined.Sync, contentDescription = stringResource(R.string.chrome_sync))
                 }
             }
             DashboardOverflowMenu(onShowKey = onShowKey, onRequestClear = onRequestClear)
@@ -73,24 +74,24 @@ internal fun DashboardTopBar(
 private fun DashboardOverflowMenu(onShowKey: () -> Unit, onRequestClear: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
-        Icon(Icons.Outlined.MoreVert, contentDescription = "More")
+        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.chrome_more))
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         DropdownMenuItem(
-            text = { Text("Alpha Vantage key") },
+            text = { Text(stringResource(R.string.chrome_key)) },
             onClick = {
                 expanded = false
                 onShowKey()
             },
-            leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = stringResource(R.string.chrome_key)) },
         )
         DropdownMenuItem(
-            text = { Text("Clear data") },
+            text = { Text(stringResource(R.string.chrome_clear)) },
             onClick = {
                 expanded = false
                 onRequestClear()
             },
-            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chrome_clear)) },
         )
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,8 @@ import com.pirlruc.finsilo.ui.lock.AppLockGate
 import com.pirlruc.finsilo.ui.lock.LockViewModel
 import com.pirlruc.finsilo.ui.settings.TargetSettingsRoute
 import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
+import com.pirlruc.finsilo.ui.valuation.LocalValuation
+import com.pirlruc.finsilo.ui.valuation.ValuationAccess
 import com.pirlruc.finsilo.ui.watchlist.WatchlistRoute
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
 
@@ -87,58 +90,61 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
     val onPickerBusy = rememberPickerBusy(lock)
     val dashState by dashboard.state.collectAsStateWithLifecycle()
+    val valuation = remember(container) { ValuationAccess(container) }
     BackHandler(enabled = screen != AppScreen.HOME) {
         screen = AppScreen.HOME
         dashboard.refresh()
     }
-    Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing,
-        bottomBar = {
-            if (screen == AppScreen.HOME) {
-                MainNavigationBar(tab) { tab = it }
-            }
-        },
-    ) { padding ->
-        when (screen) {
-            AppScreen.HOME ->
-                HomeTabPage(
-                    tab = tab,
-                    padding = padding,
-                    dashboard = dashboard,
-                    dashState = dashState,
-                    importer = importer,
-                    ledger = ledger,
-                    onPickerBusy = onPickerBusy,
-                    onScreen = { screen = it },
-                )
-            AppScreen.LEDGER ->
-                LedgerEntryRoute(
-                    viewModel = ledger,
-                    onClose = {
-                        screen = AppScreen.HOME
-                        dashboard.refresh()
-                    },
-                )
-            AppScreen.SETTINGS -> {
-                val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
-                TargetSettingsRoute(
-                    targets = settings,
-                    lock = lock,
-                    importer = importer,
-                    onClose = {
-                        screen = AppScreen.HOME
-                        dashboard.refresh()
-                    },
-                    onPickerBusy = onPickerBusy,
-                    container = container,
-                )
-            }
-            AppScreen.WATCHLIST -> {
-                val watchlist: WatchlistViewModel = viewModel(factory = WatchlistViewModel.factory(container))
-                WatchlistRoute(
-                    viewModel = watchlist,
-                    onClose = { screen = AppScreen.HOME },
-                )
+    CompositionLocalProvider(LocalValuation provides valuation) {
+        Scaffold(
+            contentWindowInsets = WindowInsets.safeDrawing,
+            bottomBar = {
+                if (screen == AppScreen.HOME) {
+                    MainNavigationBar(tab) { tab = it }
+                }
+            },
+        ) { padding ->
+            when (screen) {
+                AppScreen.HOME ->
+                    HomeTabPage(
+                        tab = tab,
+                        padding = padding,
+                        dashboard = dashboard,
+                        dashState = dashState,
+                        importer = importer,
+                        ledger = ledger,
+                        onPickerBusy = onPickerBusy,
+                        onScreen = { screen = it },
+                    )
+                AppScreen.LEDGER ->
+                    LedgerEntryRoute(
+                        viewModel = ledger,
+                        onClose = {
+                            screen = AppScreen.HOME
+                            dashboard.refresh()
+                        },
+                    )
+                AppScreen.SETTINGS -> {
+                    val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
+                    TargetSettingsRoute(
+                        targets = settings,
+                        lock = lock,
+                        importer = importer,
+                        onClose = {
+                            screen = AppScreen.HOME
+                            dashboard.refresh()
+                        },
+                        onPickerBusy = onPickerBusy,
+                        container = container,
+                    )
+                }
+                AppScreen.WATCHLIST -> {
+                    val watchlist: WatchlistViewModel = viewModel(factory = WatchlistViewModel.factory(container))
+                    WatchlistRoute(
+                        viewModel = watchlist,
+                        onClose = { screen = AppScreen.HOME },
+                    )
+                }
             }
         }
     }

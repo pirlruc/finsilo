@@ -1,0 +1,18 @@
+name: sbom
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: sbom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  sbom:
+    permissions:
+      contents: read
+    uses: pirlruc/finsilo/.github/workflows/sbom-reusable.yml@1f424b18a5a1b78b524d69bcb097fe1f3db0eb35 # in-repo SBOM workflow

@@ -25,6 +25,7 @@ internal fun PortfolioToolsCard(state: PortfolioToolsUiState, actions: Portfolio
             }
         }
         BackupExportCard(state, actions) { launchOpen(open, actions) }
+        WebDavConflictDialog(state.webDavConflict, actions)
         RestoreConfirmIfNeeded(state.confirmRestore, actions)
         ToolMessages(state.status, state.error)
     }

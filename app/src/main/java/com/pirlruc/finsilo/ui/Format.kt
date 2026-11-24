@@ -3,44 +3,30 @@ package com.pirlruc.finsilo.ui
 import com.pirlruc.finsilo.domain.model.Currency
 import java.math.BigDecimal
 import java.text.NumberFormat
+import java.util.Currency as JavaCurrency
 import java.util.Locale
 
-private val portugal: Locale = Locale.Builder().setLanguage("pt").setRegion("PT").build()
-
-private val eurFormat: NumberFormat =
-    NumberFormat.getCurrencyInstance(portugal).apply {
-        maximumFractionDigits = 2
-        minimumFractionDigits = 2
-    }
-
-private val usdFormat: NumberFormat =
-    NumberFormat.getCurrencyInstance(Locale.US).apply {
-        maximumFractionDigits = 2
-        minimumFractionDigits = 2
-    }
-
-private val percentFormat: NumberFormat =
-    NumberFormat.getNumberInstance(portugal).apply {
-        maximumFractionDigits = 1
-        minimumFractionDigits = 1
-    }
-
-fun formatEur(amount: BigDecimal): String = eurFormat.format(amount)
-
-fun formatEur(amount: Double): String = eurFormat.format(amount)
-
-fun formatNative(amount: BigDecimal, currency: Currency): String = when (currency) {
-    Currency.EUR -> formatEur(amount)
-    Currency.USD -> usdFormat.format(amount)
-    Currency.GBP -> "£${amount.toPlainString()}"
-    Currency.GBX -> "${amount.toPlainString()}p"
-    Currency.CHF -> "CHF ${amount.toPlainString()}"
-    Currency.DKK -> "DKK ${amount.toPlainString()}"
-    Currency.SEK -> "SEK ${amount.toPlainString()}"
-    Currency.NOK -> "NOK ${amount.toPlainString()}"
+private fun moneyFormat(code: String): NumberFormat = NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
+    runCatching { this.currency = JavaCurrency.getInstance(code) }
+    maximumFractionDigits = 2
+    minimumFractionDigits = 2
 }
 
-fun formatPercent(value: BigDecimal): String = "${percentFormat.format(value)}%"
+private fun percentFormat(): NumberFormat = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+    maximumFractionDigits = 1
+    minimumFractionDigits = 1
+}
+
+fun formatEur(amount: BigDecimal): String = moneyFormat("EUR").format(amount)
+
+fun formatEur(amount: Double): String = moneyFormat("EUR").format(amount)
+
+fun formatNative(amount: BigDecimal, currency: Currency): String = when (currency) {
+    Currency.GBX -> "${percentFormat().format(amount)}p"
+    else -> moneyFormat(currency.name).format(amount)
+}
+
+fun formatPercent(value: BigDecimal): String = "${percentFormat().format(value)}%"
 
 fun formatSignedEur(amount: BigDecimal): String {
     val formatted = formatEur(amount.abs())
