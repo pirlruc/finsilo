@@ -35,11 +35,17 @@ cp_entries=()
 while IFS= read -r copied; do
   cp_entries+=("${copied}")
 done < <(find "${OUT}/classpath" -mindepth 1 -maxdepth 1 | sort)
-classpath="$(IFS=:; echo "${cp_entries[*]}")"
+classpath="$(printf '%s:' "${cp_entries[@]}")"
+classpath="${classpath%:}"
 test -n "${classpath}"
 
 targets=(
   com.pirlruc.finsilo.domain.importcsv.BrokerCsvFuzz
+  com.pirlruc.finsilo.domain.importcsv.RevolutStocksFuzz
+  com.pirlruc.finsilo.domain.importcsv.RevolutCryptoFuzz
+  com.pirlruc.finsilo.domain.importcsv.RevolutCommodityFuzz
+  com.pirlruc.finsilo.domain.importcsv.IbkrTradesFuzz
+  com.pirlruc.finsilo.domain.importcsv.OpenBbFundamentalsFuzz
 )
 for class_name in "${targets[@]}"; do
   class_file="$(find "${OUT}/classpath" -name "${class_name##*.}.class" | head -n 1)"

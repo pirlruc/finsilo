@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: domain-tests-${{ github.ref }}
+  group: domain-tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
