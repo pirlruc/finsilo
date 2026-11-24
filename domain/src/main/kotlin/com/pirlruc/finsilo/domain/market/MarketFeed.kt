@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.market
 
+import com.pirlruc.finsilo.domain.fundamentals.FundamentalView
 import com.pirlruc.finsilo.domain.model.AnalystRating
 import com.pirlruc.finsilo.domain.model.Asset
 import com.pirlruc.finsilo.domain.model.Currency
@@ -9,8 +10,8 @@ import com.pirlruc.finsilo.domain.portfolio.MoneyMath
 import com.pirlruc.finsilo.domain.portfolio.MoneyMath.bd
 import java.math.BigDecimal
 import java.time.LocalDate
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -31,6 +32,10 @@ interface MarketFeed {
     suspend fun probeHistory(asset: Asset, asOf: LocalDate = LocalDate.now()): List<PriceBar> = dailyHistory(asset, asOf)
 
     suspend fun analystRating(asset: Asset): AnalystRating
+
+    /** Equity statements. The default is not applicable so existing feeds keep compiling. */
+    suspend fun fundamentals(asset: Asset, price: BigDecimal?, asOf: LocalDate = LocalDate.now()): FundamentalView =
+        FundamentalView.notApplicable()
 }
 
 /** Simple moving averages computed from stored closes (no extra API calls). */
@@ -183,23 +188,31 @@ object FrankfurterParser {
     }
 }
 
-/** Typed parser for CoinGecko `market_chart`. Only [prices] is read. */
+/** Typed parser for CoinGecko `market_chart`. Prices stay [BigDecimal], not binary floats. */
 object CoinGeckoParser {
     private val json = Json { ignoreUnknownKeys = true }
 
-    @Serializable
-    private data class Chart(val prices: List<List<Double>> = emptyList())
-
     fun dailyCloses(body: String): List<PriceBar> {
-        val chart = runCatching { json.decodeFromString<Chart>(body) }.getOrNull() ?: return emptyList()
-        return chart.prices.mapNotNull { pair ->
-            if (pair.size < 2) return@mapNotNull null
-            val epochDay = java.time.Instant.ofEpochMilli(pair[0].toLong())
-                .atZone(java.time.ZoneOffset.UTC)
-                .toLocalDate()
-            PriceBar(epochDay, BigDecimal.valueOf(pair[1]))
-        }.groupBy { it.date }
+        val prices = root(body)?.get("prices") as? JsonArray ?: return emptyList()
+        return prices.mapNotNull { row -> bar(row) }
+            .groupBy { it.date }
             .map { (date, bars) -> bars.last().copy(date = date) }
             .sortedBy { it.date }
+    }
+
+    private fun root(body: String): JsonObject? = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+
+    private fun bar(row: kotlinx.serialization.json.JsonElement): PriceBar? {
+        val pair = row as? JsonArray ?: return null
+        if (pair.size < 2) return null
+        val millis = decimal(pair[0])?.toLong() ?: return null
+        val price = decimal(pair[1]) ?: return null
+        val day = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+        return PriceBar(day, price)
+    }
+
+    private fun decimal(value: kotlinx.serialization.json.JsonElement): BigDecimal? {
+        val text = (value as? JsonPrimitive)?.contentOrNull ?: return null
+        return text.toBigDecimalOrNull()
     }
 }

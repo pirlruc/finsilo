@@ -5,11 +5,25 @@ on:
   schedule:
     - cron: "17 4 1 * *"
 
-permissions:
-  contents: read
+concurrency:
+  group: cflite-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   fuzz:
+    permissions:
+      contents: read
+    uses: pirlruc/androiddevops/.github/workflows/android-jvm-fuzz.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+    with:
+      gradle_args: ":domain:test --tests com.pirlruc.finsilo.domain.importcsv.BrokerCsvFuzzTest --tests com.pirlruc.finsilo.domain.importcsv.ReadOnlyBrokerTest"
+      java_version: "21"
+      fuzz_iterations: "200"
+
+  seeded:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

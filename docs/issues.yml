@@ -1,7 +1,7 @@
 # Authored backlog for FinSilo. Source of truth for GitHub Epic/Task issues.
 #
 # Schema: https://github.com/pirlruc/github-scaffold/blob/1.7.0/docs/issues-schema.md
-# Methodology: https://github.com/pirlruc/methodologies/tree/1.7.0/github-issue-adr
+# Methodology: https://github.com/pirlruc/methodologies/tree/1.12.2/github-issue-adr
 #
 # The Epic is the decision record — there are no ADR markdown files.
 # Deviations from guardrails go in docs/guardrail-deviations.yml, not here.
@@ -3004,6 +3004,54 @@ milestones:
               - ./gradlew :domain:test :app:testDebugUnitTest
               - premiumUnlocked defaults to true and a false value hides the new screens
               - The APK has no billing SDK and no billing secret
+
+      - id: FS-045
+        status: done
+        title: Wave 6 fundamentals, locale, and release pins
+        overview:
+          problem: >-
+            Equity ratios were missing, prices parsed as binary floats, WebDAV
+            could overwrite a remote backup, and the release pins were behind
+            the org catalogs.
+          goal: >-
+            Show valuation ratios for equities from Alpha Vantage or an optional
+            OpenBB server, cache them for seven days, and land the 0.6.0 pins.
+        decision: >-
+          In the context of an offline portfolio app, facing missing equity
+          ratios and a shared market-data budget, we decided to compute the
+          ratios in the domain from typed statements and to cache them for
+          seven days, to achieve a valuation card that stays blank when an
+          input is undefined, accepting that OpenBB stays off until the user
+          stores an https URL and that billing stays deferred.
+        acceptance_criteria:
+          - P/E, PEG, FCF yield, ROE, ROIC, D/E, EV/EBIT, and interest coverage are null when undefined
+          - ETF and crypto show that valuation does not apply
+          - Alpha Vantage statement calls share the 25-call daily budget
+          - OpenBB is off until an https base URL is stored in the vault
+          - versionName is 0.6.0 and versionCode is 6
+        tasks:
+          - id: FS-045-T1
+            status: done
+            title: Fundamentals model, Alpha Vantage, and OpenBB
+            instructions:
+              files:
+                - domain/src/main/kotlin/com/pirlruc/finsilo/domain/fundamentals
+                - app/src/main/java/com/pirlruc/finsilo/data/FundamentalLoader.kt
+            verification:
+              - ./gradlew :domain:test :domain:koverVerify
+              - ETF and crypto do not call Alpha Vantage for statements
+          - id: FS-045-T2
+            status: done
+            title: Locale, WebDAV conflict, and release pins
+            instructions:
+              files:
+                - app/src/main/res
+                - .github/workflows/release.yml
+                - docs/guardrail-deviations.yml
+            verification:
+              - ./gradlew :app:testDebugUnitTest
+              - The first WebDAV PUT sends If-None-Match star when no ETag is stored
+              - APP-ENT-001 is recorded and KT-TEST-002 floors stay 87 and 75
 
 
 

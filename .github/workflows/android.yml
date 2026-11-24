@@ -15,9 +15,9 @@ jobs:
   gradle:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-gradle-ci.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-gradle-ci.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
       gradle_tasks: >-
         :domain:test :domain:koverVerify
@@ -31,9 +31,9 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: pirlruc/androiddevops/.github/workflows/android-codeql.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-codeql.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
       build_command: ./gradlew --no-daemon --rerun-tasks :domain:compileKotlin :app:compileDebugKotlin
     secrets:
@@ -42,9 +42,9 @@ jobs:
   mobsf:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-mobsf.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-mobsf.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       source_paths: app/src/main domain/src/main
     secrets:
       checkout_token: ${{ secrets.GITHUB_TOKEN }}
@@ -52,9 +52,9 @@ jobs:
   sbom:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-apk-sbom.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-apk-sbom.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
     secrets:
       checkout_token: ${{ secrets.GITHUB_TOKEN }}

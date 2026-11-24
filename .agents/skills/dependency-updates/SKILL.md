@@ -17,7 +17,7 @@ Cadence and open-PR limit come from `docs/guardrails/supply-chain/profile.thresh
 into this rule.
 
 Process companion:
-[dependency-updates.md](https://github.com/pirlruc/methodologies/blob/1.11.0/github-issue-adr/docs/process/dependency-updates.md).
+[dependency-updates.md](https://github.com/pirlruc/methodologies/blob/1.12.2/github-issue-adr/docs/process/dependency-updates.md).
 
 ## Required shape
 

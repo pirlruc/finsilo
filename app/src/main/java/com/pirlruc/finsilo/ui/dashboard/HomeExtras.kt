@@ -27,6 +27,7 @@ import com.pirlruc.finsilo.domain.portfolio.PositionLedger
 import com.pirlruc.finsilo.domain.usecase.GetRealizedGainsUseCase
 import com.pirlruc.finsilo.ui.formatEur
 import com.pirlruc.finsilo.ui.formatSignedEur
+import com.pirlruc.finsilo.ui.valuation.ValuationSlot
 import java.math.BigDecimal
 
 @Composable
@@ -94,6 +95,7 @@ private fun HoldingDetail(holding: HoldingValuation, rows: List<Transaction>) {
             Text(holding.asset.name, style = MaterialTheme.typography.titleMedium)
             val price = holding.priceNative?.toPlainString() ?: "no close"
             Text("Latest price $price ${holding.quoteCurrency ?: ""}")
+            ValuationSlot(holding.asset, holding.priceNative)
             Text("FIFO lots")
             lots.forEach { lot ->
                 Text("${lot.acquiredDate}  ${lot.quantity.toPlainString()}  ${formatEur(lot.remainingCostEur)}")

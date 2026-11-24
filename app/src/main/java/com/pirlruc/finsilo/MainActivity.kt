@@ -5,7 +5,9 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pirlruc.finsilo.ui.FinsiloApp
 import com.pirlruc.finsilo.ui.theme.FinsiloTheme
 
@@ -21,7 +23,8 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         val container = (application as FinsiloApplication).container
         setContent {
-            FinsiloTheme {
+            val dynamicColor by container.appearance.dynamicColor.collectAsStateWithLifecycle()
+            FinsiloTheme(dynamicColor = dynamicColor) {
                 FinsiloApp(container)
             }
         }

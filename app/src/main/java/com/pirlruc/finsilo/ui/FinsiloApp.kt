@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,8 @@ import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
 import com.pirlruc.finsilo.ui.dashboard.HomeSection
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.ledger.ActivityLedger
+import com.pirlruc.finsilo.ui.valuation.LocalValuation
+import com.pirlruc.finsilo.ui.valuation.ValuationAccess
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryRoute
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryViewModel
 import com.pirlruc.finsilo.ui.lock.AppLockGate
@@ -87,10 +90,12 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
     val ledger: LedgerEntryViewModel = viewModel(factory = LedgerEntryViewModel.factory(container))
     val onPickerBusy = rememberPickerBusy(lock)
     val dashState by dashboard.state.collectAsStateWithLifecycle()
+    val valuation = remember(container) { ValuationAccess(container) }
     BackHandler(enabled = screen != AppScreen.HOME) {
         screen = AppScreen.HOME
         dashboard.refresh()
     }
+    CompositionLocalProvider(LocalValuation provides valuation) {
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
@@ -141,6 +146,7 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
                 )
             }
         }
+    }
     }
 }
 

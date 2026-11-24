@@ -73,7 +73,7 @@ Optional NAV widget. It only updates from on-device data after unlock/sync.
 
 ## Build from source
 
-JDK 17 or newer, and an Android SDK with `compileSdk` 37. `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. Direct libraries are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml). The app version is 0.4.0 (versionCode 4).
+JDK 17 or newer, and an Android SDK with `compileSdk` 37. `local.properties` is gitignored; set `sdk.dir` or `ANDROID_HOME`. Direct libraries are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml). The app version is 0.6.0 (versionCode 6).
 
 ```bash
 echo "sdk.dir=/path/to/Android/Sdk" > local.properties

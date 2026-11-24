@@ -8,7 +8,7 @@
 | **Package** | `com.pirlruc.finsilo` |
 | **Type** | Native Android (Kotlin, Compose), offline-first portfolio tracker |
 | **Docs** | `docs/ai-agent-handoff.md`, `docs/issues.yml`, `docs/limitations.md` |
-| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.7.0/github-issue-adr) (Epic = decision record, Y-statement on new Epics, no ADR markdown files) |
+| **Methodology** | [github-issue-adr](https://github.com/pirlruc/methodologies/tree/1.12.2/github-issue-adr) (Epic = decision record, Y-statement on new Epics, no ADR markdown files) |
 
 ## Current slice
 

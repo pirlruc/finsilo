@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -12,10 +16,10 @@ jobs:
   docs:
     permissions:
       contents: read
-    uses: pirlruc/commondevops/.github/workflows/common-doc-verify.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    uses: pirlruc/commondevops/.github/workflows/common-doc-verify.yml@9350e95cbb130219be113d8737469cd7c39f155c # v6.11.0
     with:
       blocking: true
-      scripts_ref: 1e0c029bf93705f399f2a3a7e5f19810c101da65
+      scripts_ref: 9350e95cbb130219be113d8737469cd7c39f155c # v6.11.0
       shell_scripts: "scripts/*.sh"
       yaml_globs: ".github/workflows/*.yml docs/*.yml"
       run_markdownlint: true

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,11 +24,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pirlruc.finsilo.AppContainer
+import com.pirlruc.finsilo.R
 import com.pirlruc.finsilo.BuildConfig
 import com.pirlruc.finsilo.domain.entitlement.FlagEntitlements
 import com.pirlruc.finsilo.domain.entitlement.PremiumFeature
@@ -87,11 +91,14 @@ fun TargetSettingsRoute(
                 onConfirmRestore = tools::confirmRestore,
                 onCancelRestore = tools::cancelRestore,
                 onPickerBusy = onPickerBusy,
+                onKeepLocalBackup = tools::keepLocalBackup,
+                onDownloadRemoteBackup = tools::downloadRemoteBackup,
             ),
         ),
         trading212 = {
             Trading212SettingsCard(container.keys)
             BrokerSyncSettingsCard(container.keys)
+            ExtrasSettingsCard(container)
         },
         vaults = {
             if (FlagEntitlements(BuildConfig.PREMIUM_UNLOCKED).allows(PremiumFeature.MULTI_PORTFOLIO)) {
@@ -125,10 +132,10 @@ internal fun TargetSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = actions.onClose) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                    IconButton(onClick = actions.onClose, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
             )
@@ -142,6 +149,13 @@ internal fun TargetSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (state.loading) {
+                CircularProgressIndicator()
+                Text(stringResource(R.string.settings_loading))
+            }
+            if (!state.loading && state.weights.values.all { it.isBlank() || it == "0" }) {
+                Text(stringResource(R.string.settings_empty))
+            }
             Text("Data", style = MaterialTheme.typography.titleLarge)
             trading212()
             vaults()

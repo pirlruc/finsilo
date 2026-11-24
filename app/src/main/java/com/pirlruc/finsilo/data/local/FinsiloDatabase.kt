@@ -17,6 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * v8 drops unread `nav_rebuild_state` columns via [DropUnreadNavRebuildColumns].
  * v9 adds optional `broker_source` on transactions for CSV capital splits.
  * v10 adds optional `withholding_eur` on transactions. Null means the broker did not state a tax.
+ * v11 caches equity fundamentals for seven days.
  * v1 had no exported schema; [MIGRATION_1_2] is an empty version bump.
  */
 @Database(
@@ -33,8 +34,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WatchlistItemEntity::class,
         WatchlistQuoteEntity::class,
         RatingAlertEntity::class,
+        FundamentalCacheEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -45,6 +47,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 7, to = 8, spec = FinsiloDatabase.DropUnreadNavRebuildColumns::class),
         AutoMigration(from = 8, to = 9),
         AutoMigration(from = 9, to = 10),
+        AutoMigration(from = 10, to = 11),
     ],
 )
 @TypeConverters(FinsiloTypeConverters::class)

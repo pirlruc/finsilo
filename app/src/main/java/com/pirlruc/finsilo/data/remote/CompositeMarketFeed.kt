@@ -1,6 +1,8 @@
 package com.pirlruc.finsilo.data.remote
 
 import com.pirlruc.finsilo.data.security.DatabaseKeyStore
+import com.pirlruc.finsilo.domain.fundamentals.AlphaVantageFundamentals
+import com.pirlruc.finsilo.domain.fundamentals.FundamentalView
 import com.pirlruc.finsilo.domain.market.AlphaVantageParser
 import com.pirlruc.finsilo.domain.market.CoinGeckoParser
 import com.pirlruc.finsilo.domain.market.FrankfurterParser
@@ -23,7 +25,11 @@ import java.time.LocalDate
  * - Commodities: Stooq (XAUUSD) then Alpha Vantage commodity series / XAU FX (USD, EUR via FX)
  * - US stocks / ratings: Alpha Vantage (key, ~25 calls/day on the free tier)
  */
-class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), private val keys: DatabaseKeyStore) : MarketFeed {
+class CompositeMarketFeed(
+    private val http: HttpGetClient = HttpGetClient(),
+    private val keys: DatabaseKeyStore,
+    private val budget: AlphaVantageCallBudget = AlphaVantageCallBudget(),
+) : MarketFeed {
 
     override suspend fun eurPerUsd(): BigDecimal {
         runCatching {
@@ -107,6 +113,24 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return AlphaVantageParser.analystRating(json)
     }
 
+    override suspend fun fundamentals(asset: Asset, price: BigDecimal?, asOf: LocalDate): FundamentalView {
+        if (asset.assetType != AssetType.STOCK) return FundamentalView.notApplicable()
+        if (keys.alphaVantageKey() == null) return FundamentalView.missing()
+        return runCatching { statements(asset, price, asOf) }.getOrElse { error ->
+            if (error.message.orEmpty().contains("budget")) FundamentalView.budget() else FundamentalView.missing()
+        }
+    }
+
+    private suspend fun statements(asset: Asset, price: BigDecimal?, asOf: LocalDate): FundamentalView {
+        val key = keys.alphaVantageKey() ?: return FundamentalView.missing()
+        val symbol = ListedQuoteRouting.avSymbol(asset.feedSymbol)
+        val overview = alphaVantageGet(key, "function" to "OVERVIEW", "symbol" to symbol)
+        val income = alphaVantageGet(key, "function" to "INCOME_STATEMENT", "symbol" to symbol)
+        val balance = alphaVantageGet(key, "function" to "BALANCE_SHEET", "symbol" to symbol)
+        val cash = alphaVantageGet(key, "function" to "CASH_FLOW", "symbol" to symbol)
+        return AlphaVantageFundamentals.view(overview, income, balance, cash, price, asOf)
+    }
+
     private suspend fun coinGecko(asset: Asset, compact: Boolean): List<PriceBar> {
         val id = CRYPTO_IDS[asset.feedSymbol.uppercase()] ?: asset.feedSymbol.lowercase()
         val days = if (compact) PROBE_BARS else COIN_GECKO_SYNC_DAYS
@@ -162,8 +186,10 @@ class CompositeMarketFeed(private val http: HttpGetClient = HttpGetClient(), pri
         return emptyList()
     }
 
-    private suspend fun alphaVantageGet(key: String, vararg query: Pair<String, String>): String =
-        http.get(MarketFeedUrls.alphaVantage(*query, "apikey" to key))
+    private suspend fun alphaVantageGet(key: String, vararg query: Pair<String, String>): String {
+        if (!budget.take()) throw IllegalStateException("Alpha Vantage daily budget reached")
+        return http.get(MarketFeedUrls.alphaVantage(*query, "apikey" to key))
+    }
 
     private suspend fun stooqBars(ticker: String, compact: Boolean, asOf: LocalDate): List<PriceBar> {
         val csv = http.get(MarketFeedUrls.stooqDaily(ticker, compactFrom(compact, asOf)))

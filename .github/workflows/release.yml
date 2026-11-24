@@ -6,7 +6,11 @@ name: release
 
 on:
   push:
-    tags: ["0.*", "v*"]
+    tags: ["[0-9]*"]
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -29,9 +33,9 @@ jobs:
     needs: tag
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@fb6651b3cd3246975df605e7000c4992d6b6a184
+    uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
     with:
-      scripts_ref: fb6651b3cd3246975df605e7000c4992d6b6a184
+      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
       java_version: "21"
       allow_unsigned: false
       environment: release
@@ -48,7 +52,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: pirlruc/commondevops/.github/workflows/common-release.yml@1e0c029bf93705f399f2a3a7e5f19810c101da65
+    uses: pirlruc/commondevops/.github/workflows/common-release-sign.yml@9350e95cbb130219be113d8737469cd7c39f155c # v6.11.0
     with:
       tag: ${{ github.ref_name }}
       attach_sbom: false

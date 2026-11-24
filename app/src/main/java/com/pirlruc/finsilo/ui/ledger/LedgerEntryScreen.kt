@@ -11,7 +11,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,8 +33,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pirlruc.finsilo.R
 import com.pirlruc.finsilo.domain.model.TransactionType
 import java.time.Instant
 import java.time.ZoneOffset
@@ -79,10 +83,10 @@ internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions)
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ledger entry") },
+                title = { Text(stringResource(R.string.ledger_title)) },
                 navigationIcon = {
-                    IconButton(onClick = actions.nav.onClose) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                    IconButton(onClick = actions.nav.onClose, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.ledger_back))
                     }
                 },
             )
@@ -136,6 +140,13 @@ internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions)
                 onValue = actions.nav.onManualClose,
                 onSave = actions.nav.onSaveManualClose,
             )
+            if (state.loading || state.saving) {
+                CircularProgressIndicator()
+                Text(stringResource(R.string.ledger_loading))
+            }
+            if (!state.loading && state.templates.isEmpty()) {
+                Text(stringResource(R.string.ledger_empty))
+            }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             Button(
@@ -143,7 +154,7 @@ internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions)
                 enabled = !state.saving && !state.loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Save")
+                Text(stringResource(R.string.ledger_save))
             }
         }
     }

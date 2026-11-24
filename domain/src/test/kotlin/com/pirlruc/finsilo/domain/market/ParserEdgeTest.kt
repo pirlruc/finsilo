@@ -36,8 +36,14 @@ class ParserEdgeTest {
 
     @Test
     fun coinGeckoSkipsShortPairs() {
-        val closes = CoinGeckoParser.dailyCloses("""{"prices":[[1],[1755302400000,1.5]]}""")
+        val closes = CoinGeckoParser.dailyCloses("""{"prices":[[1],[1755302400000,1.2345678901234567]]}""")
         assertEquals(1, closes.size)
+        assertEquals(0, BigDecimal("1.2345678901234567").compareTo(closes.single().closeNative))
         assertTrue(CoinGeckoParser.dailyCloses("[]").isEmpty())
+        assertTrue(CoinGeckoParser.dailyCloses("""{"prices":"x"}""").isEmpty())
+        val mixed = """{"prices":[{"a":1},[1755302400000,"nope"],[1755302400000,1],[1755388800000,2],[1755388800000,3]]}"""
+        val bars = CoinGeckoParser.dailyCloses(mixed)
+        assertEquals(2, bars.size)
+        assertEquals(0, BigDecimal("3").compareTo(bars.last().closeNative))
     }
 }

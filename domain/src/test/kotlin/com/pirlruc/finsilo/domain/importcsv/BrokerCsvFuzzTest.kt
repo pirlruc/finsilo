@@ -1,5 +1,6 @@
 package com.pirlruc.finsilo.domain.importcsv
 
+import com.pirlruc.finsilo.domain.fundamentals.OpenBbFundamentals
 import java.nio.charset.Charset
 import java.util.Random
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -29,8 +30,15 @@ class BrokerCsvFuzzTest {
     @Test
     fun revolutCommodityParserStaysInsideTheSeed() = exercise(RevolutCommodityFuzz::fuzzerTestOneInput, 2125L)
 
+    @Test
+    fun ibkrAndOpenBbParsersStayInsideTheSeed() {
+        exercise(IbkrTradesFuzz::fuzzerTestOneInput, 2126L)
+        exercise(OpenBbFundamentalsFuzz::fuzzerTestOneInput, 2127L)
+    }
+
     private fun exercise(target: (ByteArray) -> Unit, seed: Long) {
-        val iterations = System.getenv("FINSILO_FUZZ_ITERATIONS")?.toIntOrNull()?.coerceIn(1, 500) ?: REGRESSION
+        val raw = System.getenv("FUZZ_ITERATIONS") ?: System.getenv("FINSILO_FUZZ_ITERATIONS")
+        val iterations = raw?.toIntOrNull()?.coerceIn(1, 500) ?: REGRESSION
         val random = Random(seed)
         repeat(iterations) {
             val body = ByteArray(random.nextInt(180))
@@ -87,6 +95,23 @@ object RevolutCryptoFuzz {
         val records = CsvReader.records(header + String(data, UTF_8))
         if (records.isNotEmpty()) RevolutCryptoParser.parse(CsvTable(records.first(), records.drop(1)))
         ReadOnlyBrokers.coinbaseFills(String(data, UTF_8))
+    }
+}
+
+object IbkrTradesFuzz {
+    @JvmStatic
+    fun fuzzerTestOneInput(data: ByteArray) {
+        ReadOnlyBrokers.ibkrTrades(String(data, UTF_8))
+        ReadOnlyBrokers.ibkrTrades("<FlexStatement>" + String(data, UTF_8) + "</FlexStatement>")
+    }
+}
+
+object OpenBbFundamentalsFuzz {
+    @JvmStatic
+    fun fuzzerTestOneInput(data: ByteArray) {
+        val text = String(data, UTF_8)
+        OpenBbFundamentals.parseLenient(text, text)
+        OpenBbFundamentals.metricsUrl(text, "AAPL")
     }
 }
 

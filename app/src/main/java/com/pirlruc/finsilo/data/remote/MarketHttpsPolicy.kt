@@ -17,6 +17,16 @@ object MarketHttpsPolicy {
             "stooq.pl",
         )
 
+    private val extraHosts = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Runtime allow-list for a user-supplied https host, such as an OpenBB server. */
+    fun allowHost(host: String) {
+        val normalized = host.trim().lowercase()
+        if (normalized.isNotEmpty() && !normalized.contains('/') && !normalized.contains('@')) {
+            extraHosts.add(normalized)
+        }
+    }
+
     private val safeToken = Regex("^[A-Za-z0-9._-]+$")
 
     fun requireHttpsUrl(url: String): URI = requireHttps(url.toHttpUrlOrNull() ?: reject("Invalid URL")).toUri()
@@ -26,7 +36,7 @@ object MarketHttpsPolicy {
             reject("FinSilo allows HTTPS only")
         }
         val host = url.host
-        if (host !in allowedHosts) {
+        if (host !in allowedHosts && host.lowercase() !in extraHosts) {
             reject("Host not allowed: $host")
         }
         if (url.port != 443) {

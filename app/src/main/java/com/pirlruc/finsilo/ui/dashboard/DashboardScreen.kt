@@ -103,7 +103,7 @@ internal fun DashboardScreen(
         floatingActionButton = {
             if (!state.empty) {
                 FloatingActionButton(onClick = nav.onAddTransaction) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Add transaction")
+                    Icon(Icons.Outlined.Add, contentDescription = androidx.compose.ui.res.stringResource(com.pirlruc.finsilo.R.string.chrome_add))
                 }
             }
         },

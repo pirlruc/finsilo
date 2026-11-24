@@ -208,6 +208,12 @@ interface PortfolioDao {
         }
     }
 
+    @Query("SELECT * FROM fundamental_cache WHERE asset_id = :assetId LIMIT 1")
+    suspend fun fundamental(assetId: String): FundamentalCacheEntity?
+
+    @Upsert
+    suspend fun upsertFundamental(row: FundamentalCacheEntity)
+
     @Transaction
     suspend fun replaceTargets(items: List<TargetAllocationEntity>) {
         deleteTargets()

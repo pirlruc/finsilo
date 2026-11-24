@@ -18,6 +18,7 @@ import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
+import com.pirlruc.finsilo.ui.theme.AppearanceStore
 import com.pirlruc.finsilo.domain.vault.VaultRecord
 import com.pirlruc.finsilo.domain.vault.VaultRegistry
 import com.pirlruc.finsilo.domain.vault.VaultSelection
@@ -41,6 +42,7 @@ class AppContainer internal constructor(
     private val credentials: SharedPreferences,
     feedFactory: (DatabaseKeyStore) -> MarketFeed,
 ) {
+    val appearance = AppearanceStore(application)
     val vaultSelection = VaultSelection()
     val keys: DatabaseKeyStore = DatabaseKeyStore(credentials, vaultSelection)
     val widgetNav = WidgetNavCache(application)

@@ -70,9 +70,11 @@ internal fun readUtf8Capped(source: BufferedSource, maxBytes: Long): String {
 }
 
 class HttpGetClient(private val client: OkHttpClient = marketHttpClient()) {
-    suspend fun get(url: String): String = withContext(Dispatchers.IO) {
+    suspend fun get(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
         MarketHttpsPolicy.requireHttpsUrl(url)
-        val request = Request.Builder().url(url).get().build()
+        val builder = Request.Builder().url(url).get()
+        headers.forEach { (name, value) -> builder.header(name, value) }
+        val request = builder.build()
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
