@@ -15,4 +15,6 @@ jobs:
   sbom:
     permissions:
       contents: read
+    # actionlint does not parse GitHub's $/ self-repository form yet.
+    # actionlint-disable:workflow-call
     uses: $/.github/workflows/sbom-reusable.yml

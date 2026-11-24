@@ -23,6 +23,5 @@ jobs:
         :domain:test :domain:koverVerify
         :app:lintDebug :app:testDebugUnitTest :app:koverVerifyDebug :app:assembleDebug
       guardrail_checks: false
-      pre_command: bash scripts/prefetch-robolectric.sh
     secrets:
       checkout_token: ${{ secrets.GITHUB_TOKEN }}
