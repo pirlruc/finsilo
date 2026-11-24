@@ -33,9 +33,9 @@ jobs:
     needs: tag
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+    uses: pirlruc/androiddevops/.github/workflows/android-release-apk.yml@642655907a2cfd8cfbe717bf4294a26289f37d22 # 1.12.1
     with:
-      scripts_ref: 29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+      scripts_ref: 642655907a2cfd8cfbe717bf4294a26289f37d22 # 1.12.1
       java_version: "21"
       allow_unsigned: false
       environment: release
