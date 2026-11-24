@@ -20,8 +20,8 @@ android {
         applicationId = "com.pirlruc.finsilo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.6.0"
+        versionCode = 7
+        versionName = "0.6.1"
         val premiumRaw = project.providers.gradleProperty("premiumUnlocked").orNull
         val premiumUnlocked = !premiumRaw.equals("false", ignoreCase = true)
         buildConfigField("boolean", "PREMIUM_UNLOCKED", premiumUnlocked.toString())

@@ -15,7 +15,7 @@ jobs:
   fuzz:
     permissions:
       contents: read
-    uses: pirlruc/androiddevops/.github/workflows/android-jvm-fuzz.yml@29b91430c9c55f84ad05575bd0b2267ed30096d2 # 1.12.0
+    uses: pirlruc/androiddevops/.github/workflows/android-jvm-fuzz.yml@642655907a2cfd8cfbe717bf4294a26289f37d22 # 1.12.1
     with:
       gradle_args: ":domain:test --tests com.pirlruc.finsilo.domain.importcsv.BrokerCsvFuzzTest"
       java_version: "21"

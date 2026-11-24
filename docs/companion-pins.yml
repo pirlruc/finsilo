@@ -19,8 +19,8 @@ methodologies:
   tag: "1.12.2"
 
 androiddevops:
-  tag: "1.12.0"
-  sha: "29b91430c9c55f84ad05575bd0b2267ed30096d2"
+  tag: "1.12.1"
+  sha: "642655907a2cfd8cfbe717bf4294a26289f37d22"
 
 commondevops:
   tag: "v6.11.0"

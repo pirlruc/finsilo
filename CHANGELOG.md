@@ -5,6 +5,10 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-11-24
+
+- Pin the release APK workflow to androiddevops 1.12.1 so the CycloneDX bill can find `fetch-verified.sh`. Tag 0.6.0 stays as published and has no APK.
+
 ## [0.5.0] - 2026-11-18
 
 - Broker credentials and the biometric key are stored per vault. The default vault keeps the existing key names.
