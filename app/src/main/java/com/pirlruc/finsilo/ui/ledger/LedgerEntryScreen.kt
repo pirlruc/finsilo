@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -140,23 +140,24 @@ internal fun LedgerEntryScreen(state: LedgerUiState, actions: LedgerFormActions)
                 onValue = actions.nav.onManualClose,
                 onSave = actions.nav.onSaveManualClose,
             )
-            if (state.loading || state.saving) {
-                CircularProgressIndicator()
-                Text(stringResource(R.string.ledger_loading))
-            }
-            if (!state.loading && state.templates.isEmpty()) {
-                Text(stringResource(R.string.ledger_empty))
-            }
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-            Button(
-                onClick = actions.nav.onSave,
-                enabled = !state.saving && !state.loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.ledger_save))
-            }
+            LedgerSaveFooter(state, actions.nav.onSave)
         }
+    }
+}
+
+@Composable
+private fun LedgerSaveFooter(state: LedgerUiState, onSave: () -> Unit) {
+    if (state.loading || state.saving) {
+        CircularProgressIndicator()
+        Text(stringResource(R.string.ledger_loading))
+    }
+    if (!state.loading && state.templates.isEmpty()) {
+        Text(stringResource(R.string.ledger_empty))
+    }
+    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    state.status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+    Button(onClick = onSave, enabled = !state.saving && !state.loading, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.ledger_save))
     }
 }
 

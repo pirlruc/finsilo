@@ -29,9 +29,17 @@ internal fun ExtrasSettingsCard(container: AppContainer) {
     val httpsError = stringResource(R.string.openbb_https)
     Column {
         Text(stringResource(R.string.openbb_title), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.openbb_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(url, { url = it }, label = { Text(stringResource(R.string.openbb_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(token, { token = it }, label = { Text(stringResource(R.string.openbb_token)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Text(
+            stringResource(R.string.openbb_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(url, {
+            url = it
+        }, label = { Text(stringResource(R.string.openbb_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(token, {
+            token = it
+        }, label = { Text(stringResource(R.string.openbb_token)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         TextButton(onClick = {
             val host = if (url.isBlank()) null else OpenBbFundamentals.host(url)
             if (url.isNotBlank() && host == null) {
@@ -44,7 +52,11 @@ internal fun ExtrasSettingsCard(container: AppContainer) {
         }) { Text(stringResource(R.string.openbb_save)) }
         if (rejected) Text(httpsError, color = MaterialTheme.colorScheme.error)
         Text(stringResource(R.string.dynamic_color), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.dynamic_color_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            stringResource(R.string.dynamic_color_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Switch(checked = dynamic, onCheckedChange = container.appearance::setDynamicColor)
     }
 }

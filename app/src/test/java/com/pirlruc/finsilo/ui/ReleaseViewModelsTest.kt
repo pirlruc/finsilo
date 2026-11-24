@@ -75,6 +75,8 @@ class ReleaseViewModelsTest {
 
     @After
     fun tearDown() {
+        dispatcher.scheduler.advanceUntilIdle()
+        Shadows.shadowOf(Looper.getMainLooper()).idle()
         database.close()
         worker.close()
         Dispatchers.resetMain()
@@ -172,7 +174,10 @@ class ReleaseViewModelsTest {
         model.setManualClose("4")
         model.saveManualClose()
         val tx = repository.load().transactions.firstOrNull()
-        if (tx != null) model.edit(tx)
+        if (tx != null) {
+            model.edit(tx)
+            waitUntil { model.state.value.replaceId == tx.id }
+        }
         model.setSymbol("")
         model.setName("")
         model.setIsin("XS000")

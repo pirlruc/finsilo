@@ -3,10 +3,7 @@ package com.pirlruc.finsilo.data.remote
 import java.time.LocalDate
 
 /** Free-tier Alpha Vantage cap shared by quotes and statement calls. */
-class AlphaVantageCallBudget(
-    private val limit: Int = DAILY_LIMIT,
-    private val today: () -> LocalDate = { LocalDate.now() },
-) {
+class AlphaVantageCallBudget(private val limit: Int = DAILY_LIMIT, private val today: () -> LocalDate = { LocalDate.now() }) {
     private var day: LocalDate = today()
     private var used: Int = 0
 

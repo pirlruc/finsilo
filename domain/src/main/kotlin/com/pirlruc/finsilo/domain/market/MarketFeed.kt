@@ -203,10 +203,10 @@ object CoinGeckoParser {
     private fun root(body: String): JsonObject? = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
 
     private fun bar(row: kotlinx.serialization.json.JsonElement): PriceBar? {
-        val pair = row as? JsonArray ?: return null
-        if (pair.size < 2) return null
-        val millis = decimal(pair[0])?.toLong() ?: return null
-        val price = decimal(pair[1]) ?: return null
+        val pair = row as? JsonArray
+        val millis = pair?.getOrNull(0)?.let(::decimal)?.toLong()
+        val price = if (pair != null && pair.size >= 2) decimal(pair[1]) else null
+        if (millis == null || price == null) return null
         val day = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
         return PriceBar(day, price)
     }

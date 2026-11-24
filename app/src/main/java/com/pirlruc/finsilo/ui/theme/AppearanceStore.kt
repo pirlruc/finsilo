@@ -1,6 +1,7 @@
 package com.pirlruc.finsilo.ui.theme
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +13,7 @@ class AppearanceStore(context: Context) {
     val dynamicColor: StateFlow<Boolean> = dynamic.asStateFlow()
 
     fun setDynamicColor(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY, enabled).apply()
+        prefs.edit { putBoolean(KEY, enabled) }
         dynamic.value = enabled
     }
 

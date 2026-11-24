@@ -66,15 +66,16 @@ internal class KeystoreAesGcmPreferences(private val delegate: SharedPreferences
     }
 
     private fun plainOrNull(key: String?): ByteArray? {
-        if (key.isNullOrEmpty()) return null
-        val stored = runCatching { delegate.getString(key, null) }.getOrNull() ?: return null
-        val blob = runCatching { Base64.decode(stored, Base64.NO_WRAP) }.getOrNull() ?: return null
-        val associated = key.toByteArray(StandardCharsets.UTF_8)
+        val stored = if (key.isNullOrEmpty()) null else runCatching { delegate.getString(key, null) }.getOrNull()
+        val blob = stored?.let { runCatching { Base64.decode(it, Base64.NO_WRAP) }.getOrNull() }
+        val associated = key?.toByteArray(StandardCharsets.UTF_8)
+        if (blob == null || associated == null) return null
         val opened = aead.open(associated, blob) ?: return null
         val migrating = aead as? MigratingPrefsAead
         val resealed = migrating?.reseal(associated, blob, opened)
         if (resealed != null) {
-            delegate.edit().putString(key, Base64.encodeToString(resealed, Base64.NO_WRAP)).commit()
+            val encoded = Base64.encodeToString(resealed, Base64.NO_WRAP)
+            delegate.edit().putString(key, encoded).commitObserved()
         }
         return opened
     }

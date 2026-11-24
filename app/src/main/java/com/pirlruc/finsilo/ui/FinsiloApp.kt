@@ -39,14 +39,14 @@ import com.pirlruc.finsilo.ui.dashboard.DashboardViewModel
 import com.pirlruc.finsilo.ui.dashboard.HomeSection
 import com.pirlruc.finsilo.ui.importcsv.BrokerImportViewModel
 import com.pirlruc.finsilo.ui.ledger.ActivityLedger
-import com.pirlruc.finsilo.ui.valuation.LocalValuation
-import com.pirlruc.finsilo.ui.valuation.ValuationAccess
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryRoute
 import com.pirlruc.finsilo.ui.ledger.LedgerEntryViewModel
 import com.pirlruc.finsilo.ui.lock.AppLockGate
 import com.pirlruc.finsilo.ui.lock.LockViewModel
 import com.pirlruc.finsilo.ui.settings.TargetSettingsRoute
 import com.pirlruc.finsilo.ui.settings.TargetSettingsViewModel
+import com.pirlruc.finsilo.ui.valuation.LocalValuation
+import com.pirlruc.finsilo.ui.valuation.ValuationAccess
 import com.pirlruc.finsilo.ui.watchlist.WatchlistRoute
 import com.pirlruc.finsilo.ui.watchlist.WatchlistViewModel
 
@@ -96,57 +96,57 @@ private fun UnlockedApp(container: AppContainer, lock: LockViewModel) {
         dashboard.refresh()
     }
     CompositionLocalProvider(LocalValuation provides valuation) {
-    Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing,
-        bottomBar = {
-            if (screen == AppScreen.HOME) {
-                MainNavigationBar(tab) { tab = it }
-            }
-        },
-    ) { padding ->
-        when (screen) {
-            AppScreen.HOME ->
-                HomeTabPage(
-                    tab = tab,
-                    padding = padding,
-                    dashboard = dashboard,
-                    dashState = dashState,
-                    importer = importer,
-                    ledger = ledger,
-                    onPickerBusy = onPickerBusy,
-                    onScreen = { screen = it },
-                )
-            AppScreen.LEDGER ->
-                LedgerEntryRoute(
-                    viewModel = ledger,
-                    onClose = {
-                        screen = AppScreen.HOME
-                        dashboard.refresh()
-                    },
-                )
-            AppScreen.SETTINGS -> {
-                val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
-                TargetSettingsRoute(
-                    targets = settings,
-                    lock = lock,
-                    importer = importer,
-                    onClose = {
-                        screen = AppScreen.HOME
-                        dashboard.refresh()
-                    },
-                    onPickerBusy = onPickerBusy,
-                    container = container,
-                )
-            }
-            AppScreen.WATCHLIST -> {
-                val watchlist: WatchlistViewModel = viewModel(factory = WatchlistViewModel.factory(container))
-                WatchlistRoute(
-                    viewModel = watchlist,
-                    onClose = { screen = AppScreen.HOME },
-                )
+        Scaffold(
+            contentWindowInsets = WindowInsets.safeDrawing,
+            bottomBar = {
+                if (screen == AppScreen.HOME) {
+                    MainNavigationBar(tab) { tab = it }
+                }
+            },
+        ) { padding ->
+            when (screen) {
+                AppScreen.HOME ->
+                    HomeTabPage(
+                        tab = tab,
+                        padding = padding,
+                        dashboard = dashboard,
+                        dashState = dashState,
+                        importer = importer,
+                        ledger = ledger,
+                        onPickerBusy = onPickerBusy,
+                        onScreen = { screen = it },
+                    )
+                AppScreen.LEDGER ->
+                    LedgerEntryRoute(
+                        viewModel = ledger,
+                        onClose = {
+                            screen = AppScreen.HOME
+                            dashboard.refresh()
+                        },
+                    )
+                AppScreen.SETTINGS -> {
+                    val settings: TargetSettingsViewModel = viewModel(factory = TargetSettingsViewModel.factory(container))
+                    TargetSettingsRoute(
+                        targets = settings,
+                        lock = lock,
+                        importer = importer,
+                        onClose = {
+                            screen = AppScreen.HOME
+                            dashboard.refresh()
+                        },
+                        onPickerBusy = onPickerBusy,
+                        container = container,
+                    )
+                }
+                AppScreen.WATCHLIST -> {
+                    val watchlist: WatchlistViewModel = viewModel(factory = WatchlistViewModel.factory(container))
+                    WatchlistRoute(
+                        viewModel = watchlist,
+                        onClose = { screen = AppScreen.HOME },
+                    )
+                }
             }
         }
-    }
     }
 }
 

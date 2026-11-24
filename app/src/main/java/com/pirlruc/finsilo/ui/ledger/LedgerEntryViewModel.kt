@@ -160,24 +160,24 @@ class LedgerEntryViewModel(
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             withContext(worker) {
-            val probe = probeNewBuy()
-            if (probe is QuoteProbeResult.Missing) {
-                _state.update { it.copy(saving = false, error = probe.reason) }
-                return@withContext
-            }
-            val bars = (probe as? QuoteProbeResult.Found)?.bars.orEmpty()
-            when (val outcome = LedgerSaveActions.saveEntry(repository, record, snapshot, _state.value)) {
-                is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
-                is LedgerSaveOutcome.Posted -> {
-                    if (bars.isNotEmpty()) {
-                        val from = runCatching { LocalDate.parse(_state.value.date) }.getOrNull()
-                        runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars, from), emptyList()) }
-                    }
-                    resetFormFields(outcome.status)
-                    onSaved()
+                val probe = probeNewBuy()
+                if (probe is QuoteProbeResult.Missing) {
+                    _state.update { it.copy(saving = false, error = probe.reason) }
+                    return@withContext
                 }
-                is LedgerSaveOutcome.ManualSaved -> Unit
-            }
+                val bars = (probe as? QuoteProbeResult.Found)?.bars.orEmpty()
+                when (val outcome = LedgerSaveActions.saveEntry(repository, record, snapshot, _state.value)) {
+                    is LedgerSaveOutcome.StateOnly -> _state.value = outcome.state
+                    is LedgerSaveOutcome.Posted -> {
+                        if (bars.isNotEmpty()) {
+                            val from = runCatching { LocalDate.parse(_state.value.date) }.getOrNull()
+                            runCatching { repository.upsertQuotes(QuoteSeed.fromBars(outcome.assetId, bars, from), emptyList()) }
+                        }
+                        resetFormFields(outcome.status)
+                        onSaved()
+                    }
+                    is LedgerSaveOutcome.ManualSaved -> Unit
+                }
             }
         }
     }

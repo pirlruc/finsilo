@@ -95,13 +95,10 @@ object OpenBbFundamentals {
 
     private fun number(row: JsonObject?, vararg keys: String): BigDecimal? {
         if (row == null) return null
-        for (key in keys) {
-            val primitive = row[key] as? JsonPrimitive ?: continue
-            val text = primitive.contentOrNull?.trim().orEmpty()
-            if (text.isEmpty() || text.equals("null", ignoreCase = true)) continue
-            text.toBigDecimalOrNull()?.let { return it }
+        return keys.firstNotNullOfOrNull { key ->
+            val text = (row[key] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+            text.takeUnless { it.isEmpty() || it.equals("null", ignoreCase = true) }?.toBigDecimalOrNull()
         }
-        return null
     }
 
     private fun growth(raw: BigDecimal?): BigDecimal? = AlphaVantageFundamentals.growthPercent(raw)

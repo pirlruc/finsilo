@@ -33,15 +33,17 @@ class WebDavClient(private val call: suspend (String, String, Map<String, String
         val remote = lookup(url, user, password)
         if (remote.error != null) return WebDavResult(null, remote.error)
         val stored = storedEtag?.takeIf { it.isNotBlank() }
-        if (!overwrite && stored == null && !remote.etag.isNullOrBlank()) return WebDavResult(remote.etag, NEWER)
-        if (!overwrite && WebDavSync.conflict(stored, remote.etag)) return WebDavResult(remote.etag, NEWER)
-        return put(url, user, password, bytes, stored, remote.etag, overwrite)
+        val remoteEtag = remote.etag
+        val blocked = !overwrite && (stored == null && !remoteEtag.isNullOrBlank() || WebDavSync.conflict(stored, remoteEtag))
+        if (blocked) return WebDavResult(remoteEtag, NEWER)
+        return put(url, user, password, bytes, stored, remoteEtag, overwrite)
     }
 
     suspend fun download(url: String, user: String, password: String): WebDavResult {
         if (!WebDavSync.allowed("GET", url)) return WebDavResult(null, REFUSED)
         val got = call("GET", url, auth(user, password), ByteArray(0))
-        return if (got.code == HTTP_OK) WebDavResult(got.etag, null, got.bytes) else WebDavResult(null, "WebDAV download failed (HTTP ${got.code}).")
+        if (got.code == HTTP_OK) return WebDavResult(got.etag, null, got.bytes)
+        return WebDavResult(null, "WebDAV download failed (HTTP ${got.code}).")
     }
 
     private suspend fun lookup(url: String, user: String, password: String): Found {
@@ -60,15 +62,15 @@ class WebDavClient(private val call: suspend (String, String, Map<String, String
         remote: String?,
         overwrite: Boolean,
     ): WebDavResult {
-        val match = when {
-            overwrite && !remote.isNullOrBlank() -> mapOf("If-Match" to remote)
-            stored.isNullOrBlank() -> mapOf("If-None-Match" to "*")
-            else -> mapOf("If-Match" to (remote ?: stored))
-        }
-        val put = call("PUT", url, auth(user, password) + match, bytes)
+        val put = call("PUT", url, auth(user, password) + matchHeaders(overwrite, stored, remote), bytes)
         if (put.code == HTTP_PRECONDITION) return WebDavResult(remote, NEWER)
         val accepted = put.code == HTTP_CREATED || put.code == HTTP_NO_CONTENT || put.code == HTTP_OK
         return if (accepted) WebDavResult(put.etag ?: remote, null) else WebDavResult(null, "WebDAV upload failed (HTTP ${put.code}).")
+    }
+
+    private fun matchHeaders(overwrite: Boolean, stored: String?, remote: String?): Map<String, String> {
+        val token = if (overwrite) remote else stored
+        return if (token.isNullOrBlank()) mapOf("If-None-Match" to "*") else mapOf("If-Match" to (remote ?: stored).orEmpty())
     }
 
     private fun auth(user: String, password: String): Map<String, String> = mapOf("Authorization" to basic(user, password))

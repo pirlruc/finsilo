@@ -18,10 +18,10 @@ import com.pirlruc.finsilo.data.sync.DailyMarketSyncWorker
 import com.pirlruc.finsilo.data.sync.WidgetNavCache
 import com.pirlruc.finsilo.domain.market.MarketFeed
 import com.pirlruc.finsilo.domain.usecase.GetDashboardUseCase
-import com.pirlruc.finsilo.ui.theme.AppearanceStore
 import com.pirlruc.finsilo.domain.vault.VaultRecord
 import com.pirlruc.finsilo.domain.vault.VaultRegistry
 import com.pirlruc.finsilo.domain.vault.VaultSelection
+import com.pirlruc.finsilo.ui.theme.AppearanceStore
 import java.io.File
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 

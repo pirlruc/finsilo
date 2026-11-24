@@ -16,9 +16,10 @@ class WebDavBackupUpload(private val keys: DatabaseKeyStore, private val client:
     }
 
     suspend fun download(): ByteArray? {
-        val url = keys.webDavUrl() ?: return null
-        val user = keys.webDavUser() ?: return null
-        val password = keys.webDavPassword() ?: return null
+        val url = keys.webDavUrl()
+        val user = keys.webDavUser()
+        val password = keys.webDavPassword()
+        if (url == null || user == null || password == null) return null
         val result = client.download(url, user, password)
         if (result.error != null) return null
         if (result.etag != null) keys.setWebDavEtag(result.etag)
