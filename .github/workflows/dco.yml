@@ -11,7 +11,17 @@ permissions:
   contents: read
 
 jobs:
-  DCO:
+  signoff:
     permissions:
       contents: read
     uses: pirlruc/commondevops/.github/workflows/common-dco.yml@9350e95cbb130219be113d8737469cd7c39f155c # v6.11.0
+
+  DCO:
+    name: DCO
+    needs: signoff
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Keep the required check name
+        run: echo "common-dco passed"
